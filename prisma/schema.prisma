@@ -1,0 +1,67 @@
+// prisma/schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id    Int    @id @default(autoincrement())
+  email String @unique
+  name  String
+  cars  Car[]
+}
+
+model Car {
+  id              Int       @id @default(autoincrement())
+  vin             String    @unique
+  make            String
+  model           String
+  year            Int
+  license_plate   String
+  current_mileage Int
+  user_id         Int
+  user            User      @relation(fields: [user_id], references: [id])
+  maintenanceRecords MaintenanceRecord[]
+  documents       Document[]
+}
+
+model Document {
+  id               Int      @id @default(autoincrement())
+  car_id           Int
+  document_type    String
+  issue_date       DateTime
+  expiry_date      DateTime
+  car              Car      @relation(fields: [car_id], references: [id])
+}
+
+model MaintenanceRecord {
+  id               Int      @id @default(autoincrement())
+  car_id           Int
+  service_date     DateTime
+  mileage          Int
+  description      String
+  service_type     ServiceType
+  service_category ServiceCategory
+  cost             Float
+  expiry_date      DateTime
+  car              Car      @relation(fields: [car_id], references: [id])
+}
+
+enum ServiceType {
+  REPAIR
+  MAINTENANCE
+  IMPROVEMENT
+}
+
+enum ServiceCategory {
+  OIL_CHANGE
+  BRAKE_SERVICE
+  TRANSMISSION_SERVICE
+  TIRE_SERVICE
+  OTHER
+}
