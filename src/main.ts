@@ -17,4 +17,4 @@ async function bootstrap() {
   app.useGlobalGuards(new RolesGuard(reflector));
   await app.listen(3000);
 }
-bootstrap();
+void bootstrap();

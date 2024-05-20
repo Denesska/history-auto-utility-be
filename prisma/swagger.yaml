@@ -379,6 +379,20 @@ paths:
         - "document"
       security:
         - bearer: []
+  /auth/google:
+    get:
+      operationId: "AuthController_googleAuth"
+      parameters: []
+      responses:
+        200:
+          description: ""
+  /auth/google/redirect:
+    get:
+      operationId: "AuthController_googleAuthRedirect"
+      parameters: []
+      responses:
+        200:
+          description: ""
 info:
   title: "History Auto Utility API"
   description: "API documentation for History Auto Utility"
