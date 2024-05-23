@@ -1,10 +1,13 @@
-import {NestFactory, Reflector} from '@nestjs/core';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
-import {ValidationPipe} from "./common/pipes/validation/validation.pipe";
-import {LoggingInterceptor} from "./common/interceptors/logging.interceptor";
-import {RolesGuard} from "./common/guards/roles/roles.guard";
-import {HttpExceptionFilter} from "./common/filters/http-exception.filter";
-import {generateSwaggerYaml} from "./utils/swagger.util";
+import { ValidationPipe } from './common/pipes/validation/validation.pipe';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { RolesGuard } from './common/guards/roles/roles.guard';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { generateSwaggerYaml } from './utils/swagger.util';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
