@@ -23,7 +23,30 @@ paths:
       tags:
         - "car"
       security:
-        - bearer: []
+        - cookie: []
+    put:
+      operationId: "CarController_updateCar"
+      summary: "Update a car"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCarDto"
+      responses:
+        200:
+          description: "The car has been successfully updated."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarDto"
+        404:
+          description: "Car not found."
+      tags:
+        - "car"
+      security:
+        - cookie: []
     get:
       operationId: "CarController_getAllCars"
       summary: "Get all cars"
@@ -40,7 +63,7 @@ paths:
       tags:
         - "car"
       security:
-        - bearer: []
+        - cookie: []
   /car/{id}:
     get:
       operationId: "CarController_getCar"
@@ -63,35 +86,7 @@ paths:
       tags:
         - "car"
       security:
-        - bearer: []
-    put:
-      operationId: "CarController_updateCar"
-      summary: "Update a car"
-      parameters:
-        - name: "id"
-          required: true
-          in: "path"
-          schema:
-            type: "string"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateCarDto"
-      responses:
-        200:
-          description: "The car has been successfully updated."
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CarDto"
-        404:
-          description: "Car not found."
-      tags:
-        - "car"
-      security:
-        - bearer: []
+        - cookie: []
     delete:
       operationId: "CarController_deleteCar"
       summary: "Delete a car"
@@ -113,8 +108,8 @@ paths:
       tags:
         - "car"
       security:
-        - bearer: []
-  /car/user/{user}-id:
+        - cookie: []
+  /car/user/{userId}:
     get:
       operationId: "CarController_getCarsByUser"
       summary: "Get all cars for a specific user"
@@ -136,7 +131,7 @@ paths:
       tags:
         - "car"
       security:
-        - bearer: []
+        - cookie: []
   /maintenance-record:
     post:
       operationId: "MaintenanceRecordController_createMaintenanceRecord"
@@ -279,8 +274,6 @@ paths:
           description: "Forbidden."
       tags:
         - "document"
-      security:
-        - bearer: []
   /document/{id}:
     get:
       operationId: "DocumentController_getDocument"
@@ -302,8 +295,6 @@ paths:
           description: "Document not found."
       tags:
         - "document"
-      security:
-        - bearer: []
     put:
       operationId: "DocumentController_updateDocument"
       summary: "Update a document"
@@ -330,8 +321,6 @@ paths:
           description: "Document not found."
       tags:
         - "document"
-      security:
-        - bearer: []
     delete:
       operationId: "DocumentController_deleteDocument"
       summary: "Delete a document"
@@ -352,8 +341,6 @@ paths:
           description: "Document not found."
       tags:
         - "document"
-      security:
-        - bearer: []
   /document/car/{carId}:
     get:
       operationId: "DocumentController_getDocumentsByCarId"
@@ -377,22 +364,71 @@ paths:
           description: "Documents not found."
       tags:
         - "document"
-      security:
-        - bearer: []
   /auth/google:
     get:
-      operationId: "AuthController_googleAuth"
+      operationId: "AuthController_login"
+      summary: "Login user and set access token in HTTP-only cookie"
+      description: "Authenticates a user via Google and stores the access token in a secure HTTP-only cookie."
       parameters: []
       responses:
         200:
-          description: ""
+          description: "User successfully logged in, access token set in cookie."
+        401:
+          description: "Unauthorized access."
+      tags:
+        - "auth"
   /auth/google/redirect:
     get:
       operationId: "AuthController_googleAuthRedirect"
+      summary: "Handle Google OAuth redirection"
+      description: "Processes the Google authentication response and sets access token in HTTP-only cookie."
+      parameters: []
+      responses:
+        302:
+          description: "User is authenticated and redirected to the frontend."
+        401:
+          description: "Unauthorized - Google authentication failed."
+      tags:
+        - "auth"
+  /auth/refresh:
+    post:
+      operationId: "AuthController_refreshAccessToken"
+      summary: "Refresh access token using refresh token"
+      description: "Generates a new access token if the refresh token is valid."
       parameters: []
       responses:
         200:
-          description: ""
+          description: "New access token generated successfully."
+        401:
+          description: "Unauthorized - Refresh token missing or invalid."
+      tags:
+        - "auth"
+  /auth/me:
+    get:
+      operationId: "AuthController_getProfile"
+      summary: "Get user details from access token"
+      description: "Validates the access token stored in HTTP-only cookie and returns user information."
+      parameters: []
+      responses:
+        200:
+          description: "User details successfully retrieved."
+        401:
+          description: "Unauthorized - Invalid or missing access token."
+      tags:
+        - "auth"
+  /auth/logout:
+    post:
+      operationId: "AuthController_logout"
+      summary: "Logout user and clear authentication tokens"
+      description: "Removes access token from cookies and invalidates refresh token in the database."
+      parameters: []
+      responses:
+        200:
+          description: "User successfully logged out."
+        401:
+          description: "Unauthorized - No active session found."
+      tags:
+        - "auth"
 info:
   title: "History Auto Utility API"
   description: "API documentation for History Auto Utility"
@@ -412,6 +448,9 @@ components:
     AddCarDto:
       type: "object"
       properties:
+        id:
+          type: "number"
+          example: "6"
         vin:
           type: "string"
           example: "WBAHE21060GE64612"
@@ -430,17 +469,18 @@ components:
         current_mileage:
           type: "number"
           example: 380000
-        user_id:
-          type: "number"
-          example: 123
+        image:
+          type: "string"
+          example: "base64/someImageHere"
       required:
+        - "id"
         - "vin"
         - "make"
         - "model"
         - "year"
         - "license_plate"
         - "current_mileage"
-        - "user_id"
+        - "image"
     CarDto:
       type: "object"
       properties:
@@ -468,6 +508,9 @@ components:
         current_mileage:
           type: "number"
           example: 380000
+        image:
+          type: "string"
+          example: "base64/someImageHere"
       required:
         - "id"
         - "user_id"
@@ -477,6 +520,7 @@ components:
         - "year"
         - "license_plate"
         - "current_mileage"
+        - "image"
     UpdateCarDto:
       type: "object"
       properties: {}

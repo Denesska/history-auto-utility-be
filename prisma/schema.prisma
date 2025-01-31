@@ -10,40 +10,43 @@ generator client {
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
-  email      String   @unique
-  first_name String
-  last_name  String
-  picture    String
-  created_at DateTime @default(now())
-  cars       Car[]
+  id            Int      @id @default(autoincrement())
+  google_id     String   @unique
+  email         String   @unique
+  first_name    String
+  last_name     String
+  picture       String
+  created_at    DateTime @default(now())
+  cars          Car[]
+  refresh_token String?
 }
 
 model Car {
-  id              Int       @id @default(autoincrement())
-  vin             String    @unique
-  make            String
-  model           String
-  year            Int
-  license_plate   String
-  current_mileage Int
-  user_id         Int
-  user            User      @relation(fields: [user_id], references: [id])
+  id                 Int                 @id @default(autoincrement())
+  vin                String              @unique
+  make               String
+  model              String
+  year               Int
+  license_plate      String
+  current_mileage    Int
+  user_id            Int
+  user               User                @relation(fields: [user_id], references: [id])
   maintenanceRecords MaintenanceRecord[]
-  documents       Document[]
+  documents          Document[]
+  image              String?
 }
 
 model Document {
-  id               Int      @id @default(autoincrement())
-  car_id           Int
-  document_type    String
-  issue_date       DateTime
-  expiry_date      DateTime
-  car              Car      @relation(fields: [car_id], references: [id])
+  id            Int      @id @default(autoincrement())
+  car_id        Int
+  document_type String
+  issue_date    DateTime
+  expiry_date   DateTime
+  car           Car      @relation(fields: [car_id], references: [id])
 }
 
 model MaintenanceRecord {
-  id               Int      @id @default(autoincrement())
+  id               Int             @id @default(autoincrement())
   car_id           Int
   service_date     DateTime
   mileage          Int
@@ -52,7 +55,7 @@ model MaintenanceRecord {
   service_category ServiceCategory
   cost             Float
   expiry_date      DateTime
-  car              Car      @relation(fields: [car_id], references: [id])
+  car              Car             @relation(fields: [car_id], references: [id])
 }
 
 enum ServiceType {
