@@ -13,8 +13,8 @@ import { JwtStrategy } from './jwt.strategy';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'), // adaugă JWT_SECRET în .env
-        signOptions: { expiresIn: '1h' }, // configurează timpul de expirare
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: { expiresIn: '1h' },
       }),
     }),
     ConfigModule,

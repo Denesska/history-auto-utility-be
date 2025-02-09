@@ -46,9 +46,10 @@ export class AuthController {
 
     res.cookie('access_token', accessToken, {
       httpOnly: true, // Protejează cookie-ul împotriva accesului din JavaScript
-      secure: false, // `false` în dezvoltare, `true` în producție (HTTPS)
-      sameSite: 'lax', // Permite trimiterea cookie-urilor în majoritatea cazurilor
-      domain: 'localhost', // Domeniul pentru care este setat cookie-ul
+      secure: true, // `false` în dezvoltare, `true` în producție (HTTPS)
+      sameSite: 'none', // Permite trimiterea cookie-urilor în majoritatea cazurilor
+      domain: '.denhau.ro', // Domeniul pentru care este setat cookie-ul
+      path: '/',
     });
 
     res.status(200).json({ message: 'Login successful' });
@@ -82,9 +83,10 @@ export class AuthController {
     // Setează `access_token` în cookie
     res.cookie('access_token', accessToken, {
       httpOnly: true, // Protejează cookie-ul împotriva accesului din JavaScript
-      secure: false, // `false` în dezvoltare, `true` în producție (HTTPS)
-      sameSite: 'lax', // Permite trimiterea cookie-urilor în majoritatea cazurilor
-      domain: 'localhost', // Domeniul pentru care este setat cookie-ul
+      secure: true, // `false` în dezvoltare, `true` în producție (HTTPS)
+      sameSite: 'none', // Permite trimiterea cookie-urilor în majoritatea cazurilor
+      domain: '.denhau.ro', // Domeniul pentru care este setat cookie-ul
+      path: '/',
     });
 
     //eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMDAwMDkyMjQ1OTg2ODQ2NTI1NjYiLCJlbWFpbCI6ImRlbmlzLmdhbmR6aWlAZ21haWwuY29tIiwiaWF0IjoxNzM4Mjc2NjM5LCJleHAiOjE3MzgyNzc1Mzl9.WzOjneccE5yRCRkOFjVqqs2XoUUPJ9aKF8ylTnNGvdc
@@ -133,8 +135,10 @@ export class AuthController {
     // Setează noul access_token în cookie
     res.cookie('access_token', newAccessToken, {
       httpOnly: true,
-      secure: false, // În dezvoltare trebuie `false`, în producție `true`
-      sameSite: 'lax',
+      secure: true, // În dezvoltare trebuie `false`, în producție `true`
+      sameSite: 'none',
+      domain: '.denhau.ro',
+      path: '/',
     });
 
     res.status(200).json({ message: 'Token refreshed successfully' });
@@ -186,8 +190,10 @@ export class AuthController {
     // Șterge access_token-ul din cookie
     res.clearCookie('access_token', {
       httpOnly: true,
-      secure: false, // În producție trebuie să fie `true`
-      sameSite: 'lax',
+      secure: true, // În producție trebuie să fie `true`
+      sameSite: 'none',
+      domain: '.denhau.ro',
+      path: '/',
     });
 
     res.status(200).json({ message: 'Logout successful' });

@@ -14,10 +14,10 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     super({
       clientID: configService.get<string>('GOOGLE_CLIENT_ID'),
       clientSecret: configService.get<string>('GOOGLE_CLIENT_SECRET'),
-      callbackURL: `${configService.get<string>('API_BASE_URL')}/auth/google/redirect`,
+      callbackURL: `${configService.get<string>('API_BASE_URL')}/api/auth/google/redirect`,
       scope: ['email', 'profile', 'openid'],
       accessType: 'offline',
-      prompt: 'consent'
+      prompt: 'consent',
     });
   }
 
