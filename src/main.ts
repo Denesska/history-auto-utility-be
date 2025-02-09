@@ -32,6 +32,7 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
   const reflector = app.get(Reflector);
   app.useGlobalGuards(new RolesGuard(reflector));
+  app.setGlobalPrefix('api');
   app.useLogger(app.get(Logger));
   app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
   await app.listen(3000);
