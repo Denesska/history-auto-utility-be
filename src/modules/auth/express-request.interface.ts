@@ -1,6 +1,14 @@
 import { Request } from 'express';
 
 export interface RequestWithUser extends Request {
-    // todo update later ro some more appropriate type to avoid any.
-    user?: any;
+  user: {
+    id: number;
+    google_id: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+    picture?: string;
+    jwtToken: string;
+    refresh_token: string;
+  };
 }
