@@ -40,18 +40,9 @@ export class AuthController {
     description: 'Unauthorized access.',
   })
   async login(@Req() req, @Res() res: Response): Promise<void> {
-    const user = req.user; // Preluat din Passport.js
-
-    const accessToken = this.authService.generateAccessToken(user);
-
-    res.cookie('access_token', accessToken, {
-      httpOnly: true, // Protejează cookie-ul împotriva accesului din JavaScript
-      secure: false, // `false` în dezvoltare, `true` în producție (HTTPS)
-      sameSite: 'lax', // Permite trimiterea cookie-urilor în majoritatea cazurilor
-      domain: 'localhost', // Domeniul pentru care este setat cookie-ul
-    });
-
-    res.status(200).json({ message: 'Login successful' });
+    // Remove token setting from here - it should only be set in the redirect
+    // Just initiate the Google OAuth flow
+    res.status(200).end();
   }
 
   @Get('google/redirect')
@@ -72,24 +63,30 @@ export class AuthController {
   async googleAuthRedirect(@Req() req, @Res() res: Response): Promise<void> {
     const user = req.user;
 
-    // Generează `access_token` și `refresh_token`
+    // Clear any existing cookies first
+    res.clearCookie('access_token', {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      domain: 'localhost',
+    });
+
+    // Generate tokens
     const accessToken = this.authService.generateAccessToken(user);
     const refreshToken = this.authService.generateRefreshToken(user.google_id);
 
-    // Salvează `refresh_token` în baza de date
+    // Save refresh token
     await this.authService.saveRefreshToken(user.google_id, refreshToken);
 
-    // Setează `access_token` în cookie
+    // Set new access token
     res.cookie('access_token', accessToken, {
-      httpOnly: true, // Protejează cookie-ul împotriva accesului din JavaScript
-      secure: false, // `false` în dezvoltare, `true` în producție (HTTPS)
-      sameSite: 'lax', // Permite trimiterea cookie-urilor în majoritatea cazurilor
-      domain: 'localhost', // Domeniul pentru care este setat cookie-ul
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      domain: 'localhost',
     });
 
-    //eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMDAwMDkyMjQ1OTg2ODQ2NTI1NjYiLCJlbWFpbCI6ImRlbmlzLmdhbmR6aWlAZ21haWwuY29tIiwiaWF0IjoxNzM4Mjc2NjM5LCJleHAiOjE3MzgyNzc1Mzl9.WzOjneccE5yRCRkOFjVqqs2XoUUPJ9aKF8ylTnNGvdc
-
-    // Redirecționează utilizatorul către frontend fără a expune tokenul
+    // Redirect to frontend
     const feBaseUrl = process.env.FE_BASE_URL || 'http://localhost:4200';
     res.redirect(`${feBaseUrl}/main/cars`);
   }
