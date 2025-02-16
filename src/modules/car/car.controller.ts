@@ -96,7 +96,8 @@ export class CarController {
     return this.carService.getCar(Number(id));
   }
 
-  @Put()
+  @Put(':id')
+  @UseInterceptors(FileInterceptor('image'))
   @ApiOperation({ summary: 'Update a car' })
   @ApiResponse({
     status: 200,
@@ -104,8 +105,22 @@ export class CarController {
     type: CarDto,
   })
   @ApiResponse({ status: 404, description: 'Car not found.' })
-  async updateCar(@Body() updateCarDto: UpdateCarDto): Promise<CarDto> {
-    return this.carService.updateCar(Number(updateCarDto?.id), updateCarDto);
+  async updateCar(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() updateCarDto: UpdateCarDto
+  ) {
+    // Handle the raw DTO data
+    const carData = typeof updateCarDto === 'string' 
+      ? JSON.parse(updateCarDto) 
+      : updateCarDto;
+
+    // Handle the file if it exists
+    if (file) {
+      carData.imageUrl = `/uploads/cars/${file.filename}`;
+    }
+
+    return this.carService.updateCar(Number(id), carData);
   }
 
   @Delete(':id')
