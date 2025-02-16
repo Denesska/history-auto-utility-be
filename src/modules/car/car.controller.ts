@@ -121,14 +121,17 @@ export class CarController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all cars' })
+  @ApiOperation({ summary: 'Get all cars for authenticated user' })
   @ApiResponse({
     status: 200,
-    description: 'Return list of cars.',
+    description: 'Return list of cars for authenticated user.',
     type: [CarDto],
   })
-  async getAllCars(): Promise<CarDto[]> {
-    return this.carService.getAllCars();
+  async getAllCars(@Req() req: RequestWithUser): Promise<CarDto[]> {
+    if (!req?.user?.google_id) {
+      throw new Error('User is not authenticated or google_id is missing');
+    }
+    return this.carService.getAllCars(req.user.google_id);
   }
 
   @Get('user/:userId')

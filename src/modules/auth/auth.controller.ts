@@ -18,11 +18,28 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 @ApiTags('auth') // Swagger category for authentication-related endpoints
 @Controller('auth')
 export class AuthController {
+  private readonly cookieConfig: any;
+
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) {
+    this.cookieConfig = {
+      httpOnly: true,
+      secure: true, // Enable for HTTPS
+      sameSite: 'none', // Required for cross-domain
+      path: '/',
+      domain: 'api.denhau.ro',  // Just the API domain
+      maxAge: 24 * 60 * 60 * 1000,
+    };
+  }
+
+  // Before setting a new token, explicitly clear the old one
+  private clearExistingToken(res: Response): void {
+    console.log('Clearing cookie...');
+    res.clearCookie('access_token', this.cookieConfig);
+  }
 
   @Get('google')
   @UseGuards(AuthGuard('google'))
@@ -44,13 +61,7 @@ export class AuthController {
 
     const accessToken = this.authService.generateAccessToken(user);
 
-    res.cookie('access_token', accessToken, {
-      httpOnly: true, // Protejează cookie-ul împotriva accesului din JavaScript
-      secure: true, // `false` în dezvoltare, `true` în producție (HTTPS)
-      sameSite: 'none', // Permite trimiterea cookie-urilor în majoritatea cazurilor
-      domain: '.denhau.ro', // Domeniul pentru care este setat cookie-ul
-      path: '/',
-    });
+    res.cookie('access_token', accessToken, this.cookieConfig);
 
     res.status(200).json({ message: 'Login successful' });
   }
@@ -71,9 +82,11 @@ export class AuthController {
     description: 'Unauthorized - Google authentication failed.',
   })
   async googleAuthRedirect(@Req() req, @Res() res: Response): Promise<void> {
+    console.log('Starting google redirect...');
     const user = req.user;
 
-    // Generează `access_token` și `refresh_token`
+    this.clearExistingToken(res); // Clear existing token first
+
     const accessToken = this.authService.generateAccessToken(user);
     const refreshToken = this.authService.generateRefreshToken(user.google_id);
 
@@ -81,15 +94,8 @@ export class AuthController {
     await this.authService.saveRefreshToken(user.google_id, refreshToken);
 
     // Setează `access_token` în cookie
-    res.cookie('access_token', accessToken, {
-      httpOnly: true, // Protejează cookie-ul împotriva accesului din JavaScript
-      secure: true, // `false` în dezvoltare, `true` în producție (HTTPS)
-      sameSite: 'none', // Permite trimiterea cookie-urilor în majoritatea cazurilor
-      domain: '.denhau.ro', // Domeniul pentru care este setat cookie-ul
-      path: '/',
-    });
-
-    //eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMDAwMDkyMjQ1OTg2ODQ2NTI1NjYiLCJlbWFpbCI6ImRlbmlzLmdhbmR6aWlAZ21haWwuY29tIiwiaWF0IjoxNzM4Mjc2NjM5LCJleHAiOjE3MzgyNzc1Mzl9.WzOjneccE5yRCRkOFjVqqs2XoUUPJ9aKF8ylTnNGvdc
+    console.log('Setting new cookie...');
+    res.cookie('access_token', accessToken, this.cookieConfig);
 
     // Redirecționează utilizatorul către frontend fără a expune tokenul
     const feBaseUrl = process.env.FE_BASE_URL || 'http://localhost:4200';
@@ -133,13 +139,7 @@ export class AuthController {
     const newAccessToken = this.authService.generateAccessToken(user);
 
     // Setează noul access_token în cookie
-    res.cookie('access_token', newAccessToken, {
-      httpOnly: true,
-      secure: true, // În dezvoltare trebuie `false`, în producție `true`
-      sameSite: 'none',
-      domain: '.denhau.ro',
-      path: '/',
-    });
+    res.cookie('access_token', newAccessToken, this.cookieConfig);
 
     res.status(200).json({ message: 'Token refreshed successfully' });
   }
@@ -189,121 +189,20 @@ export class AuthController {
 
     // Șterge access_token-ul din cookie
     res.clearCookie('access_token', {
-      httpOnly: true,
-      secure: true, // În producție trebuie să fie `true`
-      sameSite: 'none',
-      domain: '.denhau.ro',
-      path: '/',
+      ...this.cookieConfig,
+      maxAge: 0 // Override maxAge for clearing the cookie
     });
 
     res.status(200).json({ message: 'Logout successful' });
   }
-
-  /*@Get('google/redirect')
-  @UseGuards(AuthGuard('google'))
-  @ApiOperation({
-    summary: 'Handles the Google OAuth redirect',
-    description:
-      'Processes the response from Google and returns an access token for authentication.',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Returns an access token and refresh token.',
-    schema: {
-      type: 'object',
-      properties: {
-        accessToken: { type: 'string' },
-        refreshToken: { type: 'string' },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 302,
-    description: 'Redirects the user back to the frontend with a JWT token.',
-  })
-  async googleAuthRedirect(@Req() req: any, @Res() res: Response) {
-    const user = req.user;
-    const payload = {
-      id: user.id,
-      google_id: user.google_id,
-      email: user.email,
-      first_name: user.first_name,
-      last_name: user.last_name,
-      picture: user.picture,
-      refresh_token: user.refresh_token,
-    };
-    const jwtToken = this.authService.generateJwtToken(payload);
-    const refreshToken = user.refresh_token;
-
-    const feBaseUrl = this.configService.get<string>('FE_BASE_URL');
-    const redirectUrl = `${feBaseUrl}/auth/token?token=${jwtToken}&refresh=${refreshToken}`;
-
-    if (req.headers['accept']?.includes('application/json')) {
-      return res.status(200).json({ accessToken: jwtToken, refreshToken });
-    }
-
-    return res.redirect(redirectUrl);
-  }*/
-
-  /*@Post('refresh-token')
-  @ApiOperation({
-    summary: 'Refresh the access token',
-    description:
-      'Generates a new access token using the refresh token stored on the backend. The user is identified via the access token in the Authorization header.',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Successfully generated a new access token.',
-    schema: {
-      type: 'object',
-      properties: {
-        accessToken: {
-          type: 'string',
-          description: 'The newly generated access token.',
-        },
-        refreshToken: {
-          type: 'string',
-          description: 'The newly generated refresh token (optional).',
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Authorization header missing or invalid.',
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Refresh token is invalid or expired.',
-  })
-  async refreshToken(@Req() req: Request): Promise<any> {
-    // try {
-      // Extract the token from the Authorization header
-      const bearerToken = req.headers['authorization'];
-      if (!bearerToken || !bearerToken.startsWith('Bearer ')) {
-        throw new HttpException(
-          'Authorization header missing',
-          HttpStatus.UNAUTHORIZED,
-        );
-      }
-
-      const userId = this.authService.validateAndDecodeToken(bearerToken);
-
-      // Refresh the tokens
-      const refreshToken = await this.authService.getRefreshTokenByUserId(userId);
-
-      // Refresh the tokens
-      const { accessToken, newRefreshToken } =
-        await this.authService.refreshTokens(refreshToken);
-
-      return { accessToken };
-    /!*} catch (error) {
-      console.error('Error refreshing token:', error.message);
-      if (error instanceof HttpException) throw error;
-      throw new HttpException(
-        'Refresh token expired or invalid',
-        HttpStatus.FORBIDDEN,
-      );
-    }*!/
-  }*/
 }
+
+//access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMDAwMDkyMjQ1OTg2ODQ2NTI1NjYiLCJlbWFpbCI6ImRlbmlzLmdhbmR6aWlAZ21haWwuY29tIiwiaWF0IjoxNzM5Njk2NDU2LCJleHAiOjE3Mzk2OTczNTZ9.TqguKI9HF2rNqMfQktutmTENHKTmW4emrWVOa8xG8uY;
+//access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMDAwMDkyMjQ1OTg2ODQ2NTI1NjYiLCJlbWFpbCI6ImRlbmlzLmdhbmR6aWlAZ21haWwuY29tIiwiaWF0IjoxNzM5NzE1Mjg1LCJleHAiOjE3Mzk3MTYxODV9.Sbh_lGR2WbVKW97wMrn6KAUeNLbnGo0oVc4bA1sPHmU
+
+
+// access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMDAwMDkyMjQ1OTg2ODQ2NTI1NjYiLCJlbWFpbCI6ImRlbmlzLmdhbmR6aWlAZ21haWwuY29tIiwiaWF0IjoxNzM5Njk2NDU2LCJleHAiOjE3Mzk2OTczNTZ9.TqguKI9HF2rNqMfQktutmTENHKTmW4emrWVOa8xG8uY;
+// access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMDAwMDkyMjQ1OTg2ODQ2NTI1NjYiLCJlbWFpbCI6ImRlbmlzLmdhbmR6aWlAZ21haWwuY29tIiwiaWF0IjoxNzM5NzE1MzYxLCJleHAiOjE3Mzk3MTYyNjF9.i8Iz0GT7__MRZivBqi4_is9V8gu052Q2LUqBkS8qhf8
+
+//access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMDAwMDkyMjQ1OTg2ODQ2NTI1NjYiLCJlbWFpbCI6ImRlbmlzLmdhbmR6aWlAZ21haWwuY29tIiwiaWF0IjoxNzM5Njk2NDU2LCJleHAiOjE3Mzk2OTczNTZ9.TqguKI9HF2rNqMfQktutmTENHKTmW4emrWVOa8xG8uY;
+//access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMDAwMDkyMjQ1OTg2ODQ2NTI1NjYiLCJlbWFpbCI6ImRlbmlzLmdhbmR6aWlAZ21haWwuY29tIiwiaWF0IjoxNzM5NzE1ODA0LCJleHAiOjE3Mzk3MTY3MDR9.2ieW21WYDvQPSorB3obCvl-4MM8FTYc3m-9dNnFO8_U
