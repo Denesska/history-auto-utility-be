@@ -49,8 +49,18 @@ export class CarService {
     return this.toCarDto(car);
   }
 
-  async getAllCars(): Promise<CarDto[]> {
-    const cars = await this.prisma.car.findMany();
+  async getAllCars(google_id: string): Promise<CarDto[]> {
+    const user = await this.prisma.user.findUnique({
+      where: { google_id },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const cars = await this.prisma.car.findMany({
+      where: { user_id: user.id },
+    });
     return cars.map(this.toCarDto);
   }
 
