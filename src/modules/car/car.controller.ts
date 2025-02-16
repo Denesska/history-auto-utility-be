@@ -46,7 +46,7 @@ export class CarController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
-        destination: './uploads/cars', // todo review file path for cars images
+        destination: '/var/www/hau_app/history-auto-utility-be/uploads/cars',
         filename: (req, file, cb) => {
           const uniqueSuffix = `${uui()}${extname(file.originalname)}`;
           cb(null, uniqueSuffix);

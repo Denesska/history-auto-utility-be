@@ -31,8 +31,12 @@ export class AddCarDto {
   @IsInt()
   readonly current_mileage: number;
 
-  @ApiProperty({ example: 'base64/someImageHere' })
-  @IsString()
+  @ApiProperty({ 
+    type: 'string', 
+    format: 'binary',
+    description: 'Car image file',
+    required: false 
+  })
   @IsOptional()
   image?: string;
 }

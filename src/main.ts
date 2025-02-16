@@ -10,11 +10,12 @@ import * as express from 'express';
 import * as cookieParser from 'cookie-parser';
 import { Logger } from '@nestjs/common';
 import { join } from 'path';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 dotenv.config();
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.use(cookieParser());
   app.enableCors({
     origin: 'http://localhost:4200', // Permite frontend-ului accesul
@@ -35,6 +36,9 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
   app.useLogger(app.get(Logger));
   app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
+  app.useStaticAssets('/var/www/hau_app/history-auto-utility-be/uploads', {
+    prefix: '/uploads',
+  });
   await app.listen(3000);
 }
 

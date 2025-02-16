@@ -71,6 +71,7 @@ export class CarService {
       license_plate: car.license_plate,
       current_mileage: car.current_mileage,
       user_id: car.user_id,
+      image: car.image
     };
   }
 }
