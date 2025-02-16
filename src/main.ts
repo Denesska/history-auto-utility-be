@@ -18,7 +18,12 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
   app.use(cookieParser());
   app.enableCors({
-    origin: ['https://app.denhau.ro', 'http://localhost:4200'],
+    origin: [
+      'https://wwww.app.denhau.ro',
+      'https://app.denhau.ro',
+      'https://dev.denhau.ro',
+      'http://localhost:4200',
+    ],
     credentials: true,
   });
   generateSwaggerYaml(app);
