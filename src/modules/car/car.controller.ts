@@ -141,7 +141,7 @@ export class CarController {
     description: 'Return list of cars.',
     type: [CarDto],
   })
-  async getCarsByUser(@Param('user-id') userId: string): Promise<CarDto[]> {
+  async getCarsByUser(@Param('userId') userId: string): Promise<CarDto[]> {
     return this.carService.getCarsByUser(Number(userId));
   }
 }
