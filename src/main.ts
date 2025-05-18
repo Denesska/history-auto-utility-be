@@ -10,11 +10,12 @@ import * as express from 'express';
 import * as cookieParser from 'cookie-parser';
 import { Logger } from '@nestjs/common';
 import { join } from 'path';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 dotenv.config();
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix('api');
   app.use(cookieParser());
   app.enableCors({
@@ -40,6 +41,11 @@ async function bootstrap() {
   app.useGlobalGuards(new RolesGuard(reflector));
   app.useLogger(app.get(Logger));
   app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
+
+  // Serve static files from uploads directory
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+    prefix: '/uploads/',
+  });
 
   await app.listen(3000);
 }
