@@ -1,5 +1,6 @@
 import { IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 
 export class AddCarDto {
   @ApiProperty({ example: '6' })
@@ -20,6 +21,7 @@ export class AddCarDto {
   readonly model: string;
 
   @ApiProperty({ example: 1992 })
+  @Type(() => Number)
   @IsInt()
   readonly year: number;
 
@@ -28,6 +30,7 @@ export class AddCarDto {
   readonly license_plate: string;
 
   @ApiProperty({ example: 380000 })
+  @Type(() => Number)
   @IsInt()
   readonly current_mileage: number;
 
