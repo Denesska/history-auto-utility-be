@@ -1,0 +1,56 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Image Upload Rules
+
+## Field Naming
+- The frontend must send the image file using the field name `file` in the multipart/form-data payload.
+- The backend controller should use `@UploadedFile() file: Express.Multer.File` and `@UseInterceptors(FileInterceptor('file', ...))` to receive the file.
+
+## Storage Configuration
+- Use Multer's `diskStorage` for both create and update endpoints to ensure files are saved to disk and `file.filename` is set.
+- The storage destination should be set to `./uploads/cars`.
+- The filename should be generated using a UUID and the original file extension to avoid collisions:
+  ```js
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${uuid()}${extname(file.originalname)}`;
+    cb(null, uniqueSuffix);
+  }
+  ```
+
+## File Validation
+- Only allow image files with MIME types: jpg, jpeg, png, gif.
+- Reject files that do not match these types with an appropriate error message.
+- Limit the file size to 1 MB (1 * 1024 * 1024 bytes).
+
+## Data Handling
+- On create, always set the `image` field in the database to the uploaded file path or `null` if no file is uploaded.
+- On update, only set the `image` field if a new file is uploaded. If not, do not include the `image` field in the update data to preserve the existing image path.
+
+## Error Handling
+- If the file is not received or is invalid, return a clear error message to the client.
+- Log the file object in the backend for debugging if issues arise.
+
+## Example (NestJS Controller)
+```ts
+@UseInterceptors(
+  FileInterceptor('file', {
+    storage: diskStorage({
+      destination: './uploads/cars',
+      filename: (req, file, cb) => {
+        const uniqueSuffix = `${uuid()}${extname(file.originalname)}`;
+        cb(null, uniqueSuffix);
+      },
+    }),
+    fileFilter: (req, file, cb) => {
+      if (!file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
+        return cb(new Error('Only image files are allowed!'), false);
+      }
+      cb(null, true);
+    },
+    limits: { fileSize: 1 * 1024 * 1024 },
+  }),
+)
+```

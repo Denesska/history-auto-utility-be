@@ -1,0 +1,271 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Maintenance Record Module Documentation
+
+## Overview
+The Maintenance Record module is responsible for managing vehicle maintenance records in the History Auto Utility application. It provides functionality for creating, reading, updating, and deleting maintenance records, with role-based access control for different user types.
+
+## Module Structure
+```
+maintenance-record/
+├── dto/
+│   ├── create-maintenance-record.dto.ts
+│   ├── maintenance-record.dto.ts
+│   └── update-maintenance-record.dto.ts
+├── entities/
+│   └── maintenance-record.entity.ts
+├── maintenance-record.controller.ts
+├── maintenance-record.service.ts
+├── maintenance-record.module.ts
+└── maintenance-record.mdc (this file)
+```
+
+## Dependencies
+- NestJS Framework
+- Prisma ORM
+- JWT Authentication
+- Role-based Authorization
+- Swagger/OpenAPI
+
+## Core Components
+
+### MaintenanceRecordModule
+- Imports: PrismaModule
+- Controllers: MaintenanceRecordController
+- Providers: MaintenanceRecordService
+
+### MaintenanceRecordController
+Endpoints:
+1. `POST /maintenance-record` - Create new maintenance record
+   - Role: admin only
+   - Creates new maintenance record
+   - Returns MaintenanceRecordModel
+
+2. `GET /maintenance-record/:id` - Get maintenance record by ID
+   - Roles: user, admin
+   - Returns maintenance record details
+   - 404 if not found
+
+3. `PUT /maintenance-record/:id` - Update maintenance record
+   - Role: admin only
+   - Updates maintenance record details
+   - Returns updated MaintenanceRecordModel
+
+4. `DELETE /maintenance-record/:id` - Delete maintenance record
+   - Role: admin only
+   - Removes maintenance record
+   - Returns deleted MaintenanceRecordModel
+
+5. `GET /maintenance-record/car/:carId` - Get maintenance records by car ID
+   - Roles: user, admin
+   - Returns array of maintenance records for specific car
+   - 404 if not found
+
+### MaintenanceRecordService
+Core methods:
+1. `createMaintenanceRecord(data: CreateMaintenanceRecordDto)`
+   - Creates new maintenance record
+   - Returns MaintenanceRecord
+
+2. `getMaintenanceRecord(id: number)`
+   - Retrieves single maintenance record by ID
+   - Returns MaintenanceRecord or null
+
+3. `updateMaintenanceRecord(id: number, data: Prisma.MaintenanceRecordUpdateInput)`
+   - Updates maintenance record details
+   - Returns updated MaintenanceRecord
+
+4. `deleteMaintenanceRecord(id: number)`
+   - Removes maintenance record
+   - Returns deleted MaintenanceRecord
+
+5. `getMaintenanceRecordsByCarId(carId: number)`
+   - Gets all maintenance records for specific car
+   - Returns array of MaintenanceRecord
+
+## Data Transfer Objects (DTOs)
+
+### MaintenanceRecordDto
+Base maintenance record data structure:
+- id: number
+- car_id: number
+- service_type: string
+- service_date: Date
+- mileage: number
+- cost: number
+- description: string
+- service_provider: string
+- next_service_date: Date
+- next_service_mileage: number
+
+### CreateMaintenanceRecordDto
+For maintenance record creation:
+- Required fields validation
+- Service type validation
+- Date validation
+- Cost validation
+- Mileage validation
+
+### UpdateMaintenanceRecordDto
+For maintenance record updates:
+- Partial fields update support
+- Optional fields
+- Validation rules
+
+## Best Practices for Future Development
+
+1. Maintenance Record Management
+   - Implement maintenance scheduling
+   - Add maintenance reminders
+   - Implement maintenance history tracking
+   - Add maintenance cost analytics
+
+2. Validation
+   - Add comprehensive input validation
+   - Implement service type validation
+   - Add date range validation
+   - Validate mileage ranges
+   - Add cost validation
+
+3. Error Handling
+   - Implement custom exceptions
+   - Add detailed error messages
+   - Implement proper error logging
+   - Add validation error handling
+
+4. Performance
+   - Add caching for frequently accessed records
+   - Implement pagination for record lists
+   - Add database indexing for common queries
+   - Optimize maintenance queries
+
+5. Security
+   - Implement record access control
+   - Add audit logging
+   - Implement data validation
+   - Add rate limiting
+
+6. Testing
+   - Add unit tests for service methods
+   - Add integration tests for endpoints
+   - Add e2e tests for critical flows
+   - Add validation tests
+
+7. Documentation
+   - Keep API documentation updated
+   - Add code comments for complex logic
+   - Document any new features
+   - Add usage examples
+
+## Future Improvements
+
+1. Features
+   - Add maintenance record search
+   - Implement maintenance categories
+   - Add maintenance cost tracking
+   - Implement maintenance scheduling
+   - Add maintenance notifications
+
+2. Technical
+   - Implement soft delete
+   - Add maintenance record versioning
+   - Implement maintenance analytics
+   - Add maintenance reporting
+
+3. Integration
+   - Add third-party service providers
+   - Implement maintenance cost comparison
+   - Add maintenance history import/export
+   - Implement maintenance reminders
+
+## Migration Guidelines
+
+When making changes to the maintenance record module:
+
+1. Database Changes
+   - Use Prisma migrations
+   - Test migrations in development
+   - Backup data before production migration
+   - Handle record relationships
+
+2. API Changes
+   - Maintain backward compatibility
+   - Version API endpoints
+   - Update documentation
+   - Notify frontend team
+
+3. Code Changes
+   - Follow existing patterns
+   - Add proper tests
+   - Update documentation
+   - Review security implications
+
+## Security Considerations
+
+1. Access Control
+   - Maintain strict role-based access
+   - Implement record-level permissions
+   - Add audit logging
+   - Monitor record access
+
+2. Data Protection
+   - Validate sensitive data
+   - Implement data backup
+   - Add data retention policies
+   - Protect financial information
+
+3. API Security
+   - Implement rate limiting
+   - Add request validation
+   - Use secure headers
+   - Monitor API usage
+
+## Maintenance Record Rules
+
+1. Record Creation
+   - All required fields must be provided
+   - Service date must be valid
+   - Mileage must be positive
+   - Cost must be non-negative
+   - Service provider must be specified
+
+2. Record Updates
+   - Only admin can update records
+   - Historical data cannot be modified
+   - Future dates must be valid
+   - Mileage must be increasing
+   - Cost updates must be justified
+
+3. Record Deletion
+   - Only admin can delete records
+   - Deletion must be logged
+   - Related records must be handled
+   - Backup must be maintained
+
+4. Record Access
+   - Users can view their car records
+   - Admins can view all records
+   - Sensitive data must be protected
+   - Access must be logged
+
+5. Data Validation
+   - Dates must be in valid range
+   - Mileage must be realistic
+   - Costs must be reasonable
+   - Descriptions must be meaningful
+   - Service types must be valid
+
+6. Maintenance Scheduling
+   - Next service date must be future
+   - Next service mileage must be higher
+   - Reminders must be configurable
+   - Notifications must be sent
+
+7. Reporting
+   - Cost reports must be accurate
+   - History must be complete
+   - Analytics must be meaningful
+   - Export must be available

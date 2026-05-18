@@ -8,12 +8,12 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
               $ref: "#/components/schemas/AddCarDto"
       responses:
         201:
-          description: "The car has been successfully created."
+          description: "Car created successfully."
           content:
             application/json:
               schema:
@@ -28,15 +28,9 @@ paths:
       operationId: "CarController_updateCar"
       summary: "Update a car"
       parameters: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateCarDto"
       responses:
         200:
-          description: "The car has been successfully updated."
+          description: "Car updated successfully."
           content:
             application/json:
               schema:
@@ -53,7 +47,7 @@ paths:
       parameters: []
       responses:
         200:
-          description: "Return list of cars for authenticated user."
+          description: "Return list of cars."
           content:
             application/json:
               schema:
@@ -98,13 +92,51 @@ paths:
             type: "string"
       responses:
         200:
-          description: "The car has been successfully deleted."
+          description: "Car deleted successfully."
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/CarDto"
         404:
           description: "Car not found."
+      tags:
+        - "car"
+      security:
+        - cookie: []
+  /api/car/photo/{photoId}:
+    delete:
+      operationId: "CarController_deletePhoto"
+      summary: "Delete a car photo"
+      parameters:
+        - name: "photoId"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        204:
+          description: "Photo deleted."
+        404:
+          description: "Photo not found."
+      tags:
+        - "car"
+      security:
+        - cookie: []
+  /api/car/photo/{photoId}/default:
+    patch:
+      operationId: "CarController_setDefaultPhoto"
+      summary: "Set a photo as the default for its car"
+      parameters:
+        - name: "photoId"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        204:
+          description: "Default photo updated."
+        404:
+          description: "Photo not found."
       tags:
         - "car"
       security:
@@ -367,66 +399,59 @@ paths:
   /api/auth/google:
     get:
       operationId: "AuthController_login"
-      summary: "Login user and set access token in HTTP-only cookie"
-      description: "Authenticates a user via Google and stores the access token in a secure HTTP-only cookie."
+      summary: "Initiate Google OAuth login"
       parameters: []
       responses:
         200:
-          description: "User successfully logged in, access token set in cookie."
-        401:
-          description: "Unauthorized access."
+          description: ""
       tags:
         - "auth"
   /api/auth/google/redirect:
     get:
       operationId: "AuthController_googleAuthRedirect"
-      summary: "Handle Google OAuth redirection"
-      description: "Processes the Google authentication response and sets access token in HTTP-only cookie."
+      summary: "Handle Google OAuth callback"
       parameters: []
       responses:
         302:
-          description: "User is authenticated and redirected to the frontend."
+          description: "Authenticated and redirected to frontend."
         401:
-          description: "Unauthorized - Google authentication failed."
+          description: "Google authentication failed."
       tags:
         - "auth"
   /api/auth/refresh:
     post:
       operationId: "AuthController_refreshAccessToken"
-      summary: "Refresh access token using refresh token"
-      description: "Generates a new access token if the refresh token is valid."
+      summary: "Refresh access token"
       parameters: []
       responses:
         200:
-          description: "New access token generated successfully."
+          description: "New access token issued."
         401:
-          description: "Unauthorized - Refresh token missing or invalid."
+          description: "Refresh token missing or invalid."
       tags:
         - "auth"
   /api/auth/me:
     get:
       operationId: "AuthController_getProfile"
-      summary: "Get user details from access token"
-      description: "Validates the access token stored in HTTP-only cookie and returns user information."
+      summary: "Get authenticated user profile"
       parameters: []
       responses:
         200:
-          description: "User details successfully retrieved."
+          description: "User profile returned."
         401:
-          description: "Unauthorized - Invalid or missing access token."
+          description: "Invalid or missing access token."
       tags:
         - "auth"
   /api/auth/logout:
     post:
       operationId: "AuthController_logout"
-      summary: "Logout user and clear authentication tokens"
-      description: "Removes access token from cookies and invalidates refresh token in the database."
+      summary: "Logout user and invalidate tokens"
       parameters: []
       responses:
         200:
-          description: "User successfully logged out."
+          description: "Logged out successfully."
         401:
-          description: "Unauthorized - No active session found."
+          description: "Not authenticated."
       tags:
         - "auth"
 info:
@@ -451,36 +476,107 @@ components:
         id:
           type: "number"
           example: "6"
-        vin:
-          type: "string"
-          example: "WBAHE21060GE64612"
         make:
           type: "string"
           example: "BMW"
         model:
           type: "string"
-          example: "530iA"
-        year:
-          type: "number"
-          example: 1992
+          example: "520i"
+        variant:
+          type: "string"
+          example: "M Sport"
         license_plate:
           type: "string"
-          example: "B13HAU"
+          example: "IS49WAU"
+        vin:
+          type: "string"
+          example: "WBAHE21060GE64612"
+        year:
+          type: "number"
+          example: 2006
+        fuel_type:
+          type: "string"
+          example: "PETROL"
+          enum:
+            - "PETROL"
+            - "DIESEL"
+            - "HYBRID"
+            - "PLUGIN_HYBRID"
+            - "ELECTRIC"
+            - "LPG"
+        transmission:
+          type: "string"
+          example: "MANUAL"
+          enum:
+            - "MANUAL"
+            - "AUTOMATIC"
+            - "SEMI_AUTOMATIC"
+        engine:
+          type: "string"
+          example: "2.0L Turbo"
+        color:
+          type: "string"
+          example: "#1A2B3C"
         current_mileage:
           type: "number"
-          example: 380000
-        image:
+          example: 184200
+        ownership_start_date:
           type: "string"
-          example: "base64/someImageHere"
+          example: "2024-05-12T00:00:00.000Z"
+        rca_expiry_date:
+          type: "string"
+          example: "2026-03-10T00:00:00.000Z"
+        itp_expiry_date:
+          type: "string"
+          example: "2026-04-20T00:00:00.000Z"
+        rov_expiry_date:
+          type: "string"
+          example: "2026-05-15T00:00:00.000Z"
+        last_oil_service_date:
+          type: "string"
+          example: "2026-03-12T00:00:00.000Z"
+        last_oil_service_mileage:
+          type: "number"
+          example: 180000
+        default_new_photo_index:
+          type: "number"
+          example: 0
       required:
         - "id"
-        - "vin"
         - "make"
         - "model"
-        - "year"
+        - "variant"
         - "license_plate"
+        - "vin"
+        - "year"
+        - "fuel_type"
+        - "transmission"
+        - "engine"
+        - "color"
         - "current_mileage"
-        - "image"
+        - "ownership_start_date"
+        - "rca_expiry_date"
+        - "itp_expiry_date"
+        - "rov_expiry_date"
+        - "last_oil_service_date"
+        - "last_oil_service_mileage"
+        - "default_new_photo_index"
+    CarPhotoDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+          example: 1
+        url:
+          type: "string"
+          example: "/uploads/cars/photo.jpg"
+        is_default:
+          type: "boolean"
+          example: false
+      required:
+        - "id"
+        - "url"
+        - "is_default"
     CarDto:
       type: "object"
       properties:
@@ -499,31 +595,89 @@ components:
         model:
           type: "string"
           example: "530iA"
+        variant:
+          type: "string"
+          example: "M Sport"
         year:
           type: "number"
           example: 1992
         license_plate:
           type: "string"
-          example: "B13HAU"
+          example: "IS49WAU"
+        fuel_type:
+          type: "string"
+          example: "PETROL"
+          enum:
+            - "PETROL"
+            - "DIESEL"
+            - "HYBRID"
+            - "PLUGIN_HYBRID"
+            - "ELECTRIC"
+            - "LPG"
+        transmission:
+          type: "string"
+          example: "MANUAL"
+          enum:
+            - "MANUAL"
+            - "AUTOMATIC"
+            - "SEMI_AUTOMATIC"
+        engine:
+          type: "string"
+          example: "2.0L Turbo"
+        color:
+          type: "string"
+          example: "#1A2B3C"
         current_mileage:
           type: "number"
-          example: 380000
-        image:
+          example: 184200
+        ownership_start_date:
+          format: "date-time"
           type: "string"
-          example: "base64/someImageHere"
+          example: "2024-05-12T00:00:00.000Z"
+        rca_expiry_date:
+          format: "date-time"
+          type: "string"
+          example: "2026-03-10T00:00:00.000Z"
+        itp_expiry_date:
+          format: "date-time"
+          type: "string"
+          example: "2026-04-20T00:00:00.000Z"
+        rov_expiry_date:
+          format: "date-time"
+          type: "string"
+          example: "2026-05-15T00:00:00.000Z"
+        last_oil_service_date:
+          format: "date-time"
+          type: "string"
+          example: "2026-03-12T00:00:00.000Z"
+        last_oil_service_mileage:
+          type: "number"
+          example: 180000
+        photos:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/CarPhotoDto"
       required:
         - "id"
         - "user_id"
         - "vin"
         - "make"
         - "model"
+        - "variant"
         - "year"
         - "license_plate"
+        - "fuel_type"
+        - "transmission"
+        - "engine"
+        - "color"
         - "current_mileage"
-        - "image"
-    UpdateCarDto:
-      type: "object"
-      properties: {}
+        - "ownership_start_date"
+        - "rca_expiry_date"
+        - "itp_expiry_date"
+        - "rov_expiry_date"
+        - "last_oil_service_date"
+        - "last_oil_service_mileage"
+        - "photos"
     CreateMaintenanceRecordDto:
       type: "object"
       properties:

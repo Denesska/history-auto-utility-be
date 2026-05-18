@@ -21,10 +21,11 @@ import {
 import { Roles } from '../../common/decorators/roles.decorator';
 import { MaintenanceRecordDto } from './dto/maintenance-record.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles/roles.guard';
 
 @ApiTags('maintenance-record')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('maintenance-record')
 export class MaintenanceRecordController {
   constructor(

@@ -1,0 +1,256 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Prisma Module Documentation
+
+## Overview
+The Prisma module is a core component of the History Auto Utility application that provides database access and management through Prisma ORM. It handles database connections, configurations, and provides a centralized service for database operations across the application.
+
+## Module Structure
+```
+prisma/
+├── prisma.service.ts
+├── prisma.module.ts
+└── prisma.mdc (this file)
+```
+
+## Dependencies
+- NestJS Framework
+- Prisma ORM
+- @nestjs/config
+- @prisma/client
+
+## Core Components
+
+### PrismaModule
+- Imports: ConfigModule
+- Providers: 
+  - PrismaService
+  - DATABASE_URL provider
+- Exports: PrismaService
+
+### PrismaService
+Core functionality:
+1. Database Connection Management
+   - Extends PrismaClient
+   - Implements OnModuleInit and OnModuleDestroy
+   - Handles connection lifecycle
+
+2. Configuration
+   - Uses ConfigService for database URL
+   - Configurable datasource settings
+   - Environment-based configuration
+
+## Database Configuration
+
+### Environment Variables
+Required environment variables:
+- DATABASE_URL: Database connection string
+
+### Connection Management
+- Automatic connection on module initialization
+- Proper disconnection on module destruction
+- Connection pooling
+- Error handling
+
+## Best Practices for Future Development
+
+1. Database Operations
+   - Use transactions for complex operations
+   - Implement proper error handling
+   - Add query optimization
+   - Implement connection pooling
+
+2. Performance
+   - Implement query caching
+   - Optimize database queries
+   - Use proper indexing
+   - Monitor query performance
+
+3. Security
+   - Secure database credentials
+   - Implement connection encryption
+   - Add query sanitization
+   - Monitor database access
+
+4. Error Handling
+   - Implement proper error logging
+   - Add connection retry logic
+   - Handle connection timeouts
+   - Implement fallback mechanisms
+
+5. Testing
+   - Add database integration tests
+   - Implement test database setup
+   - Add connection testing
+   - Test error scenarios
+
+6. Documentation
+   - Keep schema documentation updated
+   - Document database changes
+   - Add query examples
+   - Document best practices
+
+## Database Schema Management
+
+1. Migrations
+   - Use Prisma migrations
+   - Version control migrations
+   - Test migrations
+   - Backup before migration
+
+2. Schema Updates
+   - Follow naming conventions
+   - Add proper indexes
+   - Define relationships
+   - Add constraints
+
+3. Data Types
+   - Use appropriate data types
+   - Define enums properly
+   - Add proper validations
+   - Handle null values
+
+## Performance Optimization
+
+1. Query Optimization
+   - Use proper indexes
+   - Optimize joins
+   - Limit result sets
+   - Use pagination
+
+2. Connection Management
+   - Implement connection pooling
+   - Handle connection limits
+   - Monitor connections
+   - Implement timeouts
+
+3. Caching
+   - Implement query caching
+   - Cache frequent queries
+   - Invalidate cache properly
+   - Monitor cache usage
+
+## Security Guidelines
+
+1. Connection Security
+   - Use encrypted connections
+   - Secure credentials
+   - Implement access control
+   - Monitor connections
+
+2. Query Security
+   - Sanitize inputs
+   - Use parameterized queries
+   - Implement rate limiting
+   - Monitor queries
+
+3. Data Security
+   - Encrypt sensitive data
+   - Implement backup
+   - Add audit logging
+   - Monitor access
+
+## Migration Guidelines
+
+When making changes to the database:
+
+1. Schema Changes
+   - Create migration scripts
+   - Test migrations
+   - Backup data
+   - Plan rollback
+
+2. Data Changes
+   - Validate data
+   - Handle relationships
+   - Update indexes
+   - Test performance
+
+3. Code Changes
+   - Update models
+   - Update queries
+   - Test changes
+   - Update documentation
+
+## Monitoring and Maintenance
+
+1. Performance Monitoring
+   - Monitor query times
+   - Track connection usage
+   - Monitor resource usage
+   - Set up alerts
+
+2. Health Checks
+   - Implement connection checks
+   - Monitor database health
+   - Check query performance
+   - Monitor errors
+
+3. Maintenance Tasks
+   - Regular backups
+   - Index maintenance
+   - Query optimization
+   - Log rotation
+
+## Troubleshooting
+
+1. Connection Issues
+   - Check credentials
+   - Verify network
+   - Check firewall
+   - Monitor logs
+
+2. Performance Issues
+   - Analyze queries
+   - Check indexes
+   - Monitor resources
+   - Optimize code
+
+3. Data Issues
+   - Validate data
+   - Check constraints
+   - Verify relationships
+   - Monitor integrity
+
+## Development Guidelines
+
+1. Code Organization
+   - Follow module pattern
+   - Use proper abstractions
+   - Implement interfaces
+   - Document code
+
+2. Testing
+   - Write unit tests
+   - Add integration tests
+   - Test migrations
+   - Test performance
+
+3. Documentation
+   - Document schema
+   - Add code comments
+   - Update API docs
+   - Document changes
+
+## Deployment Considerations
+
+1. Environment Setup
+   - Configure environments
+   - Set up connections
+   - Configure security
+   - Set up monitoring
+
+2. Performance Tuning
+   - Optimize connections
+   - Configure caching
+   - Set up indexes
+   - Monitor performance
+
+3. Security Setup
+   - Configure encryption
+   - Set up access control
+   - Implement monitoring
+   - Configure backups

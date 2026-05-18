@@ -1,0 +1,202 @@
+---
+description: car
+globs: 
+alwaysApply: false
+---
+# Car Module Documentation
+
+## Overview
+The Car module is responsible for managing car-related operations in the History Auto Utility application. It provides functionality for creating, reading, updating, and deleting car records, with proper user authentication and authorization.
+
+## Module Structure
+```
+car/
+├── dto/
+│   ├── add-car.dto.ts
+│   ├── car.dto.ts
+│   ├── get-car-filter.dto.ts
+│   └── update-car.dto.ts
+├── entities/
+│   └── car.entity.ts
+├── car.controller.ts
+├── car.service.ts
+├── car.module.ts
+└── car.mdc (this file)
+```
+
+## Dependencies
+- NestJS Framework
+- Prisma ORM
+- JWT Authentication
+- File Upload (Multer)
+- Swagger/OpenAPI
+
+## Core Components
+
+### CarModule
+- Imports: PrismaModule
+- Controllers: CarController
+- Providers: CarService, LoggingInterceptor, RolesGuard
+- Global Guards: JwtAuthGuard
+
+### CarController
+Endpoints:
+1. `POST /car` - Create new car
+   - Requires authentication
+   - Supports file upload for car images
+   - File size limit: 1MB
+   - Allowed formats: jpg, jpeg, png, gif
+
+2. `GET /car/:id` - Get car by ID
+   - Returns car details
+   - 404 if not found
+
+3. `PUT /car` - Update car
+   - Requires car ID in body
+   - Returns updated car
+
+4. `DELETE /car/:id` - Delete car
+   - Returns deleted car data
+
+5. `GET /car` - Get all cars for authenticated user
+   - Requires authentication
+   - Returns array of cars
+
+6. `GET /car/user/:userId` - Get cars by user ID
+   - Returns array of cars for specific user
+
+### CarService
+Core methods:
+1. `createCar(data: AddCarDto, google_id: string)`
+   - Creates new car record
+   - Links car to user by google_id
+   - Returns CarDto
+
+2. `getCar(id: number)`
+   - Retrieves single car by ID
+   - Returns CarDto or null
+
+3. `updateCar(id: number, data: Prisma.CarUpdateInput)`
+   - Updates car details
+   - Returns updated CarDto
+
+4. `deleteCar(id: number)`
+   - Removes car record
+   - Returns deleted CarDto
+
+5. `getAllCars(google_id: string)`
+   - Gets all cars for authenticated user
+   - Returns array of CarDto
+
+6. `getCarsByUser(userId: number)`
+   - Gets all cars for specific user
+   - Returns array of CarDto
+
+## Data Transfer Objects (DTOs)
+
+### CarDto
+Base car data structure:
+- id: number
+- vin: string
+- make: string
+- model: string
+- year: number
+- license_plate: string
+- current_mileage: number
+- user_id: number
+
+### AddCarDto
+Extends CarDto for creation:
+- Additional validation rules
+- Required fields validation
+
+### UpdateCarDto
+For car updates:
+- Partial fields update support
+- ID required for update
+
+### GetCarFilterDto
+For filtering car queries:
+- Optional filter parameters
+- Search criteria
+
+## Best Practices for Future Development
+
+1. File Upload
+   - Current image upload path: './uploads/cars'
+   - Consider implementing cloud storage
+   - Add image optimization
+   - Implement file cleanup on car deletion
+
+2. Validation
+   - Add comprehensive input validation
+   - Implement VIN validation
+   - Add mileage validation rules
+   - Validate year ranges
+
+3. Error Handling
+   - Implement custom exceptions
+   - Add detailed error messages
+   - Implement proper error logging
+
+4. Performance
+   - Add caching for frequently accessed cars
+   - Implement pagination for car lists
+   - Add database indexing for common queries
+
+5. Security
+   - Implement rate limiting
+   - Add input sanitization
+   - Implement proper file upload security
+   - Add audit logging
+
+6. Testing
+   - Add unit tests for service methods
+   - Add integration tests for endpoints
+   - Add e2e tests for critical flows
+
+7. Documentation
+   - Keep API documentation updated
+   - Add code comments for complex logic
+   - Document any new features
+
+## Future Improvements
+
+1. Features
+   - Add car history tracking
+   - Implement car maintenance scheduling
+   - Add car sharing functionality
+   - Implement car comparison features
+
+2. Technical
+   - Implement soft delete
+   - Add car image gallery support
+   - Implement car search functionality
+   - Add car statistics and analytics
+
+3. Integration
+   - Add third-party car data providers
+   - Implement car market value tracking
+   - Add car insurance integration
+   - Implement car service scheduling
+
+## Migration Guidelines
+
+When making changes to the car module:
+
+1. Database Changes
+   - Use Prisma migrations
+   - Test migrations in development
+   - Backup data before production migration
+
+2. API Changes
+   - Maintain backward compatibility
+   - Version API endpoints
+   - Update documentation
+   - Notify frontend team
+
+3. Code Changes
+   - Follow existing patterns
+   - Add proper tests
+   - Update documentation
+   - Review security implications

@@ -1,0 +1,202 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Global Rules and Standards for History Auto Utility Backend
+
+## 1. Project Architecture
+
+### 1.1 Directory Structure
+```
+src/
+├── common/           # Shared components
+│   ├── decorators/   # Custom decorators
+│   ├── filters/      # Exception filters
+│   ├── guards/       # Authentication guards
+│   ├── interceptors/ # Request/Response interceptors
+│   └── pipes/        # Custom pipes
+├── modules/          # Feature modules
+│   ├── auth/         # Authentication
+│   ├── car/          # Car management
+│   ├── document/     # Document handling
+│   └── maintenance-record/ # Maintenance records
+├── prisma/           # Database configuration
+├── uploads/          # File storage
+└── utils/            # Utility functions
+```
+
+### 1.2 Module Structure
+Each feature module should follow this structure:
+```
+module-name/
+├── dto/              # Data Transfer Objects
+├── entities/         # Database entities
+├── module-name.controller.ts
+├── module-name.service.ts
+└── module-name.module.ts
+```
+
+## 2. Coding Standards
+
+### 2.1 TypeScript/NestJS Standards
+- Use TypeScript strict mode
+- Follow NestJS module pattern
+- Use dependency injection
+- Implement interfaces for type safety
+- Use decorators for metadata
+
+### 2.2 API Design
+- All routes prefixed with 'api'
+- Use proper HTTP methods (GET, POST, PUT, DELETE)
+- Implement proper status codes
+- Use DTOs for request/response validation
+- Document all endpoints with Swagger decorators
+
+### 2.3 Authentication & Authorization
+- Use JWT authentication
+- Implement role-based access control
+- Use guards for protected routes
+- Validate user sessions
+- Handle token refresh
+
+### 2.4 Error Handling
+- Use global exception filter
+- Implement proper error messages
+- Use HTTP status codes appropriately
+- Log errors with proper context
+- Handle validation errors
+
+## 3. Security Standards
+
+### 3.1 CORS Configuration
+Allowed origins:
+- https://wwww.app.denhau.ro
+- https://app.denhau.ro
+- https://dev.denhau.ro
+- http://localhost:4200
+
+### 3.2 File Upload
+- Validate file types
+- Implement size limits (1MB default)
+- Use secure file naming
+- Store in dedicated directories
+- Implement proper file cleanup
+
+### 3.3 Data Validation
+- Use class-validator decorators
+- Implement whitelist validation
+- Forbid non-whitelisted properties
+- Transform incoming data
+- Sanitize user inputs
+
+## 4. Database Standards
+
+### 4.1 Prisma Usage
+- Use Prisma client for database operations
+- Implement proper migrations
+- Use transactions when needed
+- Handle database errors
+- Implement proper indexing
+
+### 4.2 Data Models
+- Use proper relationships
+- Implement soft deletes
+- Use timestamps
+- Implement proper constraints
+- Use enums for fixed values
+
+## 5. Logging and Monitoring
+
+### 5.1 Logging Standards
+- Use global logging interceptor
+- Log all HTTP requests
+- Include request context
+- Log errors with stack traces
+- Implement proper log levels
+
+### 5.2 Performance Monitoring
+- Monitor response times
+- Track database queries
+- Monitor memory usage
+- Track error rates
+- Monitor API usage
+
+## 6. Testing Standards
+
+### 6.1 Test Types
+- Unit tests for services
+- Integration tests for controllers
+- E2E tests for critical flows
+- Test database operations
+- Test error scenarios
+
+### 6.2 Test Coverage
+- Maintain minimum 80% coverage
+- Test edge cases
+- Test error handling
+- Test authentication flows
+- Test data validation
+
+## 7. Documentation Standards
+
+### 7.1 API Documentation
+- Use Swagger decorators
+- Document all endpoints
+- Include request/response examples
+- Document error responses
+- Keep documentation up to date
+
+### 7.2 Code Documentation
+- Document complex logic
+- Document public APIs
+- Use JSDoc comments
+- Document configuration
+- Document environment variables
+
+## 8. Deployment Standards
+### 8.1 Environment Configuration
+- Use environment variables
+- Implement proper .env files
+- Use configuration service
+- Handle different environments
+- Secure sensitive data
+
+### 8.2 Build Process
+- Use proper build scripts
+- Implement proper versioning
+- Handle dependencies
+- Implement proper testing
+- Use proper deployment tools
+
+## 9. Maintenance Standards
+
+### 9.1 Code Quality
+- Follow SOLID principles
+- Maintain clean code
+- Regular code reviews
+- Regular dependency updates
+- Regular security audits
+
+### 9.2 Performance
+- Optimize database queries
+- Implement caching
+- Optimize file uploads
+- Monitor memory usage
+- Regular performance testing
+
+## 10. Version Control Standards
+
+### 10.1 Git Workflow
+- Use feature branches
+- Implement proper commits
+- Use pull requests
+- Regular merges to main
+- Proper version tagging
+
+### 10.2 Code Review
+- Review all changes
+- Check for security issues
+- Verify test coverage
+- Check documentation
+- Verify performance impact

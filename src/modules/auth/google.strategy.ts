@@ -21,22 +21,12 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     });
   }
 
-  authenticate(req, options) {
-    options.accessType = 'offline'; // Asigură-te că este inclus
-    options.prompt = 'consent'; // Forțează consimțământul
-    super.authenticate(req, options);
-  }
-
   async validate(
     accessToken: string,
     refreshToken: string,
     profile: any,
     done: VerifyCallback,
   ): Promise<any> {
-    console.log('Access Token:', accessToken);
-    console.log('Refresh Token:', refreshToken);
-    console.log('Profile:', profile);
-
     const { id: googleId, name, emails, photos } = profile;
     const email = emails[0].value;
 
@@ -56,9 +46,15 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         },
       });
     } else {
-      await this.prisma.user.update({
-        where: { email },
-        data: { refresh_token: refreshToken },
+      user = await this.prisma.user.update({
+        where: { google_id: googleId },
+        data: {
+          email,
+          first_name: name.givenName,
+          last_name: name.familyName,
+          picture: photos[0].value,
+          refresh_token: refreshToken,
+        },
       });
     }
     done(null, user);

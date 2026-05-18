@@ -1,0 +1,235 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Document Module Documentation
+
+## Overview
+The Document module is responsible for managing vehicle-related documents in the History Auto Utility application. It provides functionality for creating, reading, updating, and deleting document records, with role-based access control for different user types.
+
+## Module Structure
+```
+document/
+├── dto/
+│   ├── create-document.dto.ts
+│   ├── document.dto.ts
+│   └── update-document.dto.ts
+├── entities/
+│   └── document.entity.ts
+├── enum/
+│   ├── service-category.enum.ts
+│   └── service-type.enum.ts
+├── document.controller.ts
+├── document.service.ts
+├── document.module.ts
+└── document.mdc (this file)
+```
+
+## Dependencies
+- NestJS Framework
+- Prisma ORM
+- JWT Authentication
+- Role-based Authorization
+- Swagger/OpenAPI
+
+## Core Components
+
+### DocumentModule
+- Imports: PrismaModule
+- Controllers: DocumentController
+- Providers: DocumentService
+
+### DocumentController
+Endpoints:
+1. `POST /document` - Create new document
+   - Role: admin only
+   - Creates new document record
+   - Returns DocumentDto
+
+2. `GET /document/:id` - Get document by ID
+   - Roles: user, admin
+   - Returns document details
+   - 404 if not found
+
+3. `PUT /document/:id` - Update document
+   - Role: admin only
+   - Updates document details
+   - Returns updated DocumentDto
+
+4. `DELETE /document/:id` - Delete document
+   - Role: admin only
+   - Removes document record
+   - Returns deleted DocumentDto
+
+5. `GET /document/car/:carId` - Get documents by car ID
+   - Roles: user, admin
+   - Returns array of documents for specific car
+   - 404 if not found
+
+### DocumentService
+Core methods:
+1. `createDocument(data: CreateDocumentDto)`
+   - Creates new document record
+   - Returns DocumentDto
+
+2. `getDocument(id: number)`
+   - Retrieves single document by ID
+   - Returns DocumentDto or null
+
+3. `updateDocument(id: number, data: Prisma.DocumentUpdateInput)`
+   - Updates document details
+   - Returns updated DocumentDto
+
+4. `deleteDocument(id: number)`
+   - Removes document record
+   - Returns deleted DocumentDto
+
+5. `getDocumentsByCarId(carId: number)`
+   - Gets all documents for specific car
+   - Returns array of DocumentDto
+
+## Data Transfer Objects (DTOs)
+
+### DocumentDto
+Base document data structure:
+- id: number
+- document_type: string
+- issue_date: Date
+- expiry_date: Date
+- car_id: number
+
+### CreateDocumentDto
+For document creation:
+- Required fields validation
+- Document type validation
+- Date validation
+
+### UpdateDocumentDto
+For document updates:
+- Partial fields update support
+- Optional fields
+
+## Enums
+
+### ServiceCategoryEnum
+Service categories:
+- MAINTENANCE
+- REPAIR
+- INSPECTION
+- INSURANCE
+- REGISTRATION
+- OTHER
+
+### ServiceTypeEnum
+Service types:
+- REGULAR
+- EMERGENCY
+- SCHEDULED
+- WARRANTY
+
+## Best Practices for Future Development
+
+1. Document Management
+   - Implement document file storage
+   - Add document versioning
+   - Implement document expiration notifications
+   - Add document template support
+
+2. Validation
+   - Add comprehensive input validation
+   - Implement document type validation
+   - Add date range validation
+   - Validate document relationships
+
+3. Error Handling
+   - Implement custom exceptions
+   - Add detailed error messages
+   - Implement proper error logging
+   - Add validation error handling
+
+4. Performance
+   - Add caching for frequently accessed documents
+   - Implement pagination for document lists
+   - Add database indexing for common queries
+   - Optimize document queries
+
+5. Security
+   - Implement document access control
+   - Add document encryption
+   - Implement audit logging
+   - Add document signing
+
+6. Testing
+   - Add unit tests for service methods
+   - Add integration tests for endpoints
+   - Add e2e tests for critical flows
+   - Add document validation tests
+
+7. Documentation
+   - Keep API documentation updated
+   - Add code comments for complex logic
+   - Document any new features
+   - Add usage examples
+
+## Future Improvements
+
+1. Features
+   - Add document search functionality
+   - Implement document categories
+   - Add document sharing
+   - Implement document workflow
+
+2. Technical
+   - Implement soft delete
+   - Add document metadata support
+   - Implement document versioning
+   - Add document analytics
+
+3. Integration
+   - Add third-party document providers
+   - Implement document OCR
+   - Add document verification
+   - Implement document e-signing
+
+## Migration Guidelines
+
+When making changes to the document module:
+
+1. Database Changes
+   - Use Prisma migrations
+   - Test migrations in development
+   - Backup data before production migration
+   - Handle document relationships
+
+2. API Changes
+   - Maintain backward compatibility
+   - Version API endpoints
+   - Update documentation
+   - Notify frontend team
+
+3. Code Changes
+   - Follow existing patterns
+   - Add proper tests
+   - Update documentation
+   - Review security implications
+
+## Security Considerations
+
+1. Access Control
+   - Maintain strict role-based access
+   - Implement document-level permissions
+   - Add audit logging
+   - Monitor document access
+
+2. Data Protection
+   - Encrypt sensitive document data
+   - Implement secure file storage
+   - Add data backup procedures
+   - Implement data retention policies
+
+3. API Security
+   - Implement rate limiting
+   - Add request validation
+   - Use secure headers
+   - Monitor API usage

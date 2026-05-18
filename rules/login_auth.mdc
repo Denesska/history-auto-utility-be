@@ -1,0 +1,112 @@
+---
+description: auth login
+globs: 
+alwaysApply: false
+---
+# Login Authentication Rules
+
+## Overview
+This document outlines the authentication rules and flow for the application, which uses Google OAuth 2.0 for authentication and JWT tokens for session management.
+
+## Authentication Flow
+
+### 1. Google OAuth Login
+- Endpoint: `GET /auth/google`
+- Flow:
+  1. User initiates Google OAuth login
+  2. User is redirected to Google for authentication
+  3. After successful Google authentication, user is redirected to `/auth/google/redirect`
+  4. System generates access and refresh tokens
+  5. Access token is stored in HTTP-only cookie
+  6. Refresh token is stored in database
+  7. User is redirected to frontend application
+
+### 2. Token Management
+
+#### Access Token
+- Type: JWT
+- Storage: HTTP-only cookie
+- Expiration: 15 minutes
+- Cookie Configuration:
+  - httpOnly: true
+  - secure: true (HTTPS only)
+  - sameSite: 'none' (cross-domain support)
+  - path: '/'
+  - domain: 'api.denhau.ro'
+  - maxAge: 24 hours
+
+#### Refresh Token
+- Type: JWT
+- Storage: Database (User table)
+- Expiration: 7 days
+- Used to generate new access tokens
+
+### 3. Token Refresh
+- Endpoint: `POST /auth/refresh`
+- Flow:
+  1. System validates existing access token
+  2. Retrieves refresh token from database
+  3. Validates refresh token
+  4. Generates new access token
+  5. Updates cookie with new access token
+
+### 4. User Profile
+- Endpoint: `GET /auth/me`
+- Protected by: JwtAuthGuard
+- Returns: User information from validated token
+
+### 5. Logout
+- Endpoint: `POST /auth/logout`
+- Actions:
+  1. Removes refresh token from database
+  2. Clears access token cookie
+  3. Returns success message
+
+## Security Rules
+
+1. **Token Storage**
+   - Access tokens must be stored in HTTP-only cookies
+   - Refresh tokens must be stored in database
+   - Tokens must never be exposed in client-side JavaScript
+
+2. **Token Validation**
+   - All access tokens must be validated on protected routes
+   - Refresh tokens must be validated before generating new access tokens
+   - Invalid tokens must result in 401 Unauthorized response
+
+3. **Cookie Security**
+   - Cookies must be HTTP-only
+   - Cookies must be secure (HTTPS only)
+   - Cookies must use appropriate sameSite policy
+   - Cookies must have proper domain and path settings
+
+4. **Error Handling**
+   - Invalid tokens must be rejected with 401 Unauthorized
+   - Missing tokens must be rejected with 401 Unauthorized
+   - Expired tokens must trigger refresh flow
+
+## Implementation Notes
+
+1. **JWT Payload Structure**
+   ```typescript
+   {
+     sub: string;    // Google ID
+     email: string;  // User email
+     iat: number;    // Issued at timestamp
+     exp: number;    // Expiration timestamp
+   }
+   ```
+
+2. **Required Environment Variables**
+   - JWT_ACCESS_SECRET: Secret for access token signing
+   - JWT_REFRESH_SECRET: Secret for refresh token signing
+   - FE_BASE_URL: Frontend application URL
+
+3. **Database Requirements**
+   - User table must have refresh_token column
+   - refresh_token column should be nullable
+
+4. **Error Responses**
+   - 401 Unauthorized: Invalid or missing tokens
+   - 200 OK: Successful authentication/refresh
+   - 302 Found: OAuth redirects

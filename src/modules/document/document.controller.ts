@@ -18,8 +18,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @ApiTags('document')
-@UseGuards(JwtAuthGuard)
-@UseGuards(RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('document')
 export class DocumentController {
   constructor(private readonly documentService: DocumentService) {}

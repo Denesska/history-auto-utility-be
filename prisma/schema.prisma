@@ -22,18 +22,37 @@ model User {
 }
 
 model Car {
-  id                 Int                 @id @default(autoincrement())
-  vin                String              @unique
-  make               String
-  model              String
-  year               Int
-  license_plate      String
-  current_mileage    Int
-  user_id            Int
-  user               User                @relation(fields: [user_id], references: [id])
-  maintenanceRecords MaintenanceRecord[]
-  documents          Document[]
-  image              String?
+  id                       Int               @id @default(autoincrement())
+  vin                      String?           @unique
+  make                     String
+  model                    String
+  variant                  String?
+  year                     Int
+  license_plate            String
+  fuel_type                FuelType?
+  transmission             TransmissionType?
+  engine                   String?
+  color                    String?
+  current_mileage          Int
+  ownership_start_date     DateTime?
+  rca_expiry_date          DateTime?
+  itp_expiry_date          DateTime?
+  rov_expiry_date          DateTime?
+  last_oil_service_date    DateTime?
+  last_oil_service_mileage Int?
+  user_id                  Int
+  user                     User              @relation(fields: [user_id], references: [id])
+  maintenanceRecords       MaintenanceRecord[]
+  documents                Document[]
+  photos                   CarPhoto[]
+}
+
+model CarPhoto {
+  id         Int     @id @default(autoincrement())
+  car_id     Int
+  url        String
+  is_default Boolean @default(false)
+  car        Car     @relation(fields: [car_id], references: [id], onDelete: Cascade)
 }
 
 model Document {
@@ -56,6 +75,21 @@ model MaintenanceRecord {
   cost             Float
   expiry_date      DateTime
   car              Car             @relation(fields: [car_id], references: [id])
+}
+
+enum FuelType {
+  PETROL
+  DIESEL
+  HYBRID
+  PLUGIN_HYBRID
+  ELECTRIC
+  LPG
+}
+
+enum TransmissionType {
+  MANUAL
+  AUTOMATIC
+  SEMI_AUTOMATIC
 }
 
 enum ServiceType {
