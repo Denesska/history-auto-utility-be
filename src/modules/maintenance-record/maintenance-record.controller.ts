@@ -18,14 +18,12 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { Roles } from '../../common/decorators/roles.decorator';
 import { MaintenanceRecordDto } from './dto/maintenance-record.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles/roles.guard';
 
 @ApiTags('maintenance-record')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard)
 @Controller('maintenance-record')
 export class MaintenanceRecordController {
   constructor(
@@ -33,7 +31,6 @@ export class MaintenanceRecordController {
   ) {}
 
   @Post()
-  @Roles('admin')
   @ApiOperation({ summary: 'Create a new maintenance record' })
   @ApiResponse({
     status: 201,
@@ -49,7 +46,6 @@ export class MaintenanceRecordController {
   }
 
   @Get(':id')
-  @Roles('user', 'admin')
   @ApiOperation({ summary: 'Get maintenance record by ID' })
   @ApiResponse({
     status: 200,
@@ -64,7 +60,6 @@ export class MaintenanceRecordController {
   }
 
   @Put(':id')
-  @Roles('admin')
   @ApiOperation({ summary: 'Update a maintenance record' })
   @ApiResponse({
     status: 200,
@@ -83,7 +78,6 @@ export class MaintenanceRecordController {
   }
 
   @Delete(':id')
-  @Roles('admin')
   @ApiOperation({ summary: 'Delete a maintenance record' })
   @ApiResponse({
     status: 200,
@@ -98,14 +92,12 @@ export class MaintenanceRecordController {
   }
 
   @Get('car/:carId')
-  @Roles('user', 'admin')
   @ApiOperation({ summary: 'Get all maintenance records for a specific car' })
   @ApiResponse({
     status: 200,
     description: 'Return list of maintenance records.',
     type: [MaintenanceRecordDto],
   })
-  @ApiResponse({ status: 404, description: 'Maintenance records not found.' })
   async getMaintenanceRecordsByCarId(
     @Param('carId') carId: string,
   ): Promise<MaintenanceRecordModel[]> {

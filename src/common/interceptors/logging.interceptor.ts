@@ -4,8 +4,8 @@ import {
   ExecutionContext,
   CallHandler,
 } from '@nestjs/common';
-import { Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { Observable, throwError } from 'rxjs';
+import { tap, catchError } from 'rxjs/operators';
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
@@ -17,14 +17,12 @@ export class LoggingInterceptor implements NestInterceptor {
 
     console.log(`Incoming Request: ${method} ${url}`);
 
-    return next
-      .handle()
-      .pipe(
-        tap(() =>
-          console.log(
-            `Outgoing Response: ${method} ${url} - ${Date.now() - now}ms`,
-          ),
-        ),
-      );
+    return next.handle().pipe(
+      tap(() => console.log(`Outgoing Response: ${method} ${url} - ${Date.now() - now}ms`)),
+      catchError((err) => {
+        console.error(`Error Response: ${method} ${url} - ${Date.now() - now}ms | ${err.message}`);
+        return throwError(() => err);
+      }),
+    );
   }
 }

@@ -13,6 +13,7 @@ import { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { GoogleAuthGuard } from './google-auth.guard';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -34,7 +35,7 @@ export class AuthController {
   }
 
   @Get('google')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleAuthGuard)
   @ApiOperation({ summary: 'Initiate Google OAuth login' })
   async login(): Promise<void> {
     // Passport redirects to Google — this handler never executes
@@ -57,7 +58,12 @@ export class AuthController {
 
     res.cookie('access_token', accessToken, this.cookieConfig);
 
-    const feBaseUrl = this.configService.get<string>('FE_BASE_URL', 'http://localhost:4200');
+    const defaultFeBaseUrl = this.configService.get<string>('FE_BASE_URL', 'http://localhost:4200');
+    const loginOrigin = req.cookies?.login_origin;
+    const allowedOrigins = ['https://app.denhau.ro', 'https://dev.denhau.ro', 'http://localhost:4200'];
+    const feBaseUrl = loginOrigin && allowedOrigins.includes(loginOrigin) ? loginOrigin : defaultFeBaseUrl;
+
+    res.clearCookie('login_origin', { path: '/' });
     res.redirect(`${feBaseUrl}/main/cars`);
   }
 

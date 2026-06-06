@@ -10,41 +10,67 @@ generator client {
 }
 
 model User {
-  id            Int      @id @default(autoincrement())
-  google_id     String   @unique
-  email         String   @unique
+  id            Int              @id @default(autoincrement())
+  google_id     String           @unique
+  email         String           @unique
   first_name    String
   last_name     String
   picture       String
-  created_at    DateTime @default(now())
+  created_at    DateTime         @default(now())
   cars          Car[]
   refresh_token String?
+  car_accesses  CarUserAccess[]  @relation("UserAccesses")
+  invitations   CarUserAccess[]  @relation("InvitedBy")
+  blog_entries  BlogEntry[]
 }
 
 model Car {
   id                       Int               @id @default(autoincrement())
   vin                      String?           @unique
+  nickname                 String?           @unique
   make                     String
   model                    String
   variant                  String?
   year                     Int
-  license_plate            String
+  license_plate            String?
   fuel_type                FuelType?
   transmission             TransmissionType?
   engine                   String?
   color                    String?
-  current_mileage          Int
+  current_mileage          Int?
   ownership_start_date     DateTime?
   rca_expiry_date          DateTime?
   itp_expiry_date          DateTime?
   rov_expiry_date          DateTime?
   last_oil_service_date    DateTime?
   last_oil_service_mileage Int?
+  status                   CarStatus         @default(ACTIVE)
+  sold_at                  DateTime?
   user_id                  Int
   user                     User              @relation(fields: [user_id], references: [id])
   maintenanceRecords       MaintenanceRecord[]
   documents                Document[]
   photos                   CarPhoto[]
+  access_entries           CarUserAccess[]
+  blog_entries             BlogEntry[]
+}
+
+model CarUserAccess {
+  id                Int            @id @default(autoincrement())
+  car_id            Int
+  user_id           Int
+  role              CarAccessRole
+  invited_by_user_id Int
+  accepted_at       DateTime?
+  created_at        DateTime       @default(now())
+
+  car               Car            @relation(fields: [car_id], references: [id], onDelete: Cascade)
+  user              User           @relation("UserAccesses", fields: [user_id], references: [id])
+  invited_by        User           @relation("InvitedBy", fields: [invited_by_user_id], references: [id])
+
+  @@unique([car_id, user_id])
+  @@index([user_id])
+  @@index([car_id])
 }
 
 model CarPhoto {
@@ -56,12 +82,20 @@ model CarPhoto {
 }
 
 model Document {
-  id            Int      @id @default(autoincrement())
+  id            Int       @id @default(autoincrement())
   car_id        Int
   document_type String
-  issue_date    DateTime
-  expiry_date   DateTime
-  car           Car      @relation(fields: [car_id], references: [id])
+  issue_date    DateTime?
+  expiry_date   DateTime?
+  provider      String?
+  policy_number String?
+  status        String?   @default("Active")
+  policyholder  String?
+  cnp_id        String?
+  file_url      String?
+  file_name     String?
+  file_size     Int?
+  car           Car       @relation(fields: [car_id], references: [id])
 }
 
 model MaintenanceRecord {
@@ -73,8 +107,21 @@ model MaintenanceRecord {
   service_type     ServiceType
   service_category ServiceCategory
   cost             Float
-  expiry_date      DateTime
+  expiry_date      DateTime?
   car              Car             @relation(fields: [car_id], references: [id])
+}
+
+enum CarStatus {
+  ACTIVE
+  SOLD
+}
+
+enum CarAccessRole {
+  OWNER
+  FULL
+  USER
+  MAINTENANCE
+  VIEWER
 }
 
 enum FuelType {
@@ -103,5 +150,123 @@ enum ServiceCategory {
   BRAKE_SERVICE
   TRANSMISSION_SERVICE
   TIRE_SERVICE
+  FLUID_SERVICE
+  ENGINE_SERVICE
+  INSPECTION
+  BATTERY_SERVICE
+  FILTER_SERVICE
+  LIGHT_SERVICE
   OTHER
+}
+
+model CarMake {
+  id              Int               @id @default(autoincrement())
+  name            String
+  normalized_name String            @unique
+  source          String            @default("manual")
+  external_id     String?
+  created_at      DateTime          @default(now())
+  updated_at      DateTime          @updatedAt
+  models          CarCatalogModel[]
+
+  @@index([normalized_name])
+  @@map("car_makes")
+}
+
+model CarCatalogModel {
+  id              Int            @id @default(autoincrement())
+  make_id         Int
+  name            String
+  normalized_name String
+  source          String         @default("manual")
+  external_id     String?
+  created_at      DateTime       @default(now())
+  updated_at      DateTime       @updatedAt
+  make            CarMake        @relation(fields: [make_id], references: [id])
+  years           CarModelYear[]
+
+  @@unique([make_id, normalized_name])
+  @@index([make_id, normalized_name])
+  @@map("car_models")
+}
+
+model CarModelYear {
+  id         Int             @id @default(autoincrement())
+  model_id   Int
+  year       Int
+  source     String          @default("manual")
+  created_at DateTime        @default(now())
+  model      CarCatalogModel @relation(fields: [model_id], references: [id])
+
+  @@unique([model_id, year])
+  @@index([model_id])
+  @@map("car_model_years")
+}
+
+enum BlogCategory {
+  PERSONAL
+  VEHICLE
+}
+
+enum BlogStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum VehicleEntryCategory {
+  REPAIR
+  SERVICE_VISIT
+  TRIP
+  FUEL
+  UPGRADE
+  INSPECTION
+  BREAKDOWN
+  OTHER
+}
+
+model BlogEntry {
+  id               Int                   @id @default(autoincrement())
+  user_id          Int
+  category         BlogCategory
+  title            String
+  slug             String?               @unique
+  excerpt          String?
+  date             DateTime
+  content          String                @default("")
+  content_json     Json?
+  status           BlogStatus            @default(DRAFT)
+  published_at     DateTime?
+  is_pinned        Boolean               @default(false)
+  cover_gradient   String?
+  cover_image_url  String?
+  car_id           Int?
+  vehicle_category VehicleEntryCategory?
+  km               Int?
+  price            Float?
+  created_at       DateTime              @default(now())
+  updated_at       DateTime              @updatedAt
+  user             User                  @relation(fields: [user_id], references: [id])
+  car              Car?                  @relation(fields: [car_id], references: [id])
+  tags             BlogTag[]
+  images           BlogImage[]
+
+  @@index([user_id])
+  @@index([car_id])
+  @@index([slug])
+  @@index([status])
+}
+
+model BlogTag {
+  id            Int       @id @default(autoincrement())
+  blog_entry_id Int
+  label         String
+  color         String
+  blog_entry    BlogEntry @relation(fields: [blog_entry_id], references: [id], onDelete: Cascade)
+}
+
+model BlogImage {
+  id            Int       @id @default(autoincrement())
+  blog_entry_id Int
+  url           String
+  blog_entry    BlogEntry @relation(fields: [blog_entry_id], references: [id], onDelete: Cascade)
 }

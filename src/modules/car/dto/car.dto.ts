@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
-import { FuelType, TransmissionType } from '@prisma/client';
+import { CarStatus, FuelType, TransmissionType } from '@prisma/client';
 
 export class CarPhotoDto {
   @ApiProperty({ example: 1 })
@@ -23,6 +23,10 @@ export class CarDto {
   @ApiProperty({ example: '1HGCM82633A123456' })
   @IsOptional()
   vin?: string | null;
+
+  @ApiProperty({ example: 'Blue Beast' })
+  @IsOptional()
+  nickname?: string | null;
 
   @ApiProperty({ example: 'BMW' })
   make: string;
@@ -56,8 +60,8 @@ export class CarDto {
   @IsOptional()
   color?: string | null;
 
-  @ApiProperty({ example: 184200 })
-  current_mileage: number;
+  @ApiProperty({ example: 184200, required: false })
+  current_mileage: number | null;
 
   @ApiProperty({ example: '2024-05-12T00:00:00.000Z' })
   @IsOptional()
@@ -82,6 +86,13 @@ export class CarDto {
   @ApiProperty({ example: 180000 })
   @IsOptional()
   last_oil_service_mileage?: number | null;
+
+  @ApiProperty({ example: 'ACTIVE', enum: CarStatus })
+  status: CarStatus;
+
+  @ApiProperty({ example: '2025-06-01T00:00:00.000Z', required: false })
+  @IsOptional()
+  sold_at?: Date | null;
 
   @ApiProperty({ type: [CarPhotoDto] })
   photos: CarPhotoDto[];

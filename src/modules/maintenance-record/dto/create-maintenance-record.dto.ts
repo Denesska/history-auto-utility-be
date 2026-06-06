@@ -1,19 +1,19 @@
-import {IsString, IsInt, IsDate, IsNumber, IsEnum} from 'class-validator';
-import {ApiProperty} from "@nestjs/swagger";
-import {ServiceType} from "../../document/enum/service-type.enum";
-import {ServiceCategory} from "../../document/enum/service-category.enum";
+import { IsString, IsInt, IsNumber, IsEnum, IsOptional, IsDateString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ServiceType } from '../../document/enum/service-type.enum';
+import { ServiceCategory } from '../../document/enum/service-category.enum';
 
 export class CreateMaintenanceRecordDto {
     @IsInt()
-    @ApiProperty({ example: '123' })
+    @ApiProperty({ example: 123 })
     readonly car_id: number;
 
-    @IsDate()
-    @ApiProperty({ example: '2023-01-01T00:00:00.000Z' })
-    readonly service_date: Date;
+    @IsDateString()
+    @ApiProperty({ example: '2023-01-01' })
+    readonly service_date: string;
 
     @IsInt()
-    @ApiProperty({ example: '380000' })
+    @ApiProperty({ example: 51000 })
     readonly mileage: number;
 
     @IsString()
@@ -29,10 +29,11 @@ export class CreateMaintenanceRecordDto {
     readonly service_category: ServiceCategory;
 
     @IsNumber()
-    @ApiProperty({ example: 'Insurance' })
+    @ApiProperty({ example: 250 })
     readonly cost: number;
 
-    @IsDate()
-    @ApiProperty({ example: 'Insurance' })
-    readonly expiry_date: Date;
+    @IsOptional()
+    @IsDateString()
+    @ApiPropertyOptional({ example: '2024-01-01' })
+    readonly expiry_date?: string;
 }

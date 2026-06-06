@@ -1,5 +1,165 @@
 openapi: "3.0.0"
 paths:
+  /api/car/shared:
+    get:
+      operationId: "CarAccessController_getSharedCars"
+      summary: "Get all cars shared with the current user"
+      parameters: []
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/SharedCarDto"
+      tags:
+        - "car-access"
+      security:
+        - cookie: []
+  /api/car/{carId}/access:
+    get:
+      operationId: "CarAccessController_getAccessList"
+      summary: "List all users with access to a car"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/CarAccessDto"
+      tags:
+        - "car-access"
+      security:
+        - cookie: []
+  /api/car/{carId}/access/invite:
+    post:
+      operationId: "CarAccessController_inviteUser"
+      summary: "Invite a registered user to access a car"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteUserDto"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarAccessDto"
+      tags:
+        - "car-access"
+      security:
+        - cookie: []
+  /api/car/{carId}/access/accept:
+    post:
+      operationId: "CarAccessController_acceptInvitation"
+      summary: "Accept a pending invitation to a car"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarAccessDto"
+      tags:
+        - "car-access"
+      security:
+        - cookie: []
+  /api/car/{carId}/access/{targetUserId}/role:
+    patch:
+      operationId: "CarAccessController_changeRole"
+      summary: "Change the role of a user on a car"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+        - name: "targetUserId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeRoleDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarAccessDto"
+      tags:
+        - "car-access"
+      security:
+        - cookie: []
+  /api/car/{carId}/access/leave:
+    delete:
+      operationId: "CarAccessController_leaveAccess"
+      summary: "Leave (remove yourself from) a shared car"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        204:
+          description: "Access removed"
+      tags:
+        - "car-access"
+      security:
+        - cookie: []
+  /api/car/{carId}/access/{targetUserId}:
+    delete:
+      operationId: "CarAccessController_removeAccess"
+      summary: "Remove a user's access to a car"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+        - name: "targetUserId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        204:
+          description: "Access removed"
+      tags:
+        - "car-access"
+      security:
+        - cookie: []
   /api/car:
     post:
       operationId: "CarController_createCar"
@@ -141,6 +301,52 @@ paths:
         - "car"
       security:
         - cookie: []
+  /api/car/{id}/sold:
+    patch:
+      operationId: "CarController_markAsSold"
+      summary: "Mark a car as sold (archive)"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: "Car marked as sold."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarDto"
+        403:
+          description: "Only the owner can archive this car."
+      tags:
+        - "car"
+      security:
+        - cookie: []
+  /api/car/{id}/restore:
+    patch:
+      operationId: "CarController_restoreCar"
+      summary: "Restore a sold car back to active"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: "Car restored to active."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarDto"
+        403:
+          description: "Only the owner can restore this car."
+      tags:
+        - "car"
+      security:
+        - cookie: []
   /api/car/user/{userId}:
     get:
       operationId: "CarController_getCarsByUser"
@@ -164,6 +370,64 @@ paths:
         - "car"
       security:
         - cookie: []
+  /api/vehicle-catalog/makes:
+    get:
+      operationId: "VehicleCatalogController_getMakes"
+      summary: "List all car makes"
+      parameters: []
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/MakeResponseDto"
+      tags:
+        - "vehicle-catalog"
+  /api/vehicle-catalog/makes/{makeId}/models:
+    get:
+      operationId: "VehicleCatalogController_getModels"
+      summary: "List models for a given make"
+      parameters:
+        - name: "makeId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/ModelResponseDto"
+      tags:
+        - "vehicle-catalog"
+  /api/vehicle-catalog/models/{modelId}/years:
+    get:
+      operationId: "VehicleCatalogController_getYears"
+      summary: "List years for a given model"
+      parameters:
+        - name: "modelId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/YearResponseDto"
+      tags:
+        - "vehicle-catalog"
   /api/maintenance-record:
     post:
       operationId: "MaintenanceRecordController_createMaintenanceRecord"
@@ -278,8 +542,6 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/MaintenanceRecordDto"
-        404:
-          description: "Maintenance records not found."
       tags:
         - "maintenance-record"
       security:
@@ -297,13 +559,11 @@ paths:
               $ref: "#/components/schemas/CreateDocumentDto"
       responses:
         201:
-          description: "The document has been successfully created."
+          description: ""
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/DocumentDto"
-        403:
-          description: "Forbidden."
       tags:
         - "document"
   /api/document/{id}:
@@ -318,7 +578,7 @@ paths:
             type: "string"
       responses:
         200:
-          description: "Return document details."
+          description: ""
           content:
             application/json:
               schema:
@@ -344,7 +604,7 @@ paths:
               $ref: "#/components/schemas/UpdateDocumentDto"
       responses:
         200:
-          description: "The document has been successfully updated."
+          description: ""
           content:
             application/json:
               schema:
@@ -364,13 +624,11 @@ paths:
             type: "string"
       responses:
         200:
-          description: "The document has been successfully deleted."
+          description: ""
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/DocumentDto"
-        404:
-          description: "Document not found."
       tags:
         - "document"
   /api/document/car/{carId}:
@@ -385,17 +643,286 @@ paths:
             type: "string"
       responses:
         200:
-          description: "Return list of documents."
+          description: ""
           content:
             application/json:
               schema:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/DocumentDto"
-        404:
-          description: "Documents not found."
       tags:
         - "document"
+  /api/document/extract:
+    post:
+      operationId: "DocumentController_extractDocument"
+      summary: "Extract fields from an uploaded document file (returns suggestions only — does not save)"
+      description: "Upload a PDF document to have its fields extracted and returned as suggestions. No data is stored. The user must review and confirm the extracted values before saving. Currently supports Romanian RCA insurance PDFs."
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: "object"
+              properties:
+                file:
+                  type: "string"
+                  format: "binary"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExtractionResultDto"
+        400:
+          description: "No file provided or file could not be read."
+        415:
+          description: "Unsupported file type."
+      tags:
+        - "document"
+  /api/document/{id}/upload:
+    post:
+      operationId: "DocumentController_uploadFile"
+      summary: "Upload a file for a document"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: "object"
+              properties:
+                file:
+                  type: "string"
+                  format: "binary"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentDto"
+      tags:
+        - "document"
+  /api/blog/images:
+    post:
+      operationId: "BlogController_uploadImage"
+      summary: "Upload a blog image"
+      parameters: []
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                properties:
+                  url:
+                    type: "string"
+      tags:
+        - "blog"
+      security:
+        - bearer: []
+  /api/blog/categories/vehicle:
+    get:
+      operationId: "BlogController_getVehicleCategories"
+      summary: "Get all vehicle entry categories"
+      parameters: []
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/VehicleCategoryDto"
+      tags:
+        - "blog"
+      security:
+        - bearer: []
+  /api/blog:
+    get:
+      operationId: "BlogController_getEntries"
+      summary: "Get all blog entries for authenticated user"
+      parameters:
+        - name: "category"
+          required: false
+          in: "query"
+          schema:
+            enum:
+              - "PERSONAL"
+              - "VEHICLE"
+            type: "string"
+        - name: "car_id"
+          required: false
+          in: "query"
+          schema:
+            type: "number"
+        - name: "vehicle_category"
+          required: false
+          in: "query"
+          schema:
+            enum:
+              - "REPAIR"
+              - "SERVICE_VISIT"
+              - "TRIP"
+              - "FUEL"
+              - "UPGRADE"
+              - "INSPECTION"
+              - "BREAKDOWN"
+              - "OTHER"
+            type: "string"
+        - name: "search"
+          required: false
+          in: "query"
+          description: "Search in title and content"
+          schema:
+            type: "string"
+        - name: "is_pinned"
+          required: false
+          in: "query"
+          schema:
+            type: "boolean"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/BlogEntryDto"
+      tags:
+        - "blog"
+      security:
+        - bearer: []
+    post:
+      operationId: "BlogController_createEntry"
+      summary: "Create a blog entry"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBlogEntryDto"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlogEntryDto"
+      tags:
+        - "blog"
+      security:
+        - bearer: []
+  /api/blog/{id}:
+    get:
+      operationId: "BlogController_getEntry"
+      summary: "Get a single blog entry"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlogEntryDto"
+        404:
+          description: "Not found"
+      tags:
+        - "blog"
+      security:
+        - bearer: []
+    put:
+      operationId: "BlogController_updateEntry"
+      summary: "Update a blog entry"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBlogEntryDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlogEntryDto"
+      tags:
+        - "blog"
+      security:
+        - bearer: []
+    delete:
+      operationId: "BlogController_deleteEntry"
+      summary: "Delete a blog entry"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlogEntryDto"
+      tags:
+        - "blog"
+      security:
+        - bearer: []
+  /api/blog/{id}/pin:
+    patch:
+      operationId: "BlogController_togglePin"
+      summary: "Toggle pin on a blog entry"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlogEntryDto"
+      tags:
+        - "blog"
+      security:
+        - bearer: []
+  /api/version:
+    get:
+      operationId: "AppVersionController_getVersion"
+      summary: "Get current backend version"
+      parameters: []
+      responses:
+        200:
+          description: "Returns the current app version"
+      tags:
+        - "version"
   /api/auth/google:
     get:
       operationId: "AuthController_login"
@@ -470,6 +997,121 @@ components:
       bearerFormat: "JWT"
       type: "http"
   schemas:
+    SharedCarDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+        make:
+          type: "string"
+        model:
+          type: "string"
+        variant:
+          type: "string"
+        year:
+          type: "number"
+        license_plate:
+          type: "string"
+        shared_role:
+          type: "string"
+          enum:
+            - "OWNER"
+            - "FULL"
+            - "USER"
+            - "MAINTENANCE"
+            - "VIEWER"
+        accepted_at:
+          format: "date-time"
+          type: "string"
+      required:
+        - "id"
+        - "make"
+        - "model"
+        - "year"
+        - "license_plate"
+        - "shared_role"
+    CarAccessUserDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+        email:
+          type: "string"
+        first_name:
+          type: "string"
+        last_name:
+          type: "string"
+        picture:
+          type: "string"
+      required:
+        - "id"
+        - "email"
+        - "first_name"
+        - "last_name"
+    CarAccessDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+        car_id:
+          type: "number"
+        role:
+          type: "string"
+          enum:
+            - "OWNER"
+            - "FULL"
+            - "USER"
+            - "MAINTENANCE"
+            - "VIEWER"
+        user:
+          $ref: "#/components/schemas/CarAccessUserDto"
+        invited_by:
+          $ref: "#/components/schemas/CarAccessUserDto"
+        accepted_at:
+          format: "date-time"
+          type: "string"
+        created_at:
+          format: "date-time"
+          type: "string"
+      required:
+        - "id"
+        - "car_id"
+        - "role"
+        - "user"
+        - "invited_by"
+        - "created_at"
+    InviteUserDto:
+      type: "object"
+      properties:
+        email:
+          type: "string"
+          example: "friend@example.com"
+        role:
+          type: "string"
+          enum:
+            - "OWNER"
+            - "FULL"
+            - "USER"
+            - "MAINTENANCE"
+            - "VIEWER"
+          example: "VIEWER"
+      required:
+        - "email"
+        - "role"
+    ChangeRoleDto:
+      type: "object"
+      properties:
+        role:
+          type: "string"
+          enum:
+            - "OWNER"
+            - "FULL"
+            - "USER"
+            - "MAINTENANCE"
+            - "VIEWER"
+          example: "VIEWER"
+      required:
+        - "role"
     AddCarDto:
       type: "object"
       properties:
@@ -491,6 +1133,9 @@ components:
         vin:
           type: "string"
           example: "WBAHE21060GE64612"
+        nickname:
+          type: "string"
+          example: "Blue Beast"
         year:
           type: "number"
           example: 2006
@@ -546,14 +1191,13 @@ components:
         - "make"
         - "model"
         - "variant"
-        - "license_plate"
         - "vin"
+        - "nickname"
         - "year"
         - "fuel_type"
         - "transmission"
         - "engine"
         - "color"
-        - "current_mileage"
         - "ownership_start_date"
         - "rca_expiry_date"
         - "itp_expiry_date"
@@ -589,6 +1233,9 @@ components:
         vin:
           type: "string"
           example: "1HGCM82633A123456"
+        nickname:
+          type: "string"
+          example: "Blue Beast"
         make:
           type: "string"
           example: "BMW"
@@ -653,6 +1300,16 @@ components:
         last_oil_service_mileage:
           type: "number"
           example: 180000
+        status:
+          type: "string"
+          example: "ACTIVE"
+          enum:
+            - "ACTIVE"
+            - "SOLD"
+        sold_at:
+          format: "date-time"
+          type: "string"
+          example: "2025-06-01T00:00:00.000Z"
         photos:
           type: "array"
           items:
@@ -661,6 +1318,7 @@ components:
         - "id"
         - "user_id"
         - "vin"
+        - "nickname"
         - "make"
         - "model"
         - "variant"
@@ -670,27 +1328,68 @@ components:
         - "transmission"
         - "engine"
         - "color"
-        - "current_mileage"
         - "ownership_start_date"
         - "rca_expiry_date"
         - "itp_expiry_date"
         - "rov_expiry_date"
         - "last_oil_service_date"
         - "last_oil_service_mileage"
+        - "status"
         - "photos"
+    MakeResponseDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+        name:
+          type: "string"
+        normalizedName:
+          type: "string"
+      required:
+        - "id"
+        - "name"
+        - "normalizedName"
+    ModelResponseDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+        makeId:
+          type: "number"
+        name:
+          type: "string"
+        normalizedName:
+          type: "string"
+      required:
+        - "id"
+        - "makeId"
+        - "name"
+        - "normalizedName"
+    YearResponseDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+        modelId:
+          type: "number"
+        year:
+          type: "number"
+      required:
+        - "id"
+        - "modelId"
+        - "year"
     CreateMaintenanceRecordDto:
       type: "object"
       properties:
         car_id:
           type: "number"
-          example: "123"
+          example: 123
         service_date:
-          format: "date-time"
           type: "string"
-          example: "2023-01-01T00:00:00.000Z"
+          example: "2023-01-01"
         mileage:
           type: "number"
-          example: "380000"
+          example: 51000
         description:
           type: "string"
           example: "Oil 10W40, air filter MANN"
@@ -709,14 +1408,19 @@ components:
             - "BRAKE_SERVICE"
             - "TRANSMISSION_SERVICE"
             - "TIRE_SERVICE"
+            - "FLUID_SERVICE"
+            - "ENGINE_SERVICE"
+            - "INSPECTION"
+            - "BATTERY_SERVICE"
+            - "FILTER_SERVICE"
+            - "LIGHT_SERVICE"
             - "OTHER"
         cost:
           type: "number"
-          example: "Insurance"
+          example: 250
         expiry_date:
-          format: "date-time"
           type: "string"
-          example: "Insurance"
+          example: "2024-01-01"
       required:
         - "car_id"
         - "service_date"
@@ -725,7 +1429,6 @@ components:
         - "service_type"
         - "service_category"
         - "cost"
-        - "expiry_date"
     MaintenanceRecordDto:
       type: "object"
       properties:
@@ -760,6 +1463,12 @@ components:
             - "BRAKE_SERVICE"
             - "TRANSMISSION_SERVICE"
             - "TIRE_SERVICE"
+            - "FLUID_SERVICE"
+            - "ENGINE_SERVICE"
+            - "INSPECTION"
+            - "BATTERY_SERVICE"
+            - "FILTER_SERVICE"
+            - "LIGHT_SERVICE"
             - "OTHER"
         cost:
           type: "number"
@@ -786,22 +1495,33 @@ components:
       properties:
         document_type:
           type: "string"
-          example: "Insurance"
-        issue_date:
-          format: "date-time"
-          type: "string"
-          example: "2023-01-01T00:00:00.000Z"
-        expiry_date:
-          format: "date-time"
-          type: "string"
-          example: "2024-01-01T00:00:00.000Z"
+          example: "RCA"
         car_id:
           type: "number"
           example: 1
+        issue_date:
+          type: "string"
+          example: "2023-01-01"
+        expiry_date:
+          type: "string"
+          example: "2024-01-01"
+        provider:
+          type: "string"
+          example: "Allianz-Tiriac Asigurări"
+        policy_number:
+          type: "string"
+          example: "POL-123456789"
+        status:
+          type: "string"
+          example: "Active"
+        policyholder:
+          type: "string"
+          example: "John Doe"
+        cnp_id:
+          type: "string"
+          example: "1900101012345"
       required:
         - "document_type"
-        - "issue_date"
-        - "expiry_date"
         - "car_id"
     DocumentDto:
       type: "object"
@@ -811,24 +1531,485 @@ components:
           example: 1
         document_type:
           type: "string"
-          example: "Insurance"
-        issue_date:
-          format: "date-time"
-          type: "string"
-          example: "2023-01-01T00:00:00.000Z"
-        expiry_date:
-          format: "date-time"
-          type: "string"
-          example: "2024-01-01T00:00:00.000Z"
+          example: "RCA"
         car_id:
           type: "number"
           example: 1
+        issue_date:
+          format: "date-time"
+          type: "string"
+          nullable: true
+        expiry_date:
+          format: "date-time"
+          type: "string"
+          nullable: true
+        provider:
+          type: "string"
+          nullable: true
+        policy_number:
+          type: "string"
+          nullable: true
+        status:
+          type: "string"
+          nullable: true
+        policyholder:
+          type: "string"
+          nullable: true
+        cnp_id:
+          type: "string"
+          nullable: true
+        file_url:
+          type: "string"
+          nullable: true
+        file_name:
+          type: "string"
+          nullable: true
+        file_size:
+          type: "number"
+          nullable: true
       required:
         - "id"
         - "document_type"
-        - "issue_date"
-        - "expiry_date"
         - "car_id"
     UpdateDocumentDto:
       type: "object"
       properties: {}
+    ExtractedFieldsDto:
+      type: "object"
+      properties:
+        policy_series:
+          type: "string"
+          description: "Insurance policy series"
+        policy_number:
+          type: "string"
+          description: "Insurance policy number"
+        insurer_name:
+          type: "string"
+          description: "Insurer / insurance company name"
+        broker_name:
+          type: "string"
+          description: "Broker or agent name"
+        policyholder_name:
+          type: "string"
+          description: "Policyholder full name"
+        owner_name:
+          type: "string"
+          description: "Owner name, if different from policyholder"
+        owner_cnp:
+          type: "string"
+          description: "Owner Romanian personal ID (CNP)"
+        plate_number:
+          type: "string"
+          description: "Vehicle license plate number"
+        vin:
+          type: "string"
+          description: "Vehicle Identification Number (VIN / chassis number)"
+        vehicle_make:
+          type: "string"
+          description: "Vehicle make / brand"
+        vehicle_model:
+          type: "string"
+          description: "Vehicle model"
+        vehicle_category:
+          type: "string"
+          description: "Vehicle category (e.g. M1, N1)"
+        engine_capacity:
+          type: "string"
+          description: "Engine displacement in cc"
+        power:
+          type: "string"
+          description: "Engine power in kW"
+        seats:
+          type: "string"
+          description: "Number of seats"
+        max_weight:
+          type: "string"
+          description: "Maximum authorized weight"
+        valid_from:
+          type: "string"
+          description: "Policy valid from date (ISO 8601)"
+        valid_until:
+          type: "string"
+          description: "Policy valid until date (ISO 8601)"
+        issue_date:
+          type: "string"
+          description: "Document issue date (ISO 8601)"
+        premium:
+          type: "string"
+          description: "Insurance premium amount as a numeric string"
+        currency:
+          type: "string"
+          description: "Currency code (RON, EUR, USD)"
+        bonus_malus_class:
+          type: "string"
+          description: "Bonus-malus class (e.g. B0, B5, M1)"
+        direct_settlement:
+          type: "boolean"
+          description: "Whether direct settlement (decontare directă) is included"
+        direct_settlement_price:
+          type: "string"
+          description: "Direct settlement limit/price if available"
+        payment_installments:
+          type: "string"
+          description: "Payment installments information"
+        damage_limits:
+          type: "string"
+          description: "Damage limits (despăgubire maximă)"
+    ExtractionResultDto:
+      type: "object"
+      properties:
+        detected:
+          type: "boolean"
+          description: "Whether the document was recognised as a supported type"
+        document_type:
+          type: "string"
+          description: "Detected document type, e.g. RCA"
+          example: "RCA"
+        confidence:
+          type: "string"
+          description: "Extraction confidence level"
+          enum:
+            - "high"
+            - "medium"
+            - "low"
+            - "none"
+          example: "high"
+        fields:
+          description: "Extracted field suggestions for frontend pre-fill"
+          allOf:
+            - $ref: "#/components/schemas/ExtractedFieldsDto"
+        warnings:
+          description: "Fields or issues that require manual review"
+          type: "array"
+          items:
+            type: "string"
+        raw_text:
+          type: "string"
+          description: "First 3000 characters of raw extracted text, useful for debugging"
+      required:
+        - "detected"
+        - "confidence"
+        - "fields"
+        - "warnings"
+    VehicleCategoryDto:
+      type: "object"
+      properties:
+        value:
+          type: "string"
+          enum:
+            - "REPAIR"
+            - "SERVICE_VISIT"
+            - "TRIP"
+            - "FUEL"
+            - "UPGRADE"
+            - "INSPECTION"
+            - "BREAKDOWN"
+            - "OTHER"
+        label:
+          type: "string"
+          example: "Repair"
+      required:
+        - "value"
+        - "label"
+    BlogTagDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+          example: 1
+        label:
+          type: "string"
+          example: "oil change"
+        color:
+          type: "string"
+          example: "blue"
+      required:
+        - "id"
+        - "label"
+        - "color"
+    BlogImageDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+          example: 1
+        url:
+          type: "string"
+          example: "/uploads/blog/photo.jpg"
+      required:
+        - "id"
+        - "url"
+    BlogEntryDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+          example: 1
+        user_id:
+          type: "number"
+          example: 1
+        category:
+          type: "string"
+          enum:
+            - "PERSONAL"
+            - "VEHICLE"
+          example: "VEHICLE"
+        title:
+          type: "string"
+          example: "Oil service"
+        slug:
+          type: "string"
+          example: "oil-service-2026"
+          nullable: true
+        excerpt:
+          type: "string"
+          example: "Short summary."
+          nullable: true
+        date:
+          type: "string"
+          example: "2026-01-15T00:00:00.000Z"
+        content:
+          type: "string"
+          example: "Changed oil and filter."
+        content_json:
+          type: "object"
+          example:
+            type: "doc"
+            content: []
+          nullable: true
+        status:
+          type: "string"
+          enum:
+            - "DRAFT"
+            - "PUBLISHED"
+          example: "DRAFT"
+        published_at:
+          type: "string"
+          example: "2026-01-15T10:00:00.000Z"
+          nullable: true
+        is_pinned:
+          type: "boolean"
+          example: false
+        cover_gradient:
+          type: "string"
+          example: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+          nullable: true
+        cover_image_url:
+          type: "string"
+          example: "/uploads/blog/cover.jpg"
+          nullable: true
+        car_id:
+          type: "number"
+          example: 1
+          nullable: true
+        car_name:
+          type: "string"
+          example: "BMW 520i"
+          nullable: true
+        vehicle_category:
+          type: "string"
+          enum:
+            - "REPAIR"
+            - "SERVICE_VISIT"
+            - "TRIP"
+            - "FUEL"
+            - "UPGRADE"
+            - "INSPECTION"
+            - "BREAKDOWN"
+            - "OTHER"
+          nullable: true
+        km:
+          type: "number"
+          example: 184300
+          nullable: true
+        price:
+          type: "number"
+          example: 450
+          nullable: true
+        tags:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/BlogTagDto"
+        images:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/BlogImageDto"
+        created_at:
+          type: "string"
+          example: "2026-01-15T10:00:00.000Z"
+        updated_at:
+          type: "string"
+          example: "2026-01-15T10:00:00.000Z"
+      required:
+        - "id"
+        - "user_id"
+        - "category"
+        - "title"
+        - "slug"
+        - "excerpt"
+        - "date"
+        - "content"
+        - "content_json"
+        - "status"
+        - "published_at"
+        - "is_pinned"
+        - "cover_gradient"
+        - "cover_image_url"
+        - "car_id"
+        - "car_name"
+        - "vehicle_category"
+        - "km"
+        - "price"
+        - "tags"
+        - "images"
+        - "created_at"
+        - "updated_at"
+    CreateBlogTagDto:
+      type: "object"
+      properties:
+        label:
+          type: "string"
+          example: "oil change"
+        color:
+          type: "string"
+          example: "blue"
+      required:
+        - "label"
+        - "color"
+    CreateBlogEntryDto:
+      type: "object"
+      properties:
+        category:
+          type: "string"
+          enum:
+            - "PERSONAL"
+            - "VEHICLE"
+        title:
+          type: "string"
+          example: "Oil service"
+        slug:
+          type: "string"
+          example: "oil-service-2026"
+        excerpt:
+          type: "string"
+          example: "Short summary of the entry."
+        date:
+          type: "string"
+          example: "2026-01-15"
+        content:
+          type: "string"
+          example: "Changed oil and filter."
+        content_json:
+          type: "object"
+          example:
+            type: "doc"
+            content: []
+          description: "Tiptap JSON document"
+        status:
+          type: "string"
+          enum:
+            - "DRAFT"
+            - "PUBLISHED"
+          default: "DRAFT"
+        is_pinned:
+          type: "boolean"
+          example: false
+        cover_gradient:
+          type: "string"
+          example: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+        cover_image_url:
+          type: "string"
+          example: "/uploads/blog/cover.jpg"
+        car_id:
+          type: "number"
+          example: 1
+        vehicle_category:
+          type: "string"
+          enum:
+            - "REPAIR"
+            - "SERVICE_VISIT"
+            - "TRIP"
+            - "FUEL"
+            - "UPGRADE"
+            - "INSPECTION"
+            - "BREAKDOWN"
+            - "OTHER"
+        km:
+          type: "number"
+          example: 184300
+        price:
+          type: "number"
+          example: 450
+        tags:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/CreateBlogTagDto"
+        images:
+          description: "Array of gallery image URLs"
+          type: "array"
+          items:
+            type: "string"
+      required:
+        - "category"
+        - "title"
+        - "date"
+    UpdateBlogEntryDto:
+      type: "object"
+      properties:
+        category:
+          type: "string"
+          enum:
+            - "PERSONAL"
+            - "VEHICLE"
+        title:
+          type: "string"
+          example: "Oil service"
+        slug:
+          type: "string"
+          example: "oil-service-2026"
+        excerpt:
+          type: "string"
+        date:
+          type: "string"
+          example: "2026-01-15"
+        content:
+          type: "string"
+        content_json:
+          type: "object"
+          description: "Tiptap JSON document"
+        status:
+          type: "string"
+          enum:
+            - "DRAFT"
+            - "PUBLISHED"
+        is_pinned:
+          type: "boolean"
+        cover_gradient:
+          type: "string"
+        cover_image_url:
+          type: "string"
+        car_id:
+          type: "number"
+        vehicle_category:
+          type: "string"
+          enum:
+            - "REPAIR"
+            - "SERVICE_VISIT"
+            - "TRIP"
+            - "FUEL"
+            - "UPGRADE"
+            - "INSPECTION"
+            - "BREAKDOWN"
+            - "OTHER"
+        km:
+          type: "number"
+        price:
+          type: "number"
+        tags:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/CreateBlogTagDto"
+        images:
+          type: "array"
+          items:
+            type: "string"

@@ -9,7 +9,16 @@ export class MaintenanceRecordService {
 
     async createMaintenanceRecord(data: CreateMaintenanceRecordDto): Promise<MaintenanceRecord> {
         return this.prisma.maintenanceRecord.create({
-            data,
+            data: {
+                car_id:           data.car_id,
+                service_date:     new Date(data.service_date),
+                mileage:          data.mileage,
+                description:      data.description,
+                service_type:     data.service_type,
+                service_category: data.service_category,
+                cost:             data.cost,
+                expiry_date:      data.expiry_date ? new Date(data.expiry_date) : null,
+            },
         });
     }
 

@@ -23,14 +23,20 @@ export class AddCarDto {
   @IsOptional()
   readonly variant?: string;
 
-  @ApiProperty({ example: 'IS49WAU' })
+  @ApiProperty({ example: 'IS49WAU', required: false })
   @IsString()
-  readonly license_plate: string;
+  @IsOptional()
+  readonly license_plate?: string;
 
   @ApiProperty({ example: 'WBAHE21060GE64612' })
   @IsString()
   @IsOptional()
   readonly vin?: string;
+
+  @ApiProperty({ example: 'Blue Beast' })
+  @IsString()
+  @IsOptional()
+  readonly nickname?: string;
 
   @ApiProperty({ example: 2006 })
   @Type(() => Number)
@@ -57,10 +63,11 @@ export class AddCarDto {
   @IsOptional()
   readonly color?: string;
 
-  @ApiProperty({ example: 184200 })
+  @ApiProperty({ example: 184200, required: false })
   @Type(() => Number)
   @IsInt()
-  readonly current_mileage: number;
+  @IsOptional()
+  readonly current_mileage?: number;
 
   @ApiProperty({ example: '2024-05-12T00:00:00.000Z' })
   @IsDateString()

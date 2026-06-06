@@ -64,7 +64,7 @@ export class CarController {
   @ApiResponse({ status: 201, description: 'Car created successfully.', type: CarDto })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @UseInterceptors(
-    FilesInterceptor('files', 10, {
+    FilesInterceptor('files', 13, {
       storage: carPhotoStorage,
       fileFilter: carPhotoFilter,
       limits: { fileSize: 10 * 1024 * 1024 },
@@ -103,7 +103,7 @@ export class CarController {
   @ApiResponse({ status: 200, description: 'Car updated successfully.', type: CarDto })
   @ApiResponse({ status: 404, description: 'Car not found.' })
   @UseInterceptors(
-    FilesInterceptor('files', 10, {
+    FilesInterceptor('files', 13, {
       storage: carPhotoStorage,
       fileFilter: carPhotoFilter,
       limits: { fileSize: 10 * 1024 * 1024 },
@@ -112,6 +112,7 @@ export class CarController {
   async updateCar(
     @Body() body: any,
     @UploadedFiles() files: Express.Multer.File[],
+    @Req() req: RequestWithUser,
   ): Promise<CarDto> {
     const updateCarDto = plainToInstance(UpdateCarDto, body);
     await validateOrReject(updateCarDto);
@@ -140,7 +141,7 @@ export class CarController {
       ? Number(body.default_new_photo_index)
       : null;
 
-    return this.carService.updateCar(id, updateData, photoPaths, deletePhotoIds, defaultPhotoId, defaultNewPhotoIndex);
+    return this.carService.updateCar(id, updateData, photoPaths, deletePhotoIds, defaultPhotoId, defaultNewPhotoIndex, req.user.google_id);
   }
 
   @Delete('photo/:photoId')
@@ -161,12 +162,28 @@ export class CarController {
     return this.carService.setDefaultPhoto(Number(photoId));
   }
 
+  @Patch(':id/sold')
+  @ApiOperation({ summary: 'Mark a car as sold (archive)' })
+  @ApiResponse({ status: 200, description: 'Car marked as sold.', type: CarDto })
+  @ApiResponse({ status: 403, description: 'Only the owner can archive this car.' })
+  async markAsSold(@Param('id') id: string, @Req() req: RequestWithUser): Promise<CarDto> {
+    return this.carService.markAsSold(Number(id), req.user.google_id);
+  }
+
+  @Patch(':id/restore')
+  @ApiOperation({ summary: 'Restore a sold car back to active' })
+  @ApiResponse({ status: 200, description: 'Car restored to active.', type: CarDto })
+  @ApiResponse({ status: 403, description: 'Only the owner can restore this car.' })
+  async restoreCar(@Param('id') id: string, @Req() req: RequestWithUser): Promise<CarDto> {
+    return this.carService.restoreCar(Number(id), req.user.google_id);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a car' })
   @ApiResponse({ status: 200, description: 'Car deleted successfully.', type: CarDto })
   @ApiResponse({ status: 404, description: 'Car not found.' })
-  async deleteCar(@Param('id') id: string): Promise<CarDto> {
-    return this.carService.deleteCar(Number(id));
+  async deleteCar(@Param('id') id: string, @Req() req: RequestWithUser): Promise<CarDto> {
+    return this.carService.deleteCar(Number(id), req.user.google_id);
   }
 
   @Get()
