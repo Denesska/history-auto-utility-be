@@ -17,11 +17,12 @@ model User {
   last_name     String
   picture       String
   created_at    DateTime         @default(now())
-  cars          Car[]
-  refresh_token String?
-  car_accesses  CarUserAccess[]  @relation("UserAccesses")
-  invitations   CarUserAccess[]  @relation("InvitedBy")
-  blog_entries  BlogEntry[]
+  cars           Car[]
+  refresh_token  String?
+  car_accesses   CarUserAccess[]  @relation("UserAccesses")
+  invitations    CarUserAccess[]  @relation("InvitedBy")
+  blog_entries   BlogEntry[]
+  uploaded_files UploadedFile[]
 }
 
 model Car {
@@ -269,4 +270,30 @@ model BlogImage {
   blog_entry_id Int
   url           String
   blog_entry    BlogEntry @relation(fields: [blog_entry_id], references: [id], onDelete: Cascade)
+}
+
+enum UploadStatus {
+  PENDING
+  UPLOADED
+  DELETED
+}
+
+model UploadedFile {
+  id                 Int          @id @default(autoincrement())
+  user_id            Int
+  context_type       String
+  context_id         Int?
+  original_file_name String
+  file_key           String       @unique
+  mime_type          String
+  size               Int
+  status             UploadStatus @default(PENDING)
+  created_at         DateTime     @default(now())
+  uploaded_at        DateTime?
+  deleted_at         DateTime?
+  user               User         @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+  @@index([context_type, context_id])
+  @@map("uploaded_files")
 }

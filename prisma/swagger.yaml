@@ -923,6 +923,105 @@ paths:
           description: "Returns the current app version"
       tags:
         - "version"
+  /api/upload/request:
+    post:
+      operationId: "UploadController_requestUpload"
+      summary: "Request a signed upload URL"
+      description: "Validates the file metadata and returns a pre-signed PUT URL for direct upload to R2. A pending DB record is created. After uploading, call POST /upload/:id/confirm."
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestUploadDto"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadResponseDto"
+        400:
+          description: "Invalid file type or size."
+      tags:
+        - "upload"
+      security:
+        - bearer: []
+  /api/upload/{id}/confirm:
+    post:
+      operationId: "UploadController_confirmUpload"
+      summary: "Confirm upload completed"
+      description: "Must be called after the frontend has successfully PUT the file to R2. Transitions the file record from pending to uploaded."
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfirmUploadResponseDto"
+        403:
+          description: "Not your file."
+        404:
+          description: "File not found."
+      tags:
+        - "upload"
+      security:
+        - bearer: []
+  /api/upload/{id}/url:
+    get:
+      operationId: "UploadController_getReadUrl"
+      summary: "Get a signed read URL for a file"
+      description: "Returns a temporary signed GET URL. File must be owned by the authenticated user."
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadUrlResponseDto"
+        403:
+          description: "Not your file."
+        404:
+          description: "File not found."
+      tags:
+        - "upload"
+      security:
+        - bearer: []
+  /api/upload/{id}:
+    delete:
+      operationId: "UploadController_deleteFile"
+      summary: "Delete a file"
+      description: "Deletes the object from R2 and soft-deletes the DB record."
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: "File deleted."
+        403:
+          description: "Not your file."
+        404:
+          description: "File not found."
+      tags:
+        - "upload"
+      security:
+        - bearer: []
   /api/auth/google:
     get:
       operationId: "AuthController_login"
@@ -2013,3 +2112,74 @@ components:
           type: "array"
           items:
             type: "string"
+    RequestUploadDto:
+      type: "object"
+      properties:
+        originalFileName:
+          type: "string"
+          example: "photo.jpg"
+        mimeType:
+          type: "string"
+          enum:
+            - "image/jpeg"
+            - "image/png"
+            - "image/webp"
+            - "application/pdf"
+        size:
+          type: "number"
+          example: 1048576
+        contextType:
+          type: "string"
+          enum:
+            - "car"
+            - "maintenance"
+            - "document"
+            - "inspection"
+            - "journal"
+        contextId:
+          type: "number"
+          example: 42
+      required:
+        - "originalFileName"
+        - "mimeType"
+        - "size"
+        - "contextType"
+    UploadResponseDto:
+      type: "object"
+      properties:
+        fileId:
+          type: "number"
+        fileKey:
+          type: "string"
+        uploadUrl:
+          type: "string"
+        expiresIn:
+          type: "number"
+      required:
+        - "fileId"
+        - "fileKey"
+        - "uploadUrl"
+        - "expiresIn"
+    ConfirmUploadResponseDto:
+      type: "object"
+      properties:
+        fileId:
+          type: "number"
+        fileKey:
+          type: "string"
+        uploadedAt:
+          type: "string"
+      required:
+        - "fileId"
+        - "fileKey"
+        - "uploadedAt"
+    ReadUrlResponseDto:
+      type: "object"
+      properties:
+        readUrl:
+          type: "string"
+        expiresIn:
+          type: "number"
+      required:
+        - "readUrl"
+        - "expiresIn"

@@ -36,3 +36,9 @@ lerna-debug.log*
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+
+# Dev environment secrets
+.env.dev
+
+# User-uploaded files (runtime data, not source code)
+uploads/

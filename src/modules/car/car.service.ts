@@ -4,6 +4,7 @@ import { ROLE_RANK } from '../../common/guards/car-access/car-access.guard';
 import { CarAccessService } from '../car-access/car-access.service';
 import { CarDto, CarPhotoDto } from './dto/car.dto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { AddCarDto } from './dto/add-car.dto';
 
 type CarWithPhotos = Car & { photos: CarPhoto[] };
@@ -15,6 +16,7 @@ export class CarService {
   constructor(
     private prisma: PrismaService,
     private carAccessService: CarAccessService,
+    private storage: StorageService,
   ) {}
 
   async createCar(
@@ -73,7 +75,7 @@ export class CarService {
       where: { id },
       include: { photos: true },
     });
-    return car ? this.toCarDto(car as CarWithPhotos) : null;
+    return car ? await this.toCarDto(car as CarWithPhotos) : null;
   }
 
   async updateCar(
@@ -147,7 +149,7 @@ export class CarService {
       }
       throw e;
     }
-    return this.toCarDto(car);
+    return await this.toCarDto(car);
   }
 
   async deletePhoto(photoId: number): Promise<void> {
@@ -181,7 +183,7 @@ export class CarService {
       data: { status: CarStatus.SOLD, sold_at: new Date() },
       include: { photos: true },
     });
-    return this.toCarDto(car as CarWithPhotos);
+    return await this.toCarDto(car as CarWithPhotos);
   }
 
   async restoreCar(id: number, googleId?: string): Promise<CarDto> {
@@ -196,7 +198,7 @@ export class CarService {
       data: { status: CarStatus.ACTIVE, sold_at: null },
       include: { photos: true },
     });
-    return this.toCarDto(car as CarWithPhotos);
+    return await this.toCarDto(car as CarWithPhotos);
   }
 
   async deleteCar(id: number, googleId?: string): Promise<CarDto> {
@@ -210,7 +212,7 @@ export class CarService {
       where: { id },
       include: { photos: true },
     });
-    return this.toCarDto(car as CarWithPhotos);
+    return await this.toCarDto(car as CarWithPhotos);
   }
 
   async getAllCars(google_id: string): Promise<CarDto[]> {
@@ -226,7 +228,7 @@ export class CarService {
       where: { user_id: user.id },
       include: { photos: true },
     });
-    return cars.map(car => this.toCarDto(car as CarWithPhotos));
+    return Promise.all(cars.map(car => this.toCarDto(car as CarWithPhotos)));
   }
 
   async getCarsByUser(userId: number): Promise<CarDto[]> {
@@ -234,10 +236,17 @@ export class CarService {
       where: { user_id: userId },
       include: { photos: true },
     });
-    return cars.map(car => this.toCarDto(car as CarWithPhotos));
+    return Promise.all(cars.map(car => this.toCarDto(car as CarWithPhotos)));
   }
 
-  private toCarDto(car: CarWithPhotos): CarDto {
+  private async toCarDto(car: CarWithPhotos): Promise<CarDto> {
+    const photos = await Promise.all(
+      car.photos.map(async (p: CarPhoto): Promise<CarPhotoDto> => ({
+        id: p.id,
+        url: await this.resolveUrl(p.url),
+        is_default: p.is_default,
+      })),
+    );
     return {
       id: car.id,
       user_id: car.user_id,
@@ -261,11 +270,12 @@ export class CarService {
       last_oil_service_mileage: car.last_oil_service_mileage,
       status: car.status,
       sold_at: (car as any).sold_at ?? null,
-      photos: car.photos.map((p: CarPhoto): CarPhotoDto => ({
-        id: p.id,
-        url: p.url,
-        is_default: p.is_default,
-      })),
+      photos,
     };
+  }
+
+  private resolveUrl(url: string | null): Promise<string | null> | string | null {
+    if (!url || url.startsWith('/') || url.startsWith('http')) return url;
+    return this.storage.createPresignedGetUrl(url);
   }
 }

@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { BlogEntry, Prisma } from '@prisma/client';
 import { CreateBlogEntryDto } from './dto/create-blog-entry.dto';
 import { UpdateBlogEntryDto } from './dto/update-blog-entry.dto';
@@ -17,7 +18,10 @@ type BlogEntryWithRelations = BlogEntry & {
 
 @Injectable()
 export class BlogService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   async getEntries(userId: number, filters: GetBlogEntriesDto): Promise<BlogEntryDto[]> {
     const where: Prisma.BlogEntryWhereInput = { user_id: userId };
@@ -39,7 +43,7 @@ export class BlogService {
       orderBy: [{ is_pinned: 'desc' }, { date: 'desc' }],
     });
 
-    return entries.map(e => this._toDto(e));
+    return Promise.all(entries.map(e => this._toDto(e)));
   }
 
   async getEntry(id: number, userId: number): Promise<BlogEntryDto> {
@@ -48,7 +52,7 @@ export class BlogService {
       include: { tags: true, images: true, car: { select: { make: true, model: true } } },
     });
     if (!entry) throw new NotFoundException(`Blog entry ${id} not found`);
-    return this._toDto(entry);
+    return await this._toDto(entry);
   }
 
   async createEntry(userId: number, dto: CreateBlogEntryDto): Promise<BlogEntryDto> {
@@ -88,7 +92,7 @@ export class BlogService {
       },
       include: { tags: true, images: true, car: { select: { make: true, model: true } } },
     });
-    return this._toDto(entry);
+    return await this._toDto(entry);
   }
 
   async updateEntry(id: number, userId: number, dto: UpdateBlogEntryDto): Promise<BlogEntryDto> {
@@ -133,7 +137,7 @@ export class BlogService {
       },
       include: { tags: true, images: true, car: { select: { make: true, model: true } } },
     });
-    return this._toDto(entry);
+    return await this._toDto(entry);
   }
 
   async deleteEntry(id: number, userId: number): Promise<BlogEntryDto> {
@@ -142,7 +146,7 @@ export class BlogService {
       where: { id },
       include: { tags: true, images: true, car: { select: { make: true, model: true } } },
     });
-    return this._toDto(entry);
+    return await this._toDto(entry);
   }
 
   async togglePin(id: number, userId: number): Promise<BlogEntryDto> {
@@ -171,8 +175,12 @@ export class BlogService {
     if (!access) throw new BadRequestException(`You do not have access to car ${carId}`);
   }
 
-  private _toDto(e: BlogEntryWithRelations): BlogEntryDto {
+  private async _toDto(e: BlogEntryWithRelations): Promise<BlogEntryDto> {
     const carName = e.car ? `${e.car.make} ${e.car.model}` : null;
+    const images = await Promise.all(
+      e.images.map(async (i): Promise<BlogImageDto> => ({ id: i.id, url: await this._resolveUrl(i.url) })),
+    );
+    const cover_image_url = await this._resolveUrl((e as any).cover_image_url ?? null);
     return {
       id:               e.id,
       user_id:          e.user_id,
@@ -187,16 +195,21 @@ export class BlogService {
       published_at:     (e as any).published_at ? new Date((e as any).published_at).toISOString() : null,
       is_pinned:        e.is_pinned,
       cover_gradient:   e.cover_gradient ?? null,
-      cover_image_url:  (e as any).cover_image_url ?? null,
+      cover_image_url,
       car_id:           e.car_id ?? null,
       car_name:         carName,
       vehicle_category: e.vehicle_category as any ?? null,
       km:               e.km ?? null,
       price:            e.price ?? null,
       tags:             e.tags.map((t): BlogTagDto => ({ id: t.id, label: t.label, color: t.color })),
-      images:           e.images.map((i): BlogImageDto => ({ id: i.id, url: i.url })),
+      images,
       created_at:       e.created_at.toISOString(),
       updated_at:       e.updated_at.toISOString(),
     };
+  }
+
+  private _resolveUrl(url: string | null): Promise<string | null> | string | null {
+    if (!url || url.startsWith('/') || url.startsWith('http')) return url;
+    return this.storage.createPresignedGetUrl(url);
   }
 }

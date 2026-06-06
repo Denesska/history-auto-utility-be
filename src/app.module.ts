@@ -9,6 +9,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { VehicleCatalogModule } from './modules/vehicle-catalog/vehicle-catalog.module';
 import { BlogModule } from './modules/blog/blog.module';
 import { AppVersionModule } from './modules/app-version/app-version.module';
+import { UploadModule } from './modules/upload/upload.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { AppVersionModule } from './modules/app-version/app-version.module';
     DocumentModule,
     BlogModule,
     AppVersionModule,
+    UploadModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: process.env.ENV_FILE ?? '.env',

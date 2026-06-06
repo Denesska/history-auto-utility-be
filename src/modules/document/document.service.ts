@@ -2,12 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { Document } from '@prisma/client';
 import { DocumentDto } from './dto/document.dto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 
 @Injectable()
 export class DocumentService {
-    constructor(private prisma: PrismaService) {}
+    constructor(
+        private prisma: PrismaService,
+        private storage: StorageService,
+    ) {}
 
     async createDocument(data: CreateDocumentDto): Promise<DocumentDto> {
         const document = await this.prisma.document.create({
@@ -23,12 +27,12 @@ export class DocumentService {
                 cnp_id: data.cnp_id ?? null,
             },
         });
-        return this.toDocumentDto(document);
+        return await this.toDocumentDto(document);
     }
 
     async getDocument(id: number): Promise<DocumentDto | null> {
         const document = await this.prisma.document.findUnique({ where: { id } });
-        return document ? this.toDocumentDto(document) : null;
+        return document ? await this.toDocumentDto(document) : null;
     }
 
     async updateDocument(id: number, data: UpdateDocumentDto): Promise<DocumentDto> {
@@ -46,17 +50,17 @@ export class DocumentService {
                 ...(data.cnp_id !== undefined && { cnp_id: data.cnp_id }),
             },
         });
-        return this.toDocumentDto(document);
+        return await this.toDocumentDto(document);
     }
 
     async deleteDocument(id: number): Promise<DocumentDto> {
         const document = await this.prisma.document.delete({ where: { id } });
-        return this.toDocumentDto(document);
+        return await this.toDocumentDto(document);
     }
 
     async getDocumentsByCarId(carId: number): Promise<DocumentDto[]> {
         const documents = await this.prisma.document.findMany({ where: { car_id: carId } });
-        return documents.map(d => this.toDocumentDto(d));
+        return Promise.all(documents.map(d => this.toDocumentDto(d)));
     }
 
     async updateDocumentFile(id: number, file: Express.Multer.File): Promise<DocumentDto> {
@@ -68,10 +72,10 @@ export class DocumentService {
                 file_size: file.size,
             },
         });
-        return this.toDocumentDto(document);
+        return await this.toDocumentDto(document);
     }
 
-    private toDocumentDto(document: Document): DocumentDto {
+    private async toDocumentDto(document: Document): Promise<DocumentDto> {
         return {
             id: document.id,
             document_type: document.document_type,
@@ -83,9 +87,14 @@ export class DocumentService {
             status: document.status,
             policyholder: document.policyholder,
             cnp_id: document.cnp_id,
-            file_url: document.file_url,
+            file_url: await this.resolveFileUrl(document.file_url),
             file_name: document.file_name,
             file_size: document.file_size,
         };
+    }
+
+    private resolveFileUrl(url: string | null): Promise<string | null> | string | null {
+        if (!url || url.startsWith('/') || url.startsWith('http')) return url;
+        return this.storage.createPresignedGetUrl(url);
     }
 }

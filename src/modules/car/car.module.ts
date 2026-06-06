@@ -3,9 +3,10 @@ import { CarAccessModule } from '../car-access/car-access.module';
 import { CarController } from './car.controller';
 import { CarService } from './car.service';
 import { PrismaModule } from '../../prisma/prisma.module';
+import { StorageModule } from '../storage/storage.module';
 
 @Module({
-  imports: [PrismaModule, CarAccessModule],
+  imports: [PrismaModule, CarAccessModule, StorageModule],
   controllers: [CarController],
   providers: [CarService],
 })
