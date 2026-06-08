@@ -20,7 +20,19 @@ export class DocumentDto {
     provider: string | null;
 
     @ApiPropertyOptional({ nullable: true })
+    policy_series: string | null;
+
+    @ApiPropertyOptional({ nullable: true })
     policy_number: string | null;
+
+    @ApiPropertyOptional({ nullable: true, description: 'Insurance premium amount paid' })
+    premium: number | null;
+
+    @ApiPropertyOptional({ nullable: true, example: 'RON' })
+    currency: string | null;
+
+    @ApiPropertyOptional({ nullable: true, example: 'B8' })
+    bonus_malus_class: string | null;
 
     @ApiPropertyOptional({ nullable: true })
     status: string | null;
