@@ -1607,9 +1607,22 @@ components:
         provider:
           type: "string"
           example: "Allianz-Tiriac Asigurări"
+        policy_series:
+          type: "string"
+          example: "RO/34/D34/TL"
         policy_number:
           type: "string"
           example: "POL-123456789"
+        premium:
+          type: "number"
+          example: 1036.14
+          description: "Insurance premium amount paid"
+        currency:
+          type: "string"
+          example: "RON"
+        bonus_malus_class:
+          type: "string"
+          example: "B8"
         status:
           type: "string"
           example: "Active"
@@ -1645,9 +1658,24 @@ components:
         provider:
           type: "string"
           nullable: true
+        policy_series:
+          type: "string"
+          nullable: true
         policy_number:
           type: "string"
           nullable: true
+        premium:
+          type: "number"
+          nullable: true
+          description: "Insurance premium amount paid"
+        currency:
+          type: "string"
+          nullable: true
+          example: "RON"
+        bonus_malus_class:
+          type: "string"
+          nullable: true
+          example: "B8"
         status:
           type: "string"
           nullable: true

@@ -7,7 +7,11 @@ export class DocumentEntity implements Document {
     issue_date: Date | null;
     expiry_date: Date | null;
     provider: string | null;
+    policy_series: string | null;
     policy_number: string | null;
+    premium: number | null;
+    currency: string | null;
+    bonus_malus_class: string | null;
     status: string | null;
     policyholder: string | null;
     cnp_id: string | null;

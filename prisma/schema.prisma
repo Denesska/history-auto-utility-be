@@ -83,20 +83,24 @@ model CarPhoto {
 }
 
 model Document {
-  id            Int       @id @default(autoincrement())
-  car_id        Int
-  document_type String
-  issue_date    DateTime?
-  expiry_date   DateTime?
-  provider      String?
-  policy_number String?
-  status        String?   @default("Active")
-  policyholder  String?
-  cnp_id        String?
-  file_url      String?
-  file_name     String?
-  file_size     Int?
-  car           Car       @relation(fields: [car_id], references: [id])
+  id                 Int       @id @default(autoincrement())
+  car_id             Int
+  document_type      String
+  issue_date         DateTime?
+  expiry_date        DateTime?
+  provider           String?
+  policy_series      String?
+  policy_number      String?
+  premium            Float?
+  currency           String?
+  bonus_malus_class  String?
+  status             String?   @default("Active")
+  policyholder       String?
+  cnp_id             String?
+  file_url           String?
+  file_name          String?
+  file_size          Int?
+  car                Car       @relation(fields: [car_id], references: [id])
 }
 
 model MaintenanceRecord {
