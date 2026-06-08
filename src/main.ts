@@ -23,6 +23,8 @@ async function bootstrap() {
       'https://app.denhau.ro',
       'https://dev.denhau.ro',
       'http://localhost:4200',
+      'https://localhost',
+      'capacitor://localhost',
     ],
     credentials: true,
   });

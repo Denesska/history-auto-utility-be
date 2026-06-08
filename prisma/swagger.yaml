@@ -1022,6 +1022,43 @@ paths:
         - "upload"
       security:
         - bearer: []
+  /api/user-settings:
+    get:
+      operationId: "UserSettingsController_getSettings"
+      summary: "Get the current user settings"
+      parameters: []
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSettingsDto"
+      tags:
+        - "user-settings"
+      security:
+        - bearer: []
+    put:
+      operationId: "UserSettingsController_updateSettings"
+      summary: "Update the current user settings"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserSettingsDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSettingsDto"
+      tags:
+        - "user-settings"
+      security:
+        - bearer: []
   /api/auth/google:
     get:
       operationId: "AuthController_login"
@@ -1607,9 +1644,22 @@ components:
         provider:
           type: "string"
           example: "Allianz-Tiriac Asigurări"
+        policy_series:
+          type: "string"
+          example: "RO/34/D34/TL"
         policy_number:
           type: "string"
           example: "POL-123456789"
+        premium:
+          type: "number"
+          example: 1036.14
+          description: "Insurance premium amount paid"
+        currency:
+          type: "string"
+          example: "RON"
+        bonus_malus_class:
+          type: "string"
+          example: "B8"
         status:
           type: "string"
           example: "Active"
@@ -1645,9 +1695,24 @@ components:
         provider:
           type: "string"
           nullable: true
+        policy_series:
+          type: "string"
+          nullable: true
         policy_number:
           type: "string"
           nullable: true
+        premium:
+          type: "number"
+          nullable: true
+          description: "Insurance premium amount paid"
+        currency:
+          type: "string"
+          nullable: true
+          example: "RON"
+        bonus_malus_class:
+          type: "string"
+          nullable: true
+          example: "B8"
         status:
           type: "string"
           nullable: true
@@ -2183,3 +2248,41 @@ components:
       required:
         - "readUrl"
         - "expiresIn"
+    UserSettingsDto:
+      type: "object"
+      properties:
+        language:
+          type: "string"
+          example: "en"
+        theme:
+          type: "string"
+          example: "auto"
+        view_mode:
+          type: "string"
+          example: "cards"
+      required:
+        - "language"
+        - "theme"
+        - "view_mode"
+    UpdateUserSettingsDto:
+      type: "object"
+      properties:
+        language:
+          type: "string"
+          example: "en"
+          enum:
+            - "en"
+            - "ro"
+        theme:
+          type: "string"
+          example: "auto"
+          enum:
+            - "light"
+            - "dark"
+            - "auto"
+        view_mode:
+          type: "string"
+          example: "cards"
+          enum:
+            - "cards"
+            - "list"

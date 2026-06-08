@@ -1,4 +1,4 @@
-import { IsString, IsDateString, IsInt, IsOptional } from 'class-validator';
+import { IsString, IsDateString, IsInt, IsOptional, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateDocumentDto {
@@ -25,10 +25,30 @@ export class CreateDocumentDto {
     @IsString()
     readonly provider?: string;
 
+    @ApiPropertyOptional({ example: 'RO/34/D34/TL' })
+    @IsOptional()
+    @IsString()
+    readonly policy_series?: string;
+
     @ApiPropertyOptional({ example: 'POL-123456789' })
     @IsOptional()
     @IsString()
     readonly policy_number?: string;
+
+    @ApiPropertyOptional({ example: 1036.14, description: 'Insurance premium amount paid' })
+    @IsOptional()
+    @IsNumber()
+    readonly premium?: number;
+
+    @ApiPropertyOptional({ example: 'RON' })
+    @IsOptional()
+    @IsString()
+    readonly currency?: string;
+
+    @ApiPropertyOptional({ example: 'B8' })
+    @IsOptional()
+    @IsString()
+    readonly bonus_malus_class?: string;
 
     @ApiPropertyOptional({ example: 'Active' })
     @IsOptional()

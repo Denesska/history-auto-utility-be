@@ -1,12 +1,7 @@
 import { ExecutionContext, Injectable } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Request, Response } from 'express';
-
-const ALLOWED_ORIGINS = [
-  'https://app.denhau.ro',
-  'https://dev.denhau.ro',
-  'http://localhost:4200',
-];
+import { ALLOWED_LOGIN_ORIGINS } from './auth.constants';
 
 @Injectable()
 export class GoogleAuthGuard extends AuthGuard('google') {
@@ -15,7 +10,7 @@ export class GoogleAuthGuard extends AuthGuard('google') {
     const response = context.switchToHttp().getResponse<Response>();
 
     const origin = request.query.origin as string;
-    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    if (origin && (ALLOWED_LOGIN_ORIGINS as readonly string[]).includes(origin)) {
       response.cookie('login_origin', origin, {
         httpOnly: true,
         secure: true,
