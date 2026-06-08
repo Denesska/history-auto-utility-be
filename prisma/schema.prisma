@@ -23,6 +23,7 @@ model User {
   invitations    CarUserAccess[]  @relation("InvitedBy")
   blog_entries   BlogEntry[]
   uploaded_files UploadedFile[]
+  settings       UserSettings?
 }
 
 model Car {
@@ -280,6 +281,17 @@ enum UploadStatus {
   PENDING
   UPLOADED
   DELETED
+}
+
+model UserSettings {
+  id         Int      @id @default(autoincrement())
+  user_id    Int      @unique
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  language   String   @default("en")
+  theme      String   @default("auto")
+  view_mode  String   @default("cards")
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }
 
 model UploadedFile {
