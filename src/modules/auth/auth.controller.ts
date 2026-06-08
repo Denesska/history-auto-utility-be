@@ -14,6 +14,10 @@ import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { GoogleAuthGuard } from './google-auth.guard';
+import {
+  ALLOWED_LOGIN_ORIGINS,
+  isMobileLoginOrigin,
+} from './auth.constants';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -59,11 +63,19 @@ export class AuthController {
     res.cookie('access_token', accessToken, this.cookieConfig);
 
     const defaultFeBaseUrl = this.configService.get<string>('FE_BASE_URL', 'http://localhost:4200');
-    const loginOrigin = req.cookies?.login_origin;
-    const allowedOrigins = ['https://app.denhau.ro', 'https://dev.denhau.ro', 'http://localhost:4200'];
-    const feBaseUrl = loginOrigin && allowedOrigins.includes(loginOrigin) ? loginOrigin : defaultFeBaseUrl;
+    const loginOrigin = req.cookies?.login_origin as string | undefined;
+    const feBaseUrl =
+      loginOrigin && (ALLOWED_LOGIN_ORIGINS as readonly string[]).includes(loginOrigin)
+        ? loginOrigin
+        : defaultFeBaseUrl;
 
     res.clearCookie('login_origin', { path: '/' });
+
+    if (isMobileLoginOrigin(loginOrigin)) {
+      res.redirect(`${feBaseUrl}/auth/token?token=${encodeURIComponent(accessToken)}`);
+      return;
+    }
+
     res.redirect(`${feBaseUrl}/main/cars`);
   }
 
