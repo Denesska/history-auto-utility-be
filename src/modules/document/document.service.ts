@@ -71,6 +71,18 @@ export class DocumentService {
         return Promise.all(documents.map(d => this.toDocumentDto(d)));
     }
 
+    async getAllDocumentsByUser(googleId: string): Promise<DocumentDto[]> {
+        const documents = await this.prisma.document.findMany({
+            where: {
+                OR: [
+                    { car: { user: { google_id: googleId } } },
+                    { car: { access_entries: { some: { user: { google_id: googleId }, accepted_at: { not: null } } } } },
+                ],
+            },
+        });
+        return Promise.all(documents.map(d => this.toDocumentDto(d)));
+    }
+
     async updateDocumentFile(id: number, file: Express.Multer.File): Promise<DocumentDto> {
         const document = await this.prisma.document.update({
             where: { id },

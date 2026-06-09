@@ -76,7 +76,7 @@ export class AuthController {
       return;
     }
 
-    res.redirect(`${feBaseUrl}/main/cars`);
+    res.redirect(`${feBaseUrl}/main/overview`);
   }
 
   @Post('refresh')

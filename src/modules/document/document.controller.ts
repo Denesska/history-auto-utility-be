@@ -7,10 +7,12 @@ import {
   Delete,
   Body,
   Param,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { RequestWithUser } from '../auth/express-request.interface';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage, memoryStorage } from 'multer';
 import { extname } from 'path';
@@ -47,6 +49,13 @@ export class DocumentController {
     private readonly documentService: DocumentService,
     private readonly extractionService: DocumentExtractionService,
   ) {}
+
+  @Get('all')
+  @ApiOperation({ summary: 'Get all documents for the authenticated user (owned + shared cars)' })
+  @ApiResponse({ status: 200, type: [DocumentDto] })
+  async getAllDocuments(@Req() req: RequestWithUser): Promise<DocumentDto[]> {
+    return this.documentService.getAllDocumentsByUser(req.user.google_id);
+  }
 
   @Post()
   @ApiOperation({ summary: 'Create a new document' })

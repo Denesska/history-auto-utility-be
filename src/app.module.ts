@@ -11,6 +11,7 @@ import { BlogModule } from './modules/blog/blog.module';
 import { AppVersionModule } from './modules/app-version/app-version.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { UserSettingsModule } from './modules/user-settings/user-settings.module';
+import { BootstrapModule } from './modules/bootstrap/bootstrap.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { UserSettingsModule } from './modules/user-settings/user-settings.module
     AppVersionModule,
     UploadModule,
     UserSettingsModule,
+    BootstrapModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: process.env.ENV_FILE ?? '.env',
