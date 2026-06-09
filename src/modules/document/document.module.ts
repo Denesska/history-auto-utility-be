@@ -9,5 +9,6 @@ import { StorageModule } from '../storage/storage.module';
     imports: [PrismaModule, StorageModule],
     controllers: [DocumentController],
     providers: [DocumentService, DocumentExtractionService],
+    exports: [DocumentService],
 })
 export class DocumentModule {}
