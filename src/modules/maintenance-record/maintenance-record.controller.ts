@@ -6,8 +6,10 @@ import {
   Param,
   Post,
   Put,
+  Req,
   UseGuards,
 } from '@nestjs/common';
+import { RequestWithUser } from '../auth/express-request.interface';
 import { MaintenanceRecordService } from './maintenance-record.service';
 import { MaintenanceRecord as MaintenanceRecordModel } from '@prisma/client';
 import { CreateMaintenanceRecordDto } from './dto/create-maintenance-record.dto';
@@ -29,6 +31,13 @@ export class MaintenanceRecordController {
   constructor(
     private readonly maintenanceRecordService: MaintenanceRecordService,
   ) {}
+
+  @Get('all')
+  @ApiOperation({ summary: 'Get all maintenance records for the authenticated user (owned + shared cars)' })
+  @ApiResponse({ status: 200, type: [MaintenanceRecordDto] })
+  async getAllMaintenanceRecords(@Req() req: RequestWithUser): Promise<MaintenanceRecordModel[]> {
+    return this.maintenanceRecordService.getAllByUser(req.user.google_id);
+  }
 
   @Post()
   @ApiOperation({ summary: 'Create a new maintenance record' })
