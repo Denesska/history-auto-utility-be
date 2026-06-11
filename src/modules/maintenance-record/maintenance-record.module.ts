@@ -7,5 +7,6 @@ import {PrismaModule} from "../../prisma/prisma.module";
   imports: [PrismaModule],
   controllers: [MaintenanceRecordController],
   providers: [MaintenanceRecordService],
+  exports: [MaintenanceRecordService],
 })
 export class MaintenanceRecordModule {}

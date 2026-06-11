@@ -428,6 +428,24 @@ paths:
                   $ref: "#/components/schemas/YearResponseDto"
       tags:
         - "vehicle-catalog"
+  /api/maintenance-record/all:
+    get:
+      operationId: "MaintenanceRecordController_getAllMaintenanceRecords"
+      summary: "Get all maintenance records for the authenticated user (owned + shared cars)"
+      parameters: []
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/MaintenanceRecordDto"
+      tags:
+        - "maintenance-record"
+      security:
+        - bearer: []
   /api/maintenance-record:
     post:
       operationId: "MaintenanceRecordController_createMaintenanceRecord"
@@ -546,6 +564,22 @@ paths:
         - "maintenance-record"
       security:
         - bearer: []
+  /api/document/all:
+    get:
+      operationId: "DocumentController_getAllDocuments"
+      summary: "Get all documents for the authenticated user (owned + shared cars)"
+      parameters: []
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/DocumentDto"
+      tags:
+        - "document"
   /api/document:
     post:
       operationId: "DocumentController_createDocument"
@@ -1059,6 +1093,18 @@ paths:
         - "user-settings"
       security:
         - bearer: []
+  /api/app-data/initial:
+    get:
+      operationId: "BootstrapController_getInitialData"
+      summary: "Fetch all initial data needed on app load in a single request"
+      parameters: []
+      responses:
+        200:
+          description: ""
+      tags:
+        - "app-data"
+      security:
+        - cookie: []
   /api/auth/google:
     get:
       operationId: "AuthController_login"
@@ -1329,7 +1375,6 @@ components:
         - "variant"
         - "vin"
         - "nickname"
-        - "year"
         - "fuel_type"
         - "transmission"
         - "engine"
@@ -1514,57 +1559,6 @@ components:
         - "id"
         - "modelId"
         - "year"
-    CreateMaintenanceRecordDto:
-      type: "object"
-      properties:
-        car_id:
-          type: "number"
-          example: 123
-        service_date:
-          type: "string"
-          example: "2023-01-01"
-        mileage:
-          type: "number"
-          example: 51000
-        description:
-          type: "string"
-          example: "Oil 10W40, air filter MANN"
-        service_type:
-          type: "string"
-          example: "MAINTENANCE"
-          enum:
-            - "REPAIR"
-            - "MAINTENANCE"
-            - "IMPROVEMENT"
-        service_category:
-          type: "string"
-          example: "OIL_CHANGE"
-          enum:
-            - "OIL_CHANGE"
-            - "BRAKE_SERVICE"
-            - "TRANSMISSION_SERVICE"
-            - "TIRE_SERVICE"
-            - "FLUID_SERVICE"
-            - "ENGINE_SERVICE"
-            - "INSPECTION"
-            - "BATTERY_SERVICE"
-            - "FILTER_SERVICE"
-            - "LIGHT_SERVICE"
-            - "OTHER"
-        cost:
-          type: "number"
-          example: 250
-        expiry_date:
-          type: "string"
-          example: "2024-01-01"
-      required:
-        - "car_id"
-        - "service_date"
-        - "mileage"
-        - "description"
-        - "service_type"
-        - "service_category"
-        - "cost"
     MaintenanceRecordDto:
       type: "object"
       properties:
@@ -1623,55 +1617,60 @@ components:
         - "service_category"
         - "cost"
         - "expiry_date"
-    UpdateMaintenanceRecordDto:
-      type: "object"
-      properties: {}
-    CreateDocumentDto:
+    CreateMaintenanceRecordDto:
       type: "object"
       properties:
-        document_type:
-          type: "string"
-          example: "RCA"
         car_id:
           type: "number"
-          example: 1
-        issue_date:
+          example: 123
+        service_date:
           type: "string"
           example: "2023-01-01"
+        mileage:
+          type: "number"
+          example: 51000
+        description:
+          type: "string"
+          example: "Oil 10W40, air filter MANN"
+        service_type:
+          type: "string"
+          example: "MAINTENANCE"
+          enum:
+            - "REPAIR"
+            - "MAINTENANCE"
+            - "IMPROVEMENT"
+        service_category:
+          type: "string"
+          example: "OIL_CHANGE"
+          enum:
+            - "OIL_CHANGE"
+            - "BRAKE_SERVICE"
+            - "TRANSMISSION_SERVICE"
+            - "TIRE_SERVICE"
+            - "FLUID_SERVICE"
+            - "ENGINE_SERVICE"
+            - "INSPECTION"
+            - "BATTERY_SERVICE"
+            - "FILTER_SERVICE"
+            - "LIGHT_SERVICE"
+            - "OTHER"
+        cost:
+          type: "number"
+          example: 250
         expiry_date:
           type: "string"
           example: "2024-01-01"
-        provider:
-          type: "string"
-          example: "Allianz-Tiriac Asigurări"
-        policy_series:
-          type: "string"
-          example: "RO/34/D34/TL"
-        policy_number:
-          type: "string"
-          example: "POL-123456789"
-        premium:
-          type: "number"
-          example: 1036.14
-          description: "Insurance premium amount paid"
-        currency:
-          type: "string"
-          example: "RON"
-        bonus_malus_class:
-          type: "string"
-          example: "B8"
-        status:
-          type: "string"
-          example: "Active"
-        policyholder:
-          type: "string"
-          example: "John Doe"
-        cnp_id:
-          type: "string"
-          example: "1900101012345"
       required:
-        - "document_type"
         - "car_id"
+        - "service_date"
+        - "mileage"
+        - "description"
+        - "service_type"
+        - "service_category"
+        - "cost"
+    UpdateMaintenanceRecordDto:
+      type: "object"
+      properties: {}
     DocumentDto:
       type: "object"
       properties:
@@ -1733,6 +1732,52 @@ components:
           nullable: true
       required:
         - "id"
+        - "document_type"
+        - "car_id"
+    CreateDocumentDto:
+      type: "object"
+      properties:
+        document_type:
+          type: "string"
+          example: "RCA"
+        car_id:
+          type: "number"
+          example: 1
+        issue_date:
+          type: "string"
+          example: "2023-01-01"
+        expiry_date:
+          type: "string"
+          example: "2024-01-01"
+        provider:
+          type: "string"
+          example: "Allianz-Tiriac Asigurări"
+        policy_series:
+          type: "string"
+          example: "RO/34/D34/TL"
+        policy_number:
+          type: "string"
+          example: "POL-123456789"
+        premium:
+          type: "number"
+          example: 1036.14
+          description: "Insurance premium amount paid"
+        currency:
+          type: "string"
+          example: "RON"
+        bonus_malus_class:
+          type: "string"
+          example: "B8"
+        status:
+          type: "string"
+          example: "Active"
+        policyholder:
+          type: "string"
+          example: "John Doe"
+        cnp_id:
+          type: "string"
+          example: "1900101012345"
+      required:
         - "document_type"
         - "car_id"
     UpdateDocumentDto:
