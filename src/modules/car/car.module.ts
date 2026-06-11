@@ -9,5 +9,6 @@ import { StorageModule } from '../storage/storage.module';
   imports: [PrismaModule, CarAccessModule, StorageModule],
   controllers: [CarController],
   providers: [CarService],
+  exports: [CarService],
 })
 export class CarModule {}

@@ -46,4 +46,15 @@ export class MaintenanceRecordService {
             where: { car_id: carId },
         });
     }
+
+    async getAllByUser(googleId: string): Promise<MaintenanceRecord[]> {
+        return this.prisma.maintenanceRecord.findMany({
+            where: {
+                OR: [
+                    { car: { user: { google_id: googleId } } },
+                    { car: { access_entries: { some: { user: { google_id: googleId }, accepted_at: { not: null } } } } },
+                ],
+            },
+        });
+    }
 }
