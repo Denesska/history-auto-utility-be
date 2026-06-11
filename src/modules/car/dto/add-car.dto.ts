@@ -38,10 +38,11 @@ export class AddCarDto {
   @IsOptional()
   readonly nickname?: string;
 
-  @ApiProperty({ example: 2006 })
+  @ApiProperty({ example: 2006, required: false })
   @Type(() => Number)
   @IsInt()
-  readonly year: number;
+  @IsOptional()
+  readonly year?: number;
 
   @ApiProperty({ example: 'PETROL', enum: FuelType })
   @IsEnum(FuelType)

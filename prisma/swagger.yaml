@@ -1375,7 +1375,6 @@ components:
         - "variant"
         - "vin"
         - "nickname"
-        - "year"
         - "fuel_type"
         - "transmission"
         - "engine"

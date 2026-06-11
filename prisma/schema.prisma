@@ -33,7 +33,7 @@ model Car {
   make                     String
   model                    String
   variant                  String?
-  year                     Int
+  year                     Int?
   license_plate            String?
   fuel_type                FuelType?
   transmission             TransmissionType?
