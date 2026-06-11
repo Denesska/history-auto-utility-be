@@ -68,8 +68,9 @@ export class CarAccessService {
       throw new BadRequestException('Cannot assign OWNER role via invite');
     }
 
-    const target = await this.prisma.user.findUnique({ where: { email: dto.email } });
-    if (!target) throw new NotFoundException(`No registered user with email ${dto.email}`);
+    const email = dto.email.trim().toLowerCase();
+    const target = await this.prisma.user.findUnique({ where: { email } });
+    if (!target) throw new NotFoundException(`No registered user with email ${email}`);
     if (target.id === owner.id) throw new BadRequestException('Cannot invite yourself');
 
     const existing = await this.prisma.carUserAccess.findUnique({

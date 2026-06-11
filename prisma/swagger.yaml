@@ -2302,6 +2302,8 @@ components:
         theme:
           type: "string"
           example: "auto"
+          nullable: true
+          description: "Null when the user has never saved theme preferences."
         view_mode:
           type: "string"
           example: "cards"
