@@ -12,7 +12,7 @@ export class UserSettingsService {
     async getSettings(userId: number): Promise<UserSettingsDto> {
         const settings = await this.prisma.userSettings.findUnique({ where: { user_id: userId } });
         if (!settings) {
-            return DEFAULT_SETTINGS;
+            return { ...DEFAULT_SETTINGS, theme: null };
         }
         return {
             language: settings.language,
