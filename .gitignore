@@ -39,6 +39,7 @@ lerna-debug.log*
 
 # Dev environment secrets
 .env.dev
+.env.test
 
 # User-uploaded files (runtime data, not source code)
 uploads/
