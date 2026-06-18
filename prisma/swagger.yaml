@@ -1730,10 +1730,15 @@ components:
         file_size:
           type: "number"
           nullable: true
+        is_active:
+          type: "boolean"
+          example: true
+          description: "Whether this document is the active one for its type/period"
       required:
         - "id"
         - "document_type"
         - "car_id"
+        - "is_active"
     CreateDocumentDto:
       type: "object"
       properties:
@@ -1777,6 +1782,10 @@ components:
         cnp_id:
           type: "string"
           example: "1900101012345"
+        is_active:
+          type: "boolean"
+          example: true
+          description: "Whether this document is the active one for its type/period"
       required:
         - "document_type"
         - "car_id"

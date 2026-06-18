@@ -101,6 +101,7 @@ model Document {
   file_url           String?
   file_name          String?
   file_size          Int?
+  is_active          Boolean   @default(true)
   car                Car       @relation(fields: [car_id], references: [id], onDelete: Cascade)
 }
 

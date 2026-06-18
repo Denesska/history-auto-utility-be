@@ -1,4 +1,4 @@
-import { IsString, IsDateString, IsInt, IsOptional, IsNumber } from 'class-validator';
+import { IsString, IsDateString, IsInt, IsOptional, IsNumber, IsBoolean } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateDocumentDto {
@@ -64,4 +64,9 @@ export class CreateDocumentDto {
     @IsOptional()
     @IsString()
     readonly cnp_id?: string;
+
+    @ApiPropertyOptional({ example: true, description: 'Whether this document is the active one for its type/period' })
+    @IsOptional()
+    @IsBoolean()
+    readonly is_active?: boolean;
 }
