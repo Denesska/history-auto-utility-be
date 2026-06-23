@@ -160,6 +160,183 @@ paths:
         - "car-access"
       security:
         - cookie: []
+  /api/notifications:
+    get:
+      operationId: "NotificationsController_list"
+      summary: "List notifications for the current user"
+      parameters:
+        - name: "unreadOnly"
+          required: true
+          in: "query"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/NotificationDto"
+      tags:
+        - "notifications"
+      security:
+        - cookie: []
+  /api/notifications/unread-count:
+    get:
+      operationId: "NotificationsController_unreadCount"
+      summary: "Get the number of unread notifications"
+      parameters: []
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnreadCountDto"
+      tags:
+        - "notifications"
+      security:
+        - cookie: []
+  /api/notifications/{id}/read:
+    patch:
+      operationId: "NotificationsController_markAsRead"
+      summary: "Mark a single notification as read"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationDto"
+      tags:
+        - "notifications"
+      security:
+        - cookie: []
+  /api/notifications/read-all:
+    patch:
+      operationId: "NotificationsController_markAllAsRead"
+      summary: "Mark all notifications as read"
+      parameters: []
+      responses:
+        200:
+          description: ""
+      tags:
+        - "notifications"
+      security:
+        - cookie: []
+  /api/notifications/read:
+    delete:
+      operationId: "NotificationsController_clearRead"
+      summary: "Delete all notifications already marked as read"
+      parameters: []
+      responses:
+        204:
+          description: ""
+      tags:
+        - "notifications"
+      security:
+        - cookie: []
+  /api/notifications/{id}:
+    delete:
+      operationId: "NotificationsController_delete"
+      summary: "Delete a single notification"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        204:
+          description: ""
+      tags:
+        - "notifications"
+      security:
+        - cookie: []
+  /api/notifications/push-token:
+    post:
+      operationId: "NotificationsController_registerPushToken"
+      summary: "Register a device push token for the current user"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterPushTokenDto"
+      responses:
+        204:
+          description: ""
+      tags:
+        - "notifications"
+      security:
+        - cookie: []
+  /api/auth/google:
+    get:
+      operationId: "AuthController_login"
+      summary: "Initiate Google OAuth login"
+      parameters: []
+      responses:
+        200:
+          description: ""
+      tags:
+        - "auth"
+  /api/auth/google/redirect:
+    get:
+      operationId: "AuthController_googleAuthRedirect"
+      summary: "Handle Google OAuth callback"
+      parameters: []
+      responses:
+        302:
+          description: "Authenticated and redirected to frontend."
+        401:
+          description: "Google authentication failed."
+      tags:
+        - "auth"
+  /api/auth/refresh:
+    post:
+      operationId: "AuthController_refreshAccessToken"
+      summary: "Refresh access token"
+      parameters: []
+      responses:
+        200:
+          description: "New access token issued."
+        401:
+          description: "Refresh token missing or invalid."
+      tags:
+        - "auth"
+  /api/auth/me:
+    get:
+      operationId: "AuthController_getProfile"
+      summary: "Get authenticated user profile"
+      parameters: []
+      responses:
+        200:
+          description: "User profile returned."
+        401:
+          description: "Invalid or missing access token."
+      tags:
+        - "auth"
+  /api/auth/logout:
+    post:
+      operationId: "AuthController_logout"
+      summary: "Logout user and invalidate tokens"
+      parameters: []
+      responses:
+        200:
+          description: "Logged out successfully."
+        401:
+          description: "Not authenticated."
+      tags:
+        - "auth"
   /api/car:
     post:
       operationId: "CarController_createCar"
@@ -1105,64 +1282,6 @@ paths:
         - "app-data"
       security:
         - cookie: []
-  /api/auth/google:
-    get:
-      operationId: "AuthController_login"
-      summary: "Initiate Google OAuth login"
-      parameters: []
-      responses:
-        200:
-          description: ""
-      tags:
-        - "auth"
-  /api/auth/google/redirect:
-    get:
-      operationId: "AuthController_googleAuthRedirect"
-      summary: "Handle Google OAuth callback"
-      parameters: []
-      responses:
-        302:
-          description: "Authenticated and redirected to frontend."
-        401:
-          description: "Google authentication failed."
-      tags:
-        - "auth"
-  /api/auth/refresh:
-    post:
-      operationId: "AuthController_refreshAccessToken"
-      summary: "Refresh access token"
-      parameters: []
-      responses:
-        200:
-          description: "New access token issued."
-        401:
-          description: "Refresh token missing or invalid."
-      tags:
-        - "auth"
-  /api/auth/me:
-    get:
-      operationId: "AuthController_getProfile"
-      summary: "Get authenticated user profile"
-      parameters: []
-      responses:
-        200:
-          description: "User profile returned."
-        401:
-          description: "Invalid or missing access token."
-      tags:
-        - "auth"
-  /api/auth/logout:
-    post:
-      operationId: "AuthController_logout"
-      summary: "Logout user and invalidate tokens"
-      parameters: []
-      responses:
-        200:
-          description: "Logged out successfully."
-        401:
-          description: "Not authenticated."
-      tags:
-        - "auth"
 info:
   title: "History Auto Utility API"
   description: "API documentation for History Auto Utility"
@@ -1294,6 +1413,53 @@ components:
           example: "VIEWER"
       required:
         - "role"
+    NotificationDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+        type:
+          type: "string"
+          enum:
+            - "CAR_SHARED"
+            - "CAR_ACCESS_REMOVED"
+            - "CAR_ACCESS_ROLE_CHANGED"
+            - "CAR_ACCESS_ACCEPTED"
+        data:
+          type: "object"
+        read_at:
+          format: "date-time"
+          type: "string"
+          nullable: true
+        created_at:
+          format: "date-time"
+          type: "string"
+      required:
+        - "id"
+        - "type"
+        - "data"
+        - "read_at"
+        - "created_at"
+    UnreadCountDto:
+      type: "object"
+      properties:
+        count:
+          type: "number"
+      required:
+        - "count"
+    RegisterPushTokenDto:
+      type: "object"
+      properties:
+        token:
+          type: "string"
+        platform:
+          type: "string"
+          enum:
+            - "ANDROID"
+            - "WEB"
+      required:
+        - "token"
+        - "platform"
     AddCarDto:
       type: "object"
       properties:

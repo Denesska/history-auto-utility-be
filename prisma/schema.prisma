@@ -24,6 +24,8 @@ model User {
   blog_entries   BlogEntry[]
   uploaded_files UploadedFile[]
   settings       UserSettings?
+  notifications  Notification[]
+  push_tokens    PushToken[]
 }
 
 model Car {
@@ -73,6 +75,42 @@ model CarUserAccess {
   @@unique([car_id, user_id])
   @@index([user_id])
   @@index([car_id])
+}
+
+model Notification {
+  id         Int              @id @default(autoincrement())
+  user_id    Int
+  type       NotificationType
+  data       Json
+  read_at    DateTime?
+  created_at DateTime         @default(now())
+  user       User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([user_id, read_at])
+}
+
+enum NotificationType {
+  CAR_SHARED
+  CAR_ACCESS_REMOVED
+  CAR_ACCESS_ROLE_CHANGED
+  CAR_ACCESS_ACCEPTED
+}
+
+model PushToken {
+  id         Int          @id @default(autoincrement())
+  user_id    Int
+  token      String       @unique
+  platform   PushPlatform
+  created_at DateTime     @default(now())
+  user       User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+}
+
+enum PushPlatform {
+  ANDROID
+  WEB
 }
 
 model CarPhoto {
