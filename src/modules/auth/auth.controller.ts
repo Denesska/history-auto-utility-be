@@ -84,7 +84,10 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'New access token issued.' })
   @ApiResponse({ status: 401, description: 'Refresh token missing or invalid.' })
   async refreshAccessToken(@Req() req, @Res() res: Response): Promise<void> {
-    const access_token = req.cookies?.access_token;
+    // Web clients carry the (possibly expired) access token via the httpOnly
+    // cookie. Native clients have no cookie jar shared with the app's webview,
+    // so they present it via the Authorization header instead.
+    const access_token = req.cookies?.access_token || this.extractBearerToken(req);
 
     if (!access_token) {
       throw new UnauthorizedException('Access token missing');
@@ -104,7 +107,15 @@ export class AuthController {
 
     const newAccessToken = this.authService.generateAccessToken(user);
     res.cookie('access_token', newAccessToken, this.cookieConfig);
-    res.status(200).json({ message: 'Token refreshed successfully' });
+    res.status(200).json({ accessToken: newAccessToken });
+  }
+
+  private extractBearerToken(req): string | null {
+    const header = req.headers?.authorization;
+    if (!header?.startsWith('Bearer ')) {
+      return null;
+    }
+    return header.slice('Bearer '.length);
   }
 
   @Get('me')
