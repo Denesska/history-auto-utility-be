@@ -9,4 +9,10 @@ export class UserSettingsDto {
 
     @ApiProperty({ example: 'cards' })
     view_mode: string;
+
+    @ApiProperty({ example: true })
+    expiry_reminders_enabled: boolean;
+
+    @ApiProperty({ example: [7], isArray: true })
+    expiry_reminder_days: number[];
 }

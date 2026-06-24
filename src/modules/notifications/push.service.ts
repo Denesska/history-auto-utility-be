@@ -123,6 +123,13 @@ export class PushService {
       };
     }
 
+    if (notification.type === 'DOCUMENT_EXPIRING') {
+      return {
+        title: 'Document expiră',
+        body: `${notification.data?.docType} pentru ${notification.data?.carLabel} expiră în ${notification.data?.daysLeft} zile`,
+      };
+    }
+
     return { title: 'Notificare nouă', body: '' };
   }
 }

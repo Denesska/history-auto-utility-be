@@ -26,6 +26,7 @@ model User {
   settings       UserSettings?
   notifications  Notification[]
   push_tokens    PushToken[]
+  reminders_sent DocumentReminderSent[]
 }
 
 model Car {
@@ -57,6 +58,7 @@ model Car {
   photos                   CarPhoto[]
   access_entries           CarUserAccess[]
   blog_entries             BlogEntry[]
+  reminders_sent           DocumentReminderSent[]
 }
 
 model CarUserAccess {
@@ -95,6 +97,28 @@ enum NotificationType {
   CAR_ACCESS_REMOVED
   CAR_ACCESS_ROLE_CHANGED
   CAR_ACCESS_ACCEPTED
+  DOCUMENT_EXPIRING
+}
+
+enum DocumentExpiryType {
+  RCA
+  ITP
+  ROVINIETA
+}
+
+model DocumentReminderSent {
+  id          Int                @id @default(autoincrement())
+  user_id     Int
+  car_id      Int
+  doc_type    DocumentExpiryType
+  expiry_date DateTime
+  days_before Int
+  sent_at     DateTime           @default(now())
+
+  user        User               @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  car         Car                @relation(fields: [car_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, car_id, doc_type, expiry_date, days_before])
 }
 
 model PushToken {
@@ -323,14 +347,16 @@ enum UploadStatus {
 }
 
 model UserSettings {
-  id         Int      @id @default(autoincrement())
-  user_id    Int      @unique
-  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  language   String   @default("en")
-  theme      String   @default("auto")
-  view_mode  String   @default("cards")
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id                        Int      @id @default(autoincrement())
+  user_id                   Int      @unique
+  user                      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  language                  String   @default("en")
+  theme                     String   @default("auto")
+  view_mode                 String   @default("cards")
+  expiry_reminders_enabled  Boolean  @default(true)
+  expiry_reminder_days      Int[]    @default([7])
+  created_at                DateTime @default(now())
+  updated_at                DateTime @updatedAt
 }
 
 model UploadedFile {

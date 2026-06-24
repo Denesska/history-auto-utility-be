@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { MailLang } from './templates/base-email.template';
 import { CarShareInvitationData, carShareInvitationEmail } from './templates/car-share-invitation.template';
+import { DocumentExpiringData, documentExpiringEmail } from './templates/document-expiring.template';
 
 @Injectable()
 export class MailService {
@@ -33,6 +34,11 @@ export class MailService {
 
   async sendCarShareInvitation(to: string, lang: MailLang, data: CarShareInvitationData): Promise<void> {
     const { subject, html } = carShareInvitationEmail(lang, data);
+    await this.sendMail(to, subject, html);
+  }
+
+  async sendDocumentExpiring(to: string, lang: MailLang, data: DocumentExpiringData): Promise<void> {
+    const { subject, html } = documentExpiringEmail(lang, data);
     await this.sendMail(to, subject, html);
   }
 }

@@ -1425,6 +1425,7 @@ components:
             - "CAR_ACCESS_REMOVED"
             - "CAR_ACCESS_ROLE_CHANGED"
             - "CAR_ACCESS_ACCEPTED"
+            - "DOCUMENT_EXPIRING"
         data:
           type: "object"
         read_at:
@@ -2482,10 +2483,21 @@ components:
         view_mode:
           type: "string"
           example: "cards"
+        expiry_reminders_enabled:
+          type: "boolean"
+          example: true
+        expiry_reminder_days:
+          example:
+            - 7
+          type: "array"
+          items:
+            type: "array"
       required:
         - "language"
         - "theme"
         - "view_mode"
+        - "expiry_reminders_enabled"
+        - "expiry_reminder_days"
     UpdateUserSettingsDto:
       type: "object"
       properties:
@@ -2508,3 +2520,17 @@ components:
           enum:
             - "cards"
             - "list"
+        expiry_reminders_enabled:
+          type: "boolean"
+          example: true
+        expiry_reminder_days:
+          type: "array"
+          example:
+            - 7
+          items:
+            type: "number"
+            enum:
+              - 1
+              - 7
+              - 14
+              - 30
