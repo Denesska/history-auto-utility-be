@@ -1282,6 +1282,112 @@ paths:
         - "app-data"
       security:
         - cookie: []
+  /api/car-note:
+    post:
+      operationId: "CarNoteController_createCarNote"
+      summary: "Create a new car note"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCarNoteDto"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarNoteDto"
+      tags:
+        - "car-note"
+  /api/car-note/{id}:
+    get:
+      operationId: "CarNoteController_getCarNote"
+      summary: "Get car note by ID"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarNoteDto"
+        404:
+          description: "Car note not found."
+      tags:
+        - "car-note"
+    put:
+      operationId: "CarNoteController_updateCarNote"
+      summary: "Update a car note"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCarNoteDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarNoteDto"
+        404:
+          description: "Car note not found."
+      tags:
+        - "car-note"
+    delete:
+      operationId: "CarNoteController_deleteCarNote"
+      summary: "Delete a car note"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarNoteDto"
+      tags:
+        - "car-note"
+  /api/car-note/car/{carId}:
+    get:
+      operationId: "CarNoteController_getCarNotesByCarId"
+      summary: "Get all notes for a specific car"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/CarNoteDto"
+      tags:
+        - "car-note"
 info:
   title: "History Auto Utility API"
   description: "API documentation for History Auto Utility"
@@ -1297,6 +1403,10 @@ components:
       scheme: "bearer"
       bearerFormat: "JWT"
       type: "http"
+    cookie:
+      type: "apiKey"
+      in: "cookie"
+      name: "access_token"
   schemas:
     SharedCarDto:
       type: "object"
@@ -1426,6 +1536,8 @@ components:
             - "CAR_ACCESS_ROLE_CHANGED"
             - "CAR_ACCESS_ACCEPTED"
             - "DOCUMENT_EXPIRING"
+            - "VIN_CONFLICT"
+            - "LICENSE_PLATE_CONFLICT"
         data:
           type: "object"
         read_at:
@@ -2534,3 +2646,57 @@ components:
               - 7
               - 14
               - 30
+    CreateCarNoteDto:
+      type: "object"
+      properties:
+        car_id:
+          type: "number"
+          example: 1
+        title:
+          type: "string"
+          example: "PIN casetofon"
+        content:
+          type: "string"
+          example: "1234, introdus de 3 ori la rând"
+        group_name:
+          type: "string"
+          example: "Recomandări"
+      required:
+        - "car_id"
+        - "title"
+        - "content"
+    CarNoteDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+          example: 1
+        car_id:
+          type: "number"
+          example: 1
+        title:
+          type: "string"
+          example: "PIN casetofon"
+        content:
+          type: "string"
+          example: "1234, introdus de 3 ori la rând"
+        group_name:
+          type: "string"
+          nullable: true
+          example: "Recomandări"
+        created_at:
+          format: "date-time"
+          type: "string"
+        updated_at:
+          format: "date-time"
+          type: "string"
+      required:
+        - "id"
+        - "car_id"
+        - "title"
+        - "content"
+        - "created_at"
+        - "updated_at"
+    UpdateCarNoteDto:
+      type: "object"
+      properties: {}

@@ -59,6 +59,18 @@ model Car {
   access_entries           CarUserAccess[]
   blog_entries             BlogEntry[]
   reminders_sent           DocumentReminderSent[]
+  notes                    CarNote[]
+}
+
+model CarNote {
+  id         Int      @id @default(autoincrement())
+  car_id     Int
+  title      String
+  content    String
+  group_name String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  car        Car      @relation(fields: [car_id], references: [id], onDelete: Cascade)
 }
 
 model CarUserAccess {
