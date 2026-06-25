@@ -15,6 +15,7 @@ import { UserSettingsModule } from './modules/user-settings/user-settings.module
 import { BootstrapModule } from './modules/bootstrap/bootstrap.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { DocumentRemindersModule } from './modules/document-reminders/document-reminders.module';
+import { CarNoteModule } from './modules/car-note/car-note.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { DocumentRemindersModule } from './modules/document-reminders/document-r
     BootstrapModule,
     NotificationsModule,
     DocumentRemindersModule,
+    CarNoteModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: process.env.ENV_FILE ?? '.env',
