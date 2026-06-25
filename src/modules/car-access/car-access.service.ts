@@ -4,16 +4,25 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CarAccessRole, User } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
+import { Car, CarAccessRole, NotificationType, User } from '@prisma/client';
 import { ROLE_RANK } from '../../common/guards/car-access/car-access.guard';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
+import { MailLang } from '../mail/templates/base-email.template';
+import { NotificationsService } from '../notifications/notifications.service';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { ChangeRoleDto } from './dto/change-role.dto';
 import { CarAccessDto, SharedCarDto } from './dto/car-access.dto';
 
 @Injectable()
 export class CarAccessService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
+    private readonly configService: ConfigService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   // ── helpers ────────────────────────────────────────────────────────────
 
@@ -23,10 +32,11 @@ export class CarAccessService {
     return user;
   }
 
-  private async assertOwner(carId: number, userId: number): Promise<void> {
+  private async assertOwner(carId: number, userId: number): Promise<Car> {
     const car = await this.prisma.car.findUnique({ where: { id: carId } });
     if (!car) throw new NotFoundException('Car not found');
     if (car.user_id !== userId) throw new ForbiddenException('Only the owner can manage access');
+    return car;
   }
 
   private toAccessDto(entry: any): CarAccessDto {
@@ -62,14 +72,18 @@ export class CarAccessService {
 
   async inviteUser(carId: number, ownerGoogleId: string, dto: InviteUserDto): Promise<CarAccessDto> {
     const owner = await this.resolveUser(ownerGoogleId);
-    await this.assertOwner(carId, owner.id);
+    const car = await this.assertOwner(carId, owner.id);
 
     if (dto.role === CarAccessRole.OWNER) {
       throw new BadRequestException('Cannot assign OWNER role via invite');
     }
 
-    const target = await this.prisma.user.findUnique({ where: { email: dto.email } });
-    if (!target) throw new NotFoundException(`No registered user with email ${dto.email}`);
+    const email = dto.email.trim().toLowerCase();
+    const target = await this.prisma.user.findUnique({
+      where: { email },
+      include: { settings: true },
+    });
+    if (!target) throw new NotFoundException(`No registered user with email ${email}`);
     if (target.id === owner.id) throw new BadRequestException('Cannot invite yourself');
 
     const existing = await this.prisma.carUserAccess.findUnique({
@@ -85,6 +99,26 @@ export class CarAccessService {
         invited_by_user_id: owner.id,
       },
       include: this.accessInclude,
+    });
+
+    const lang: MailLang = target.settings?.language === 'en' ? 'en' : 'ro';
+    const carLabel = car.nickname ?? `${car.make} ${car.model}`.trim();
+
+    // Create the notification first so the WebSocket push to the recipient fires
+    // immediately — sending the invitation email is a slower SMTP round-trip and
+    // must not delay the realtime notification.
+    await this.notificationsService.create(target.id, NotificationType.CAR_SHARED, {
+      carId: car.id,
+      carLabel,
+      role: dto.role,
+      invitedByName: `${owner.first_name} ${owner.last_name}`.trim(),
+    });
+
+    await this.mailService.sendCarShareInvitation(target.email, lang, {
+      inviterName: `${owner.first_name} ${owner.last_name}`.trim(),
+      carLabel: car.license_plate ? `${carLabel} (${car.license_plate})` : carLabel,
+      role: dto.role,
+      appUrl: this.configService.get<string>('FE_BASE_URL', 'http://localhost:4200'),
     });
 
     return this.toAccessDto(entry);
@@ -108,6 +142,17 @@ export class CarAccessService {
       include: this.accessInclude,
     });
 
+    const car = await this.prisma.car.findUnique({ where: { id: carId } });
+    if (car) {
+      const carLabel = car.nickname ?? `${car.make} ${car.model}`.trim();
+      await this.notificationsService.create(car.user_id, NotificationType.CAR_ACCESS_ACCEPTED, {
+        carId: car.id,
+        carLabel,
+        role: updated.role,
+        acceptedByName: `${user.first_name} ${user.last_name}`.trim(),
+      });
+    }
+
     return this.toAccessDto(updated);
   }
 
@@ -115,7 +160,7 @@ export class CarAccessService {
 
   async removeAccess(carId: number, ownerGoogleId: string, targetUserId: number): Promise<void> {
     const owner = await this.resolveUser(ownerGoogleId);
-    await this.assertOwner(carId, owner.id);
+    const car = await this.assertOwner(carId, owner.id);
 
     if (targetUserId === owner.id) {
       throw new ForbiddenException('Cannot remove the owner');
@@ -129,6 +174,13 @@ export class CarAccessService {
     await this.prisma.carUserAccess.delete({
       where: { car_id_user_id: { car_id: carId, user_id: targetUserId } },
     });
+
+    const carLabel = car.nickname ?? `${car.make} ${car.model}`.trim();
+    await this.notificationsService.create(targetUserId, NotificationType.CAR_ACCESS_REMOVED, {
+      carId: car.id,
+      carLabel,
+      removedByName: `${owner.first_name} ${owner.last_name}`.trim(),
+    });
   }
 
   // ── change role ────────────────────────────────────────────────────────
@@ -140,7 +192,7 @@ export class CarAccessService {
     dto: ChangeRoleDto,
   ): Promise<CarAccessDto> {
     const owner = await this.resolveUser(ownerGoogleId);
-    await this.assertOwner(carId, owner.id);
+    const car = await this.assertOwner(carId, owner.id);
 
     if (dto.role === CarAccessRole.OWNER) {
       throw new BadRequestException('Cannot assign OWNER role');
@@ -158,6 +210,14 @@ export class CarAccessService {
       where: { car_id_user_id: { car_id: carId, user_id: targetUserId } },
       data: { role: dto.role },
       include: this.accessInclude,
+    });
+
+    const carLabel = car.nickname ?? `${car.make} ${car.model}`.trim();
+    await this.notificationsService.create(targetUserId, NotificationType.CAR_ACCESS_ROLE_CHANGED, {
+      carId: car.id,
+      carLabel,
+      role: dto.role,
+      changedByName: `${owner.first_name} ${owner.last_name}`.trim(),
     });
 
     return this.toAccessDto(updated);

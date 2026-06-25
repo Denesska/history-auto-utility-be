@@ -51,4 +51,7 @@ export class DocumentDto {
 
     @ApiPropertyOptional({ nullable: true })
     file_size: number | null;
+
+    @ApiProperty({ example: true, description: 'Whether this document is the active one for its type/period' })
+    is_active: boolean;
 }

@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Logger,
   Post,
   Req,
   Res,
@@ -22,6 +23,7 @@ import {
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
   private readonly cookieConfig: any;
 
   constructor(
@@ -84,27 +86,63 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'New access token issued.' })
   @ApiResponse({ status: 401, description: 'Refresh token missing or invalid.' })
   async refreshAccessToken(@Req() req, @Res() res: Response): Promise<void> {
-    const access_token = req.cookies?.access_token;
+    // Web clients carry the (possibly expired) access token via the httpOnly
+    // cookie. Native clients have no cookie jar shared with the app's webview,
+    // so they present it via the Authorization header instead.
+    const hasCookie = !!req.cookies?.access_token;
+    const bearerToken = this.extractBearerToken(req);
+    const hasBearer = !!bearerToken;
+    const access_token = req.cookies?.access_token || bearerToken;
+    const origin = req.headers?.origin;
+    const ua = req.headers?.['user-agent'];
+    const instance = req.headers?.['x-client-instance'] || 'n/a';
 
     if (!access_token) {
+      this.logger.warn(
+        `refresh: no token present — cookie=${hasCookie} bearer=${hasBearer} instance=${instance} origin=${origin} ua=${ua}`,
+      );
       throw new UnauthorizedException('Access token missing');
     }
 
-    const user = this.authService.decodeVerifiedToken(access_token);
+    let user;
+    try {
+      user = this.authService.decodeVerifiedToken(access_token);
+    } catch (e) {
+      this.logger.warn(
+        `refresh: token decode failed — cookie=${hasCookie} bearer=${hasBearer} instance=${instance} origin=${origin} err=${e?.message}`,
+      );
+      throw e;
+    }
 
     const refreshToken = await this.authService.getRefreshTokenByUserId(user.google_id);
 
     if (!refreshToken) {
+      this.logger.warn(
+        `refresh: no refresh token in DB for user=${user.email} (${user.google_id}) — cookie=${hasCookie} bearer=${hasBearer} instance=${instance}`,
+      );
       throw new UnauthorizedException('Refresh token missing');
     }
 
     if (!this.authService.validateRefreshToken(refreshToken)) {
+      this.logger.warn(
+        `refresh: stored refresh token invalid/expired for user=${user.email} (${user.google_id}) instance=${instance}`,
+      );
       throw new UnauthorizedException('Invalid refresh token');
     }
 
+    this.logger.log(`refresh: success for user=${user.email} (${user.google_id}) — bearer=${hasBearer} cookie=${hasCookie} instance=${instance}`);
+
     const newAccessToken = this.authService.generateAccessToken(user);
     res.cookie('access_token', newAccessToken, this.cookieConfig);
-    res.status(200).json({ message: 'Token refreshed successfully' });
+    res.status(200).json({ accessToken: newAccessToken });
+  }
+
+  private extractBearerToken(req): string | null {
+    const header = req.headers?.authorization;
+    if (!header?.startsWith('Bearer ')) {
+      return null;
+    }
+    return header.slice('Bearer '.length);
   }
 
   @Get('me')

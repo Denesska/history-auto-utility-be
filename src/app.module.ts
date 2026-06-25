@@ -1,4 +1,5 @@
 import { Logger, Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { CarModule } from './modules/car/car.module';
 import { CarAccessModule } from './modules/car-access/car-access.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -12,6 +13,9 @@ import { AppVersionModule } from './modules/app-version/app-version.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { UserSettingsModule } from './modules/user-settings/user-settings.module';
 import { BootstrapModule } from './modules/bootstrap/bootstrap.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { DocumentRemindersModule } from './modules/document-reminders/document-reminders.module';
+import { CarNoteModule } from './modules/car-note/car-note.module';
 
 @Module({
   imports: [
@@ -27,11 +31,15 @@ import { BootstrapModule } from './modules/bootstrap/bootstrap.module';
     UploadModule,
     UserSettingsModule,
     BootstrapModule,
+    NotificationsModule,
+    DocumentRemindersModule,
+    CarNoteModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: process.env.ENV_FILE ?? '.env',
     }),
     AuthModule,
+    ScheduleModule.forRoot(),
   ],
   controllers: [],
   providers: [Logger],

@@ -29,6 +29,7 @@ export class DocumentService {
                 status: data.status ?? 'Active',
                 policyholder: data.policyholder ?? null,
                 cnp_id: data.cnp_id ?? null,
+                is_active: data.is_active ?? true,
             },
         });
         return await this.toDocumentDto(document);
@@ -56,6 +57,7 @@ export class DocumentService {
                 ...(data.status !== undefined && { status: data.status }),
                 ...(data.policyholder !== undefined && { policyholder: data.policyholder }),
                 ...(data.cnp_id !== undefined && { cnp_id: data.cnp_id }),
+                ...(data.is_active !== undefined && { is_active: data.is_active }),
             },
         });
         return await this.toDocumentDto(document);
@@ -114,6 +116,7 @@ export class DocumentService {
             file_url: await this.resolveFileUrl(document.file_url),
             file_name: document.file_name,
             file_size: document.file_size,
+            is_active: document.is_active,
         };
     }
 

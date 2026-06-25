@@ -3,7 +3,13 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { UpdateUserSettingsDto } from './dto/update-user-settings.dto';
 import { UserSettingsDto } from './dto/user-settings.dto';
 
-const DEFAULT_SETTINGS = { language: 'en', theme: 'auto', view_mode: 'cards' };
+const DEFAULT_SETTINGS = {
+    language: 'en',
+    theme: 'auto',
+    view_mode: 'cards',
+    expiry_reminders_enabled: true,
+    expiry_reminder_days: [7],
+};
 
 @Injectable()
 export class UserSettingsService {
@@ -12,12 +18,14 @@ export class UserSettingsService {
     async getSettings(userId: number): Promise<UserSettingsDto> {
         const settings = await this.prisma.userSettings.findUnique({ where: { user_id: userId } });
         if (!settings) {
-            return DEFAULT_SETTINGS;
+            return { ...DEFAULT_SETTINGS, theme: null };
         }
         return {
             language: settings.language,
             theme: settings.theme,
             view_mode: settings.view_mode,
+            expiry_reminders_enabled: settings.expiry_reminders_enabled,
+            expiry_reminder_days: settings.expiry_reminder_days,
         };
     }
 
@@ -31,6 +39,8 @@ export class UserSettingsService {
             language: settings.language,
             theme: settings.theme,
             view_mode: settings.view_mode,
+            expiry_reminders_enabled: settings.expiry_reminders_enabled,
+            expiry_reminder_days: settings.expiry_reminder_days,
         };
     }
 }
