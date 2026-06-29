@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { MaintenanceRecord } from '@prisma/client';
+import { PrismaService } from '../../prisma/prisma.service';
 import { CarService } from '../car/car.service';
 import { CarAccessService } from '../car-access/car-access.service';
 import { DocumentService } from '../document/document.service';
@@ -10,6 +11,7 @@ import { DocumentDto } from '../document/dto/document.dto';
 @Injectable()
 export class BootstrapService {
   constructor(
+    private readonly prisma: PrismaService,
     private readonly carService: CarService,
     private readonly carAccessService: CarAccessService,
     private readonly documentService: DocumentService,
@@ -17,7 +19,11 @@ export class BootstrapService {
   ) {}
 
   async getInitialData(googleId: string): Promise<BootstrapResponseDto> {
-    const [ownedCars, sharedInvitations] = await Promise.all([
+    const [me, ownedCars, sharedInvitations] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { google_id: googleId },
+        select: { id: true, email: true, first_name: true, last_name: true, picture: true },
+      }),
       this.carService.getAllCars(googleId),
       this.carAccessService.getSharedCars(googleId),
     ]);
@@ -52,6 +58,6 @@ export class BootstrapService {
       maintenance[m.car_id].push(m);
     });
 
-    return { ownedCars, sharedCars: validSharedCars, pendingInvites, documents, maintenance };
+    return { me, ownedCars, sharedCars: validSharedCars, pendingInvites, documents, maintenance };
   }
 }
