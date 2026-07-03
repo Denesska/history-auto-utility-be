@@ -43,6 +43,8 @@ model Car {
   engine                   String?
   color                    String?
   current_mileage          Int?
+  purchase_price           Float?
+  purchase_price_currency  String?           @default("EUR")
   ownership_start_date     DateTime?
   rca_expiry_date          DateTime?
   itp_expiry_date          DateTime?
