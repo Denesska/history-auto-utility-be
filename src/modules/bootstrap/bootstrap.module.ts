@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { PrismaModule } from '../../prisma/prisma.module';
 import { CarModule } from '../car/car.module';
 import { CarAccessModule } from '../car-access/car-access.module';
 import { DocumentModule } from '../document/document.module';
@@ -7,7 +8,7 @@ import { BootstrapController } from './bootstrap.controller';
 import { BootstrapService } from './bootstrap.service';
 
 @Module({
-  imports: [CarModule, CarAccessModule, DocumentModule, MaintenanceRecordModule],
+  imports: [PrismaModule, CarModule, CarAccessModule, DocumentModule, MaintenanceRecordModule],
   controllers: [BootstrapController],
   providers: [BootstrapService],
 })

@@ -340,3 +340,4 @@ export class CarService {
     return this.storage.createPresignedGetUrl(url);
   }
 }
+

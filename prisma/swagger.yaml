@@ -1626,6 +1626,12 @@ components:
         current_mileage:
           type: "number"
           example: 184200
+        purchase_price:
+          type: "number"
+          example: 25000.5
+        purchase_price_currency:
+          type: "string"
+          example: "EUR"
         ownership_start_date:
           type: "string"
           example: "2024-05-12T00:00:00.000Z"
@@ -1737,6 +1743,12 @@ components:
         current_mileage:
           type: "number"
           example: 184200
+        purchase_price:
+          type: "number"
+          example: 25000.5
+        purchase_price_currency:
+          type: "string"
+          example: "EUR"
         ownership_start_date:
           format: "date-time"
           type: "string"

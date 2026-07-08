@@ -1,6 +1,6 @@
 {
   "name": "history-auto-utility",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "",
   "author": "",
   "private": true,
@@ -24,7 +24,9 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed:vehicle-catalog": "ts-node prisma/seed-vehicle-catalog.ts",
-    "seed:carsbase": "ts-node prisma/seed-carsbase.ts"
+    "seed:carsbase": "ts-node prisma/seed-carsbase.ts",
+    "seed:teoalida": "ts-node prisma/seed-teoalida.ts",
+    "seed:bmw-strict": "ts-node prisma/seed-bmw-strict.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1063.0",
