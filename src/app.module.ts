@@ -16,6 +16,7 @@ import { BootstrapModule } from './modules/bootstrap/bootstrap.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { DocumentRemindersModule } from './modules/document-reminders/document-reminders.module';
 import { CarNoteModule } from './modules/car-note/car-note.module';
+import { NavRelayModule } from './modules/nav-relay/nav-relay.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { CarNoteModule } from './modules/car-note/car-note.module';
     NotificationsModule,
     DocumentRemindersModule,
     CarNoteModule,
+    NavRelayModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: process.env.ENV_FILE ?? '.env',
