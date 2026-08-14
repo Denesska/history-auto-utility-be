@@ -15,6 +15,8 @@ export class CarEntity implements Car {
   engine: string | null;
   color: string | null;
   current_mileage: number | null;
+  actual_mileage: number | null;
+  actual_mileage_updated_at: Date | null;
   purchase_price: number | null;
   purchase_price_currency: string | null;
   ownership_start_date: Date | null;

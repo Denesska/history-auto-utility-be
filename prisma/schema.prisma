@@ -43,6 +43,8 @@ model Car {
   engine                   String?
   color                    String?
   current_mileage          Int?
+  actual_mileage           Int?
+  actual_mileage_updated_at DateTime?
   purchase_price           Float?
   purchase_price_currency  String?           @default("EUR")
   ownership_start_date     DateTime?
@@ -228,6 +230,7 @@ enum ServiceType {
   REPAIR
   MAINTENANCE
   IMPROVEMENT
+  PASSION
 }
 
 enum ServiceCategory {

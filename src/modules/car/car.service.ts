@@ -146,6 +146,10 @@ export class CarService {
     }
     const updateData: Prisma.CarUpdateInput = { ...data };
 
+    if (updateData.actual_mileage !== undefined) {
+      updateData.actual_mileage_updated_at = new Date();
+    }
+
     const dateFields = ['ownership_start_date', 'rca_expiry_date', 'itp_expiry_date', 'rov_expiry_date', 'last_oil_service_date'] as const;
     for (const field of dateFields) {
       if (updateData[field] && typeof updateData[field] === 'string') {
@@ -323,6 +327,8 @@ export class CarService {
       engine: car.engine,
       color: car.color,
       current_mileage: car.current_mileage,
+      actual_mileage: car.actual_mileage,
+      actual_mileage_updated_at: car.actual_mileage_updated_at,
       ownership_start_date: car.ownership_start_date,
       rca_expiry_date: car.rca_expiry_date,
       itp_expiry_date: car.itp_expiry_date,

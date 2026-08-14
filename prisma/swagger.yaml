@@ -1626,6 +1626,10 @@ components:
         current_mileage:
           type: "number"
           example: 184200
+        actual_mileage:
+          type: "number"
+          example: 184200
+          description: "Owner-reported odometer reading, updated over time from the car hub."
         purchase_price:
           type: "number"
           example: 25000.5
@@ -1743,6 +1747,13 @@ components:
         current_mileage:
           type: "number"
           example: 184200
+        actual_mileage:
+          type: "number"
+          example: 184200
+        actual_mileage_updated_at:
+          format: "date-time"
+          type: "string"
+          example: "2026-08-14T12:00:00.000Z"
         purchase_price:
           type: "number"
           example: 25000.5
