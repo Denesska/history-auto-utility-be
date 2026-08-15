@@ -43,6 +43,8 @@ model Car {
   engine                   String?
   color                    String?
   current_mileage          Int?
+  actual_mileage           Int?
+  actual_mileage_updated_at DateTime?
   purchase_price           Float?
   purchase_price_currency  String?           @default("EUR")
   ownership_start_date     DateTime?
@@ -228,6 +230,7 @@ enum ServiceType {
   REPAIR
   MAINTENANCE
   IMPROVEMENT
+  PASSION
 }
 
 enum ServiceCategory {
@@ -393,4 +396,21 @@ model UploadedFile {
   @@index([user_id])
   @@index([context_type, context_id])
   @@map("uploaded_files")
+}
+
+// A destination shared from a phone (Google Maps) to be picked up by the car head unit
+// (BMWSimulation / ro.denhau.bmwcockpit). Intentionally not tied to a User: the channel is
+// identified only by an unguessable [slug], so the car can read it with a plain GET and no login.
+// Each share is a new row; the car keeps the last [id] it acted on and polls for a greater one.
+model NavDestination {
+  id         Int      @id @default(autoincrement())
+  slug       String
+  name       String?
+  lat        Float?
+  lon        Float?
+  raw_url    String
+  created_at DateTime @default(now())
+
+  @@index([slug, id])
+  @@map("nav_destinations")
 }
