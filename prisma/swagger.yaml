@@ -1388,6 +1388,50 @@ paths:
                   $ref: "#/components/schemas/CarNoteDto"
       tags:
         - "car-note"
+  /api/n/{slug}/set:
+    post:
+      operationId: "NavRelayController_set"
+      summary: "Share a Google Maps link to the car on this channel"
+      parameters:
+        - name: "slug"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetNavDto"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NavDestinationDto"
+      tags:
+        - "nav-relay"
+  /api/n/{slug}/latest:
+    get:
+      operationId: "NavRelayController_latest"
+      summary: "Latest destination shared to the car on this channel"
+      parameters:
+        - name: "slug"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NavDestinationDto"
+      tags:
+        - "nav-relay"
 info:
   title: "History Auto Utility API"
   description: "API documentation for History Auto Utility"
@@ -2723,3 +2767,32 @@ components:
     UpdateCarNoteDto:
       type: "object"
       properties: {}
+    SetNavDto:
+      type: "object"
+      properties:
+        url:
+          type: "string"
+          example: "https://maps.app.goo.gl/abc123"
+          description: "The raw text shared from Google Maps — a link, or a link embedded in text."
+      required:
+        - "url"
+    NavDestinationDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+          example: 42
+          description: "Ever-increasing id; the car acts when it grows."
+        name:
+          type: "string"
+          example: "Strada Republicii, Brașov"
+        lat:
+          type: "number"
+          example: 45.6427
+        lon:
+          type: "number"
+          example: 25.5887
+        ts:
+          type: "number"
+          example: 1721400000
+          description: "Unix seconds when it was shared."
