@@ -1,11 +1,12 @@
 import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { Car, CarAccessRole, CarPhoto, CarStatus, Prisma } from '@prisma/client';
+import { Car, CarAccessRole, CarPhoto, CarStatus, NotificationType, Prisma } from '@prisma/client';
 import { ROLE_RANK } from '../../common/guards/car-access/car-access.guard';
 import { CarAccessService } from '../car-access/car-access.service';
 import { CarDto, CarPhotoDto } from './dto/car.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { AddCarDto } from './dto/add-car.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 type CarWithPhotos = Car & { photos: CarPhoto[] };
 
@@ -17,7 +18,51 @@ export class CarService {
     private prisma: PrismaService,
     private carAccessService: CarAccessService,
     private storage: StorageService,
+    private notificationsService: NotificationsService,
   ) {}
+
+  private async notifyVinConflictIfNeeded(vin: string | null | undefined, ownerIdToExclude: number): Promise<void> {
+    if (!vin) return;
+    try {
+      const existingCar = await this.prisma.car.findUnique({ where: { vin } });
+      if (!existingCar || existingCar.user_id === ownerIdToExclude) return;
+      const carLabel = existingCar.nickname ?? `${existingCar.make} ${existingCar.model}`.trim();
+      await this.notificationsService.create(existingCar.user_id, NotificationType.VIN_CONFLICT, {
+        carId: existingCar.id,
+        carLabel,
+        vin,
+      });
+    } catch (e) {
+      this.logger.error(`Failed to notify owner of VIN conflict for vin=${vin}`, e instanceof Error ? e.stack : String(e));
+    }
+  }
+
+  private async notifyLicensePlateConflictIfNeeded(
+    licensePlate: string | null | undefined,
+    excludeCarId: number,
+    ownerIdToExclude: number,
+  ): Promise<void> {
+    if (!licensePlate) return;
+    try {
+      const existingCar = await this.prisma.car.findFirst({
+        where: {
+          license_plate: licensePlate,
+          status: CarStatus.ACTIVE,
+          id: { not: excludeCarId },
+          user_id: { not: ownerIdToExclude },
+        },
+      });
+      if (!existingCar) return;
+      const carLabel = existingCar.nickname ?? `${existingCar.make} ${existingCar.model}`.trim();
+      await this.notificationsService.create(existingCar.user_id, NotificationType.LICENSE_PLATE_CONFLICT, {
+        carId: existingCar.id,
+        carLabel,
+        licensePlate,
+      });
+    } catch (e) {
+      this.logger.error(`Failed to notify owner of license plate conflict for plate=${licensePlate}`, e instanceof Error ? e.stack : String(e));
+    }
+  }
 
   async createCar(
     data: AddCarDto,
@@ -62,10 +107,16 @@ export class CarService {
       }) as CarWithPhotos;
     } catch (e: any) {
       if (e?.code === 'P2002' && e?.meta?.target?.includes('nickname')) {
-        throw new ConflictException('A car with this nickname already exists');
+        throw new ConflictException({ code: 'CAR_NICKNAME_CONFLICT', message: 'A car with this nickname already exists' });
+      }
+      if (e?.code === 'P2002' && e?.meta?.target?.includes('vin')) {
+        await this.notifyVinConflictIfNeeded(carData.vin, user.id);
+        throw new ConflictException({ code: 'CAR_VIN_CONFLICT', message: 'A car with this VIN already exists' });
       }
       throw e;
     }
+
+    await this.notifyLicensePlateConflictIfNeeded(car.license_plate, car.id, car.user_id);
 
     return this.toCarDto(car);
   }
@@ -94,6 +145,10 @@ export class CarService {
       }
     }
     const updateData: Prisma.CarUpdateInput = { ...data };
+
+    if (updateData.actual_mileage !== undefined) {
+      updateData.actual_mileage_updated_at = new Date();
+    }
 
     const dateFields = ['ownership_start_date', 'rca_expiry_date', 'itp_expiry_date', 'rov_expiry_date', 'last_oil_service_date'] as const;
     for (const field of dateFields) {
@@ -145,10 +200,20 @@ export class CarService {
       }) as CarWithPhotos;
     } catch (e: any) {
       if (e?.code === 'P2002' && e?.meta?.target?.includes('nickname')) {
-        throw new ConflictException('A car with this nickname already exists');
+        throw new ConflictException({ code: 'CAR_NICKNAME_CONFLICT', message: 'A car with this nickname already exists' });
+      }
+      if (e?.code === 'P2002' && e?.meta?.target?.includes('vin')) {
+        const targetCar = await this.prisma.car.findUnique({ where: { id }, select: { user_id: true } });
+        if (targetCar) {
+          await this.notifyVinConflictIfNeeded(updateData.vin as string | undefined, targetCar.user_id);
+        }
+        throw new ConflictException({ code: 'CAR_VIN_CONFLICT', message: 'A car with this VIN already exists' });
       }
       throw e;
     }
+
+    await this.notifyLicensePlateConflictIfNeeded(car.license_plate, car.id, car.user_id);
+
     return await this.toCarDto(car);
   }
 
@@ -262,6 +327,8 @@ export class CarService {
       engine: car.engine,
       color: car.color,
       current_mileage: car.current_mileage,
+      actual_mileage: car.actual_mileage,
+      actual_mileage_updated_at: car.actual_mileage_updated_at,
       ownership_start_date: car.ownership_start_date,
       rca_expiry_date: car.rca_expiry_date,
       itp_expiry_date: car.itp_expiry_date,
@@ -279,3 +346,4 @@ export class CarService {
     return this.storage.createPresignedGetUrl(url);
   }
 }
+

@@ -160,6 +160,183 @@ paths:
         - "car-access"
       security:
         - cookie: []
+  /api/notifications:
+    get:
+      operationId: "NotificationsController_list"
+      summary: "List notifications for the current user"
+      parameters:
+        - name: "unreadOnly"
+          required: true
+          in: "query"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/NotificationDto"
+      tags:
+        - "notifications"
+      security:
+        - cookie: []
+  /api/notifications/unread-count:
+    get:
+      operationId: "NotificationsController_unreadCount"
+      summary: "Get the number of unread notifications"
+      parameters: []
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnreadCountDto"
+      tags:
+        - "notifications"
+      security:
+        - cookie: []
+  /api/notifications/{id}/read:
+    patch:
+      operationId: "NotificationsController_markAsRead"
+      summary: "Mark a single notification as read"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationDto"
+      tags:
+        - "notifications"
+      security:
+        - cookie: []
+  /api/notifications/read-all:
+    patch:
+      operationId: "NotificationsController_markAllAsRead"
+      summary: "Mark all notifications as read"
+      parameters: []
+      responses:
+        200:
+          description: ""
+      tags:
+        - "notifications"
+      security:
+        - cookie: []
+  /api/notifications/read:
+    delete:
+      operationId: "NotificationsController_clearRead"
+      summary: "Delete all notifications already marked as read"
+      parameters: []
+      responses:
+        204:
+          description: ""
+      tags:
+        - "notifications"
+      security:
+        - cookie: []
+  /api/notifications/{id}:
+    delete:
+      operationId: "NotificationsController_delete"
+      summary: "Delete a single notification"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        204:
+          description: ""
+      tags:
+        - "notifications"
+      security:
+        - cookie: []
+  /api/notifications/push-token:
+    post:
+      operationId: "NotificationsController_registerPushToken"
+      summary: "Register a device push token for the current user"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterPushTokenDto"
+      responses:
+        204:
+          description: ""
+      tags:
+        - "notifications"
+      security:
+        - cookie: []
+  /api/auth/google:
+    get:
+      operationId: "AuthController_login"
+      summary: "Initiate Google OAuth login"
+      parameters: []
+      responses:
+        200:
+          description: ""
+      tags:
+        - "auth"
+  /api/auth/google/redirect:
+    get:
+      operationId: "AuthController_googleAuthRedirect"
+      summary: "Handle Google OAuth callback"
+      parameters: []
+      responses:
+        302:
+          description: "Authenticated and redirected to frontend."
+        401:
+          description: "Google authentication failed."
+      tags:
+        - "auth"
+  /api/auth/refresh:
+    post:
+      operationId: "AuthController_refreshAccessToken"
+      summary: "Refresh access token"
+      parameters: []
+      responses:
+        200:
+          description: "New access token issued."
+        401:
+          description: "Refresh token missing or invalid."
+      tags:
+        - "auth"
+  /api/auth/me:
+    get:
+      operationId: "AuthController_getProfile"
+      summary: "Get authenticated user profile"
+      parameters: []
+      responses:
+        200:
+          description: "User profile returned."
+        401:
+          description: "Invalid or missing access token."
+      tags:
+        - "auth"
+  /api/auth/logout:
+    post:
+      operationId: "AuthController_logout"
+      summary: "Logout user and invalidate tokens"
+      parameters: []
+      responses:
+        200:
+          description: "Logged out successfully."
+        401:
+          description: "Not authenticated."
+      tags:
+        - "auth"
   /api/car:
     post:
       operationId: "CarController_createCar"
@@ -1105,64 +1282,156 @@ paths:
         - "app-data"
       security:
         - cookie: []
-  /api/auth/google:
-    get:
-      operationId: "AuthController_login"
-      summary: "Initiate Google OAuth login"
+  /api/car-note:
+    post:
+      operationId: "CarNoteController_createCarNote"
+      summary: "Create a new car note"
       parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCarNoteDto"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarNoteDto"
+      tags:
+        - "car-note"
+  /api/car-note/{id}:
+    get:
+      operationId: "CarNoteController_getCarNote"
+      summary: "Get car note by ID"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
       responses:
         200:
           description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarNoteDto"
+        404:
+          description: "Car note not found."
       tags:
-        - "auth"
-  /api/auth/google/redirect:
+        - "car-note"
+    put:
+      operationId: "CarNoteController_updateCarNote"
+      summary: "Update a car note"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCarNoteDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarNoteDto"
+        404:
+          description: "Car note not found."
+      tags:
+        - "car-note"
+    delete:
+      operationId: "CarNoteController_deleteCarNote"
+      summary: "Delete a car note"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarNoteDto"
+      tags:
+        - "car-note"
+  /api/car-note/car/{carId}:
     get:
-      operationId: "AuthController_googleAuthRedirect"
-      summary: "Handle Google OAuth callback"
-      parameters: []
-      responses:
-        302:
-          description: "Authenticated and redirected to frontend."
-        401:
-          description: "Google authentication failed."
-      tags:
-        - "auth"
-  /api/auth/refresh:
-    post:
-      operationId: "AuthController_refreshAccessToken"
-      summary: "Refresh access token"
-      parameters: []
+      operationId: "CarNoteController_getCarNotesByCarId"
+      summary: "Get all notes for a specific car"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
       responses:
         200:
-          description: "New access token issued."
-        401:
-          description: "Refresh token missing or invalid."
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/CarNoteDto"
       tags:
-        - "auth"
-  /api/auth/me:
+        - "car-note"
+  /api/n/{slug}/set:
+    post:
+      operationId: "NavRelayController_set"
+      summary: "Share a Google Maps link to the car on this channel"
+      parameters:
+        - name: "slug"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetNavDto"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NavDestinationDto"
+      tags:
+        - "nav-relay"
+  /api/n/{slug}/latest:
     get:
-      operationId: "AuthController_getProfile"
-      summary: "Get authenticated user profile"
-      parameters: []
+      operationId: "NavRelayController_latest"
+      summary: "Latest destination shared to the car on this channel"
+      parameters:
+        - name: "slug"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
       responses:
         200:
-          description: "User profile returned."
-        401:
-          description: "Invalid or missing access token."
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NavDestinationDto"
       tags:
-        - "auth"
-  /api/auth/logout:
-    post:
-      operationId: "AuthController_logout"
-      summary: "Logout user and invalidate tokens"
-      parameters: []
-      responses:
-        200:
-          description: "Logged out successfully."
-        401:
-          description: "Not authenticated."
-      tags:
-        - "auth"
+        - "nav-relay"
 info:
   title: "History Auto Utility API"
   description: "API documentation for History Auto Utility"
@@ -1178,6 +1447,10 @@ components:
       scheme: "bearer"
       bearerFormat: "JWT"
       type: "http"
+    cookie:
+      type: "apiKey"
+      in: "cookie"
+      name: "access_token"
   schemas:
     SharedCarDto:
       type: "object"
@@ -1294,6 +1567,56 @@ components:
           example: "VIEWER"
       required:
         - "role"
+    NotificationDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+        type:
+          type: "string"
+          enum:
+            - "CAR_SHARED"
+            - "CAR_ACCESS_REMOVED"
+            - "CAR_ACCESS_ROLE_CHANGED"
+            - "CAR_ACCESS_ACCEPTED"
+            - "DOCUMENT_EXPIRING"
+            - "VIN_CONFLICT"
+            - "LICENSE_PLATE_CONFLICT"
+        data:
+          type: "object"
+        read_at:
+          format: "date-time"
+          type: "string"
+          nullable: true
+        created_at:
+          format: "date-time"
+          type: "string"
+      required:
+        - "id"
+        - "type"
+        - "data"
+        - "read_at"
+        - "created_at"
+    UnreadCountDto:
+      type: "object"
+      properties:
+        count:
+          type: "number"
+      required:
+        - "count"
+    RegisterPushTokenDto:
+      type: "object"
+      properties:
+        token:
+          type: "string"
+        platform:
+          type: "string"
+          enum:
+            - "ANDROID"
+            - "WEB"
+      required:
+        - "token"
+        - "platform"
     AddCarDto:
       type: "object"
       properties:
@@ -1347,6 +1670,16 @@ components:
         current_mileage:
           type: "number"
           example: 184200
+        actual_mileage:
+          type: "number"
+          example: 184200
+          description: "Owner-reported odometer reading, updated over time from the car hub."
+        purchase_price:
+          type: "number"
+          example: 25000.5
+        purchase_price_currency:
+          type: "string"
+          example: "EUR"
         ownership_start_date:
           type: "string"
           example: "2024-05-12T00:00:00.000Z"
@@ -1458,6 +1791,19 @@ components:
         current_mileage:
           type: "number"
           example: 184200
+        actual_mileage:
+          type: "number"
+          example: 184200
+        actual_mileage_updated_at:
+          format: "date-time"
+          type: "string"
+          example: "2026-08-14T12:00:00.000Z"
+        purchase_price:
+          type: "number"
+          example: 25000.5
+        purchase_price_currency:
+          type: "string"
+          example: "EUR"
         ownership_start_date:
           format: "date-time"
           type: "string"
@@ -1730,10 +2076,15 @@ components:
         file_size:
           type: "number"
           nullable: true
+        is_active:
+          type: "boolean"
+          example: true
+          description: "Whether this document is the active one for its type/period"
       required:
         - "id"
         - "document_type"
         - "car_id"
+        - "is_active"
     CreateDocumentDto:
       type: "object"
       properties:
@@ -1777,6 +2128,10 @@ components:
         cnp_id:
           type: "string"
           example: "1900101012345"
+        is_active:
+          type: "boolean"
+          example: true
+          description: "Whether this document is the active one for its type/period"
       required:
         - "document_type"
         - "car_id"
@@ -2302,13 +2657,26 @@ components:
         theme:
           type: "string"
           example: "auto"
+          nullable: true
+          description: "Null when the user has never saved theme preferences."
         view_mode:
           type: "string"
           example: "cards"
+        expiry_reminders_enabled:
+          type: "boolean"
+          example: true
+        expiry_reminder_days:
+          example:
+            - 7
+          type: "array"
+          items:
+            type: "array"
       required:
         - "language"
         - "theme"
         - "view_mode"
+        - "expiry_reminders_enabled"
+        - "expiry_reminder_days"
     UpdateUserSettingsDto:
       type: "object"
       properties:
@@ -2331,3 +2699,100 @@ components:
           enum:
             - "cards"
             - "list"
+        expiry_reminders_enabled:
+          type: "boolean"
+          example: true
+        expiry_reminder_days:
+          type: "array"
+          example:
+            - 7
+          items:
+            type: "number"
+            enum:
+              - 1
+              - 7
+              - 14
+              - 30
+    CreateCarNoteDto:
+      type: "object"
+      properties:
+        car_id:
+          type: "number"
+          example: 1
+        title:
+          type: "string"
+          example: "PIN casetofon"
+        content:
+          type: "string"
+          example: "1234, introdus de 3 ori la rând"
+        group_name:
+          type: "string"
+          example: "Recomandări"
+      required:
+        - "car_id"
+        - "title"
+        - "content"
+    CarNoteDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+          example: 1
+        car_id:
+          type: "number"
+          example: 1
+        title:
+          type: "string"
+          example: "PIN casetofon"
+        content:
+          type: "string"
+          example: "1234, introdus de 3 ori la rând"
+        group_name:
+          type: "string"
+          nullable: true
+          example: "Recomandări"
+        created_at:
+          format: "date-time"
+          type: "string"
+        updated_at:
+          format: "date-time"
+          type: "string"
+      required:
+        - "id"
+        - "car_id"
+        - "title"
+        - "content"
+        - "created_at"
+        - "updated_at"
+    UpdateCarNoteDto:
+      type: "object"
+      properties: {}
+    SetNavDto:
+      type: "object"
+      properties:
+        url:
+          type: "string"
+          example: "https://maps.app.goo.gl/abc123"
+          description: "The raw text shared from Google Maps — a link, or a link embedded in text."
+      required:
+        - "url"
+    NavDestinationDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+          example: 42
+          description: "Ever-increasing id; the car acts when it grows."
+        name:
+          type: "string"
+          example: "Strada Republicii, Brașov"
+        lat:
+          type: "number"
+          example: 45.6427
+        lon:
+          type: "number"
+          example: 25.5887
+        ts:
+          type: "number"
+          example: 1721400000
+          description: "Unix seconds when it was shared."

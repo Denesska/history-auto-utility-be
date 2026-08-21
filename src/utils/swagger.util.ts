@@ -10,6 +10,7 @@ export function generateSwaggerYaml(app: INestApplication): void {
     .setVersion('1.0')
     .addServer('http://localhost:3000', 'development')
     .addBearerAuth()
+    .addCookieAuth('access_token', { type: 'apiKey', in: 'cookie' }, 'cookie')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

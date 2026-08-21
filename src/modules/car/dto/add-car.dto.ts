@@ -70,6 +70,23 @@ export class AddCarDto {
   @IsOptional()
   readonly current_mileage?: number;
 
+  @ApiProperty({ example: 184200, required: false, description: 'Owner-reported odometer reading, updated over time from the car hub.' })
+  @Type(() => Number)
+  @IsInt()
+  @IsOptional()
+  readonly actual_mileage?: number;
+
+  @ApiProperty({ example: 25000.5, required: false })
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  readonly purchase_price?: number;
+
+  @ApiProperty({ example: 'EUR', required: false })
+  @IsString()
+  @IsOptional()
+  readonly purchase_price_currency?: string;
+
   @ApiProperty({ example: '2024-05-12T00:00:00.000Z' })
   @IsDateString()
   @IsOptional()

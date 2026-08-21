@@ -63,6 +63,22 @@ export class CarDto {
   @ApiProperty({ example: 184200, required: false })
   current_mileage: number | null;
 
+  @ApiProperty({ example: 184200, required: false })
+  @IsOptional()
+  actual_mileage?: number | null;
+
+  @ApiProperty({ example: '2026-08-14T12:00:00.000Z', required: false })
+  @IsOptional()
+  actual_mileage_updated_at?: Date | null;
+
+  @ApiProperty({ example: 25000.5, required: false })
+  @IsOptional()
+  purchase_price?: number | null;
+
+  @ApiProperty({ example: 'EUR', required: false })
+  @IsOptional()
+  purchase_price_currency?: string | null;
+
   @ApiProperty({ example: '2024-05-12T00:00:00.000Z' })
   @IsOptional()
   ownership_start_date?: Date | null;

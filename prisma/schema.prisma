@@ -25,6 +25,9 @@ model User {
   uploaded_files UploadedFile[]
   settings       UserSettings?
   deadline_orders CarDeadlineOrder[]
+  notifications  Notification[]
+  push_tokens    PushToken[]
+  reminders_sent DocumentReminderSent[]
 }
 
 model Car {
@@ -41,6 +44,10 @@ model Car {
   engine                   String?
   color                    String?
   current_mileage          Int?
+  actual_mileage           Int?
+  actual_mileage_updated_at DateTime?
+  purchase_price           Float?
+  purchase_price_currency  String?           @default("EUR")
   ownership_start_date     DateTime?
   rca_expiry_date          DateTime?
   itp_expiry_date          DateTime?
@@ -57,6 +64,19 @@ model Car {
   access_entries           CarUserAccess[]
   blog_entries             BlogEntry[]
   deadline_orders          CarDeadlineOrder[]
+  reminders_sent           DocumentReminderSent[]
+  notes                    CarNote[]
+}
+
+model CarNote {
+  id         Int      @id @default(autoincrement())
+  car_id     Int
+  title      String
+  content    String
+  group_name String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  car        Car      @relation(fields: [car_id], references: [id], onDelete: Cascade)
 }
 
 model CarUserAccess {
@@ -75,6 +95,66 @@ model CarUserAccess {
   @@unique([car_id, user_id])
   @@index([user_id])
   @@index([car_id])
+}
+
+model Notification {
+  id         Int              @id @default(autoincrement())
+  user_id    Int
+  type       NotificationType
+  data       Json
+  read_at    DateTime?
+  created_at DateTime         @default(now())
+  user       User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([user_id, read_at])
+}
+
+enum NotificationType {
+  CAR_SHARED
+  CAR_ACCESS_REMOVED
+  CAR_ACCESS_ROLE_CHANGED
+  CAR_ACCESS_ACCEPTED
+  DOCUMENT_EXPIRING
+  VIN_CONFLICT
+  LICENSE_PLATE_CONFLICT
+}
+
+enum DocumentExpiryType {
+  RCA
+  ITP
+  ROVINIETA
+}
+
+model DocumentReminderSent {
+  id          Int                @id @default(autoincrement())
+  user_id     Int
+  car_id      Int
+  doc_type    DocumentExpiryType
+  expiry_date DateTime
+  days_before Int
+  sent_at     DateTime           @default(now())
+
+  user        User               @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  car         Car                @relation(fields: [car_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, car_id, doc_type, expiry_date, days_before])
+}
+
+model PushToken {
+  id         Int          @id @default(autoincrement())
+  user_id    Int
+  token      String       @unique
+  platform   PushPlatform
+  created_at DateTime     @default(now())
+  user       User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+}
+
+enum PushPlatform {
+  ANDROID
+  WEB
 }
 
 model CarPhoto {
@@ -103,6 +183,7 @@ model Document {
   file_url           String?
   file_name          String?
   file_size          Int?
+  is_active          Boolean   @default(true)
   car                Car       @relation(fields: [car_id], references: [id], onDelete: Cascade)
 }
 
@@ -151,6 +232,7 @@ enum ServiceType {
   REPAIR
   MAINTENANCE
   IMPROVEMENT
+  PASSION
 }
 
 enum ServiceCategory {
@@ -286,14 +368,16 @@ enum UploadStatus {
 }
 
 model UserSettings {
-  id         Int      @id @default(autoincrement())
-  user_id    Int      @unique
-  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  language   String   @default("en")
-  theme      String   @default("auto")
-  view_mode  String   @default("cards")
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id                        Int      @id @default(autoincrement())
+  user_id                   Int      @unique
+  user                      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  language                  String   @default("en")
+  theme                     String   @default("auto")
+  view_mode                 String   @default("cards")
+  expiry_reminders_enabled  Boolean  @default(true)
+  expiry_reminder_days      Int[]    @default([7])
+  created_at                DateTime @default(now())
+  updated_at                DateTime @updatedAt
 }
 
 model UploadedFile {
@@ -333,4 +417,21 @@ model CarDeadlineOrder {
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([car_id, user_id])
+}
+
+// A destination shared from a phone (Google Maps) to be picked up by the car head unit
+// (BMWSimulation / ro.denhau.bmwcockpit). Intentionally not tied to a User: the channel is
+// identified only by an unguessable [slug], so the car can read it with a plain GET and no login.
+// Each share is a new row; the car keeps the last [id] it acted on and polls for a greater one.
+model NavDestination {
+  id         Int      @id @default(autoincrement())
+  slug       String
+  name       String?
+  lat        Float?
+  lon        Float?
+  raw_url    String
+  created_at DateTime @default(now())
+
+  @@index([slug, id])
+  @@map("nav_destinations")
 }

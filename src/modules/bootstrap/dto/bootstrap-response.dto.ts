@@ -1,7 +1,7 @@
 import { CarAccessRole, MaintenanceRecord } from '@prisma/client';
 import { CarDto } from '../../car/dto/car.dto';
 import { DocumentDto } from '../../document/dto/document.dto';
-import { SharedCarDto } from '../../car-access/dto/car-access.dto';
+import { CarAccessUserDto, SharedCarDto } from '../../car-access/dto/car-access.dto';
 
 export class SharedCarEntry {
   car: CarDto;
@@ -9,6 +9,7 @@ export class SharedCarEntry {
 }
 
 export class BootstrapResponseDto {
+  me: CarAccessUserDto;
   ownedCars: CarDto[];
   sharedCars: SharedCarEntry[];
   pendingInvites: SharedCarDto[];

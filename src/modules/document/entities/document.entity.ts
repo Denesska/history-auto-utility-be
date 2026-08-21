@@ -18,4 +18,5 @@ export class DocumentEntity implements Document {
     file_url: string | null;
     file_name: string | null;
     file_size: number | null;
+    is_active: boolean;
 }
