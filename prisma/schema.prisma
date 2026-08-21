@@ -24,6 +24,7 @@ model User {
   blog_entries   BlogEntry[]
   uploaded_files UploadedFile[]
   settings       UserSettings?
+  deadline_orders CarDeadlineOrder[]
 }
 
 model Car {
@@ -55,6 +56,7 @@ model Car {
   photos                   CarPhoto[]
   access_entries           CarUserAccess[]
   blog_entries             BlogEntry[]
+  deadline_orders          CarDeadlineOrder[]
 }
 
 model CarUserAccess {
@@ -312,4 +314,23 @@ model UploadedFile {
   @@index([user_id])
   @@index([context_type, context_id])
   @@map("uploaded_files")
+}
+
+/// The order in which one user wants a car's deadlines (documents + maintenance)
+/// listed on the car hub. Per user as well as per car: a shared car can be
+/// arranged differently by each person who sees it.
+model CarDeadlineOrder {
+  id         Int      @id @default(autoincrement())
+  car_id     Int
+  user_id    Int
+  /// Ordered list of stable deadline keys, e.g. ["doc:RCA", "plan:OIL_CHANGE"].
+  /// Empty array = back to the automatic, most-urgent-first order.
+  item_keys  String[]
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  car  Car  @relation(fields: [car_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([car_id, user_id])
 }

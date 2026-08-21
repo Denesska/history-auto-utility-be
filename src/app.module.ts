@@ -12,11 +12,14 @@ import { AppVersionModule } from './modules/app-version/app-version.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { UserSettingsModule } from './modules/user-settings/user-settings.module';
 import { BootstrapModule } from './modules/bootstrap/bootstrap.module';
+import { CarDeadlineOrderModule } from './modules/car-deadline-order/car-deadline-order.module';
 
 @Module({
   imports: [
     // CarAccessModule must be before CarModule so GET /car/shared resolves before GET /car/:id
     CarAccessModule,
+    // 3-segment route (/car/:carId/deadline-order), so it can't collide with CarModule's /car/:id
+    CarDeadlineOrderModule,
     CarModule,
     VehicleCatalogModule,
     PrismaModule,
