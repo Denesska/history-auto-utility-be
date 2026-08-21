@@ -337,6 +337,53 @@ paths:
           description: "Not authenticated."
       tags:
         - "auth"
+  /api/car/{carId}/deadline-order:
+    get:
+      operationId: "CarDeadlineOrderController_getOrder"
+      summary: "Get this user's manual order for a car's deadlines"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeadlineOrderDto"
+      tags:
+        - "car-deadline-order"
+      security:
+        - cookie: []
+    put:
+      operationId: "CarDeadlineOrderController_setOrder"
+      summary: "Replace this user's manual order for a car's deadlines"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDeadlineOrderDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeadlineOrderDto"
+      tags:
+        - "car-deadline-order"
+      security:
+        - cookie: []
   /api/car:
     post:
       operationId: "CarController_createCar"
@@ -1617,6 +1664,38 @@ components:
       required:
         - "token"
         - "platform"
+    DeadlineOrderDto:
+      type: "object"
+      properties:
+        car_id:
+          type: "number"
+          example: 1
+        order:
+          example:
+            - "doc:RCA"
+            - "plan:OIL_CHANGE"
+            - "doc:ITP"
+          description: "Ordered list of deadline keys. Empty means the user has no manual order and the client falls back to sorting by urgency."
+          type: "array"
+          items:
+            type: "string"
+      required:
+        - "car_id"
+        - "order"
+    UpdateDeadlineOrderDto:
+      type: "object"
+      properties:
+        order:
+          example:
+            - "doc:RCA"
+            - "plan:OIL_CHANGE"
+            - "doc:ITP"
+          description: "Send an empty array to drop the manual order and go back to sorting by urgency."
+          type: "array"
+          items:
+            type: "string"
+      required:
+        - "order"
     AddCarDto:
       type: "object"
       properties:
