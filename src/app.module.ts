@@ -14,6 +14,7 @@ import { UploadModule } from './modules/upload/upload.module';
 import { UserSettingsModule } from './modules/user-settings/user-settings.module';
 import { BootstrapModule } from './modules/bootstrap/bootstrap.module';
 import { CarDeadlineOrderModule } from './modules/car-deadline-order/car-deadline-order.module';
+import { CarMaintenanceSettingsModule } from './modules/car-maintenance-settings/car-maintenance-settings.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { DocumentRemindersModule } from './modules/document-reminders/document-reminders.module';
 import { CarNoteModule } from './modules/car-note/car-note.module';
@@ -25,6 +26,8 @@ import { NavRelayModule } from './modules/nav-relay/nav-relay.module';
     CarAccessModule,
     // 3-segment route (/car/:carId/deadline-order), so it can't collide with CarModule's /car/:id
     CarDeadlineOrderModule,
+    // Same reasoning: /car/:carId/maintenance-settings is a 3+-segment route.
+    CarMaintenanceSettingsModule,
     CarModule,
     VehicleCatalogModule,
     PrismaModule,

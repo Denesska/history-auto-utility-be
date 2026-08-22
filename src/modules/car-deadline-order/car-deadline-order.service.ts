@@ -13,17 +13,22 @@ export class CarDeadlineOrderService {
       where: { car_id_user_id: { car_id: carId, user_id: userId } },
     });
 
-    return { car_id: carId, order: row?.item_keys ?? [] };
+    return { car_id: carId, order: row?.item_keys ?? [], dismissed: row?.dismissed_keys ?? [] };
   }
 
   async setOrder(carId: number, userId: number, order: string[]): Promise<DeadlineOrderDto> {
     await this.assertCanSeeCar(carId, userId);
 
-    // An empty list means "no manual order" — delete the row rather than storing
-    // an empty one, so a reset leaves no state behind to go stale.
-    if (!order.length) {
+    const existing = await this.prisma.carDeadlineOrder.findUnique({
+      where: { car_id_user_id: { car_id: carId, user_id: userId } },
+    });
+    const dismissed = existing?.dismissed_keys ?? [];
+
+    // An empty order with nothing dismissed means "no preferences at all" — delete
+    // the row rather than storing empty arrays, so a reset leaves no stale state.
+    if (!order.length && !dismissed.length) {
       await this.prisma.carDeadlineOrder.deleteMany({ where: { car_id: carId, user_id: userId } });
-      return { car_id: carId, order: [] };
+      return { car_id: carId, order: [], dismissed: [] };
     }
 
     // Duplicate keys would make the client's ordering ambiguous.
@@ -35,7 +40,31 @@ export class CarDeadlineOrderService {
       update: { item_keys: deduped },
     });
 
-    return { car_id: carId, order: row.item_keys };
+    return { car_id: carId, order: row.item_keys, dismissed: row.dismissed_keys };
+  }
+
+  async setDismissed(carId: number, userId: number, dismissed: string[]): Promise<DeadlineOrderDto> {
+    await this.assertCanSeeCar(carId, userId);
+
+    const existing = await this.prisma.carDeadlineOrder.findUnique({
+      where: { car_id_user_id: { car_id: carId, user_id: userId } },
+    });
+    const order = existing?.item_keys ?? [];
+
+    if (!dismissed.length && !order.length) {
+      await this.prisma.carDeadlineOrder.deleteMany({ where: { car_id: carId, user_id: userId } });
+      return { car_id: carId, order: [], dismissed: [] };
+    }
+
+    const deduped = [...new Set(dismissed)];
+
+    const row = await this.prisma.carDeadlineOrder.upsert({
+      where: { car_id_user_id: { car_id: carId, user_id: userId } },
+      create: { car_id: carId, user_id: userId, item_keys: [], dismissed_keys: deduped },
+      update: { dismissed_keys: deduped },
+    });
+
+    return { car_id: carId, order: row.item_keys, dismissed: row.dismissed_keys };
   }
 
   /**

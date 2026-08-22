@@ -384,6 +384,88 @@ paths:
         - "car-deadline-order"
       security:
         - cookie: []
+  /api/car/{carId}/deadline-order/dismissed:
+    put:
+      operationId: "CarDeadlineOrderController_setDismissed"
+      summary: "Replace this user's dismissed deadline keys for a car"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDismissedDeadlinesDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeadlineOrderDto"
+      tags:
+        - "car-deadline-order"
+      security:
+        - cookie: []
+  /api/car/{carId}/maintenance-settings:
+    get:
+      operationId: "CarMaintenanceSettingsController_getSettings"
+      summary: "Get this user's maintenance tracking settings for a car, merged with the global defaults"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/MaintenanceSettingDto"
+      tags:
+        - "car-maintenance-settings"
+      security:
+        - cookie: []
+  /api/car/{carId}/maintenance-settings/{category}:
+    put:
+      operationId: "CarMaintenanceSettingsController_setSetting"
+      summary: "Update this user's tracked flag and/or custom interval for one category on a car"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+        - name: "category"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMaintenanceSettingDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceSettingDto"
+      tags:
+        - "car-maintenance-settings"
+      security:
+        - cookie: []
   /api/car:
     post:
       operationId: "CarController_createCar"
@@ -1679,9 +1761,17 @@ components:
           type: "array"
           items:
             type: "string"
+        dismissed:
+          example:
+            - "doc:ROV"
+          description: "Deadline keys the user dismissed from the list entirely. Empty means nothing is dismissed."
+          type: "array"
+          items:
+            type: "string"
       required:
         - "car_id"
         - "order"
+        - "dismissed"
     UpdateDeadlineOrderDto:
       type: "object"
       properties:
@@ -1696,6 +1786,79 @@ components:
             type: "string"
       required:
         - "order"
+    UpdateDismissedDeadlinesDto:
+      type: "object"
+      properties:
+        dismissed:
+          example:
+            - "doc:ROV"
+          description: "Send an empty array to un-dismiss everything."
+          type: "array"
+          items:
+            type: "string"
+      required:
+        - "dismissed"
+    MaintenanceSettingDto:
+      type: "object"
+      properties:
+        category:
+          type: "string"
+          example: "OIL_CHANGE"
+          enum:
+            - "OIL_CHANGE"
+            - "BRAKE_SERVICE"
+            - "TRANSMISSION_SERVICE"
+            - "TIRE_SERVICE"
+            - "FLUID_SERVICE"
+            - "ENGINE_SERVICE"
+            - "INSPECTION"
+            - "BATTERY_SERVICE"
+            - "FILTER_SERVICE"
+            - "LIGHT_SERVICE"
+            - "OTHER"
+        tracked:
+          type: "boolean"
+          example: true
+          description: "Whether this category should show a progress bar / notify the user"
+        interval_km:
+          type: "number"
+          nullable: true
+          example: 8000
+          description: "Resolved interval: custom value if set, otherwise the global default"
+        interval_months:
+          type: "number"
+          nullable: true
+          example: 12
+          description: "Resolved interval: custom value if set, otherwise the global default"
+        is_custom_km:
+          type: "boolean"
+          example: false
+          description: "True if interval_km came from a user override rather than the global default"
+        is_custom_months:
+          type: "boolean"
+          example: false
+          description: "True if interval_months came from a user override rather than the global default"
+      required:
+        - "category"
+        - "tracked"
+        - "is_custom_km"
+        - "is_custom_months"
+    UpdateMaintenanceSettingDto:
+      type: "object"
+      properties:
+        tracked:
+          type: "boolean"
+          example: true
+        custom_interval_km:
+          type: "number"
+          nullable: true
+          example: 8000
+          description: "Send null to clear the override and fall back to the default"
+        custom_interval_months:
+          type: "number"
+          nullable: true
+          example: 12
+          description: "Send null to clear the override and fall back to the default"
     AddCarDto:
       type: "object"
       properties:

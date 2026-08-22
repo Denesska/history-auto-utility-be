@@ -3,6 +3,7 @@ import { ApiCookieAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagg
 import { CarDeadlineOrderService } from './car-deadline-order.service';
 import { DeadlineOrderDto } from './dto/deadline-order.dto';
 import { UpdateDeadlineOrderDto } from './dto/update-deadline-order.dto';
+import { UpdateDismissedDeadlinesDto } from './dto/update-dismissed-deadlines.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RequestWithUser } from '../auth/express-request.interface';
 
@@ -32,5 +33,16 @@ export class CarDeadlineOrderController {
     @Req() req: RequestWithUser,
   ): Promise<DeadlineOrderDto> {
     return this.service.setOrder(carId, req.user.id, dto.order);
+  }
+
+  @Put('dismissed')
+  @ApiOperation({ summary: "Replace this user's dismissed deadline keys for a car" })
+  @ApiResponse({ status: 200, type: DeadlineOrderDto })
+  async setDismissed(
+    @Param('carId', ParseIntPipe) carId: number,
+    @Body() dto: UpdateDismissedDeadlinesDto,
+    @Req() req: RequestWithUser,
+  ): Promise<DeadlineOrderDto> {
+    return this.service.setDismissed(carId, req.user.id, dto.dismissed);
   }
 }
