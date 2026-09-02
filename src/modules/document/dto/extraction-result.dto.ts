@@ -78,6 +78,15 @@ export class ExtractedFieldsDto {
 
     @ApiPropertyOptional({ description: 'Damage limits (despăgubire maximă)' })
     damage_limits?: string;
+
+    @ApiPropertyOptional({ description: 'Vehicle color' })
+    color?: string;
+
+    @ApiPropertyOptional({ description: 'Fuel type code (PETROL, DIESEL, HYBRID, PLUGIN_HYBRID, ELECTRIC, LPG)' })
+    fuel_type?: string;
+
+    @ApiPropertyOptional({ description: 'Year of manufacture ("an fabricație")' })
+    manufacture_year?: string;
 }
 
 export class ExtractionResultDto {
