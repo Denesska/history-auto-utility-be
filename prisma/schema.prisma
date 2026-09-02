@@ -190,16 +190,28 @@ model Document {
 }
 
 model MaintenanceRecord {
-  id               Int             @id @default(autoincrement())
+  id               Int               @id @default(autoincrement())
   car_id           Int
   service_date     DateTime
   mileage          Int
   description      String
   service_type     ServiceType
-  service_category ServiceCategory
+  service_category ServiceCategory   @default(OTHER)
   cost             Float
   expiry_date      DateTime?
-  car              Car             @relation(fields: [car_id], references: [id], onDelete: Cascade)
+  is_diy           Boolean           @default(false)
+  car              Car               @relation(fields: [car_id], references: [id], onDelete: Cascade)
+  parts            MaintenancePart[]
+}
+
+model MaintenancePart {
+  id                    Int               @id @default(autoincrement())
+  maintenance_record_id Int
+  name                  String
+  code                  String?
+  quantity              Int?
+  price                 Float?
+  maintenanceRecord     MaintenanceRecord @relation(fields: [maintenance_record_id], references: [id], onDelete: Cascade)
 }
 
 enum CarStatus {

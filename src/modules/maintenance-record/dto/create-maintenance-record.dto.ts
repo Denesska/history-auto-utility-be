@@ -1,7 +1,9 @@
-import { IsString, IsInt, IsNumber, IsEnum, IsOptional, IsDateString } from 'class-validator';
+import { IsString, IsInt, IsNumber, IsEnum, IsOptional, IsDateString, IsBoolean, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ServiceType } from '../../document/enum/service-type.enum';
 import { ServiceCategory } from '../../document/enum/service-category.enum';
+import { MaintenancePartInputDto } from './maintenance-part-input.dto';
 
 export class CreateMaintenanceRecordDto {
     @IsInt()
@@ -24,9 +26,10 @@ export class CreateMaintenanceRecordDto {
     @IsEnum(ServiceType)
     readonly service_type: ServiceType;
 
-    @ApiProperty({ example: 'OIL_CHANGE', enum: ServiceCategory })
+    @IsOptional()
+    @ApiPropertyOptional({ example: 'OIL_CHANGE', enum: ServiceCategory })
     @IsEnum(ServiceCategory)
-    readonly service_category: ServiceCategory;
+    readonly service_category?: ServiceCategory;
 
     @IsNumber()
     @ApiProperty({ example: 250 })
@@ -36,4 +39,16 @@ export class CreateMaintenanceRecordDto {
     @IsDateString()
     @ApiPropertyOptional({ example: '2024-01-01' })
     readonly expiry_date?: string;
+
+    @IsOptional()
+    @IsBoolean()
+    @ApiPropertyOptional({ example: false })
+    readonly is_diy?: boolean;
+
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => MaintenancePartInputDto)
+    @ApiPropertyOptional({ type: [MaintenancePartInputDto] })
+    readonly parts?: MaintenancePartInputDto[];
 }

@@ -1,14 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { MaintenanceRecord } from '@prisma/client';
+import { MaintenanceRecord, MaintenancePart, ServiceCategory } from '@prisma/client';
 import {PrismaService} from "../../prisma/prisma.service";
 import {CreateMaintenanceRecordDto} from "./dto/create-maintenance-record.dto";
 import {UpdateMaintenanceRecordDto} from "./dto/update-maintenance-record.dto";
+
+export type MaintenanceRecordWithParts = MaintenanceRecord & { parts: MaintenancePart[] };
 
 @Injectable()
 export class MaintenanceRecordService {
     constructor(private prisma: PrismaService) {}
 
-    async createMaintenanceRecord(data: CreateMaintenanceRecordDto): Promise<MaintenanceRecord> {
+    async createMaintenanceRecord(data: CreateMaintenanceRecordDto): Promise<MaintenanceRecordWithParts> {
         const record = await this.prisma.maintenanceRecord.create({
             data: {
                 car_id:           data.car_id,
@@ -16,22 +18,33 @@ export class MaintenanceRecordService {
                 mileage:          data.mileage,
                 description:      data.description,
                 service_type:     data.service_type,
-                service_category: data.service_category,
+                service_category: data.service_category ?? ServiceCategory.OTHER,
                 cost:             data.cost,
                 expiry_date:      data.expiry_date ? new Date(data.expiry_date) : null,
+                is_diy:           data.is_diy ?? false,
+                parts: data.parts?.length
+                    ? { create: data.parts.map(p => ({ name: p.name, code: p.code, quantity: p.quantity, price: p.price })) }
+                    : undefined,
             },
+            include: { parts: true },
         });
         await this._syncLastOilService(record.car_id);
         return record;
     }
 
-    async getMaintenanceRecord(id: number): Promise<MaintenanceRecord | null> {
+    async getMaintenanceRecord(id: number): Promise<MaintenanceRecordWithParts | null> {
         return this.prisma.maintenanceRecord.findUnique({
             where: { id },
+            include: { parts: true },
         });
     }
 
-    async updateMaintenanceRecord(id: number, data: UpdateMaintenanceRecordDto): Promise<MaintenanceRecord> {
+    async updateMaintenanceRecord(id: number, data: UpdateMaintenanceRecordDto): Promise<MaintenanceRecordWithParts> {
+        // Parts have no stable client-side id to diff against, so an edit replaces
+        // the whole set rather than trying to patch individual rows.
+        if (data.parts !== undefined) {
+            await this.prisma.maintenancePart.deleteMany({ where: { maintenance_record_id: id } });
+        }
         const record = await this.prisma.maintenanceRecord.update({
             where: { id },
             data: {
@@ -43,7 +56,12 @@ export class MaintenanceRecordService {
                 service_category: data.service_category,
                 cost:             data.cost,
                 expiry_date:      data.expiry_date !== undefined ? (data.expiry_date ? new Date(data.expiry_date) : null) : undefined,
+                is_diy:           data.is_diy,
+                parts: data.parts !== undefined
+                    ? { create: data.parts.map(p => ({ name: p.name, code: p.code, quantity: p.quantity, price: p.price })) }
+                    : undefined,
             },
+            include: { parts: true },
         });
         await this._syncLastOilService(record.car_id);
         return record;
@@ -74,13 +92,14 @@ export class MaintenanceRecordService {
         });
     }
 
-    async getMaintenanceRecordsByCarId(carId: number): Promise<MaintenanceRecord[]> {
+    async getMaintenanceRecordsByCarId(carId: number): Promise<MaintenanceRecordWithParts[]> {
         return this.prisma.maintenanceRecord.findMany({
             where: { car_id: carId },
+            include: { parts: true },
         });
     }
 
-    async getAllByUser(googleId: string): Promise<MaintenanceRecord[]> {
+    async getAllByUser(googleId: string): Promise<MaintenanceRecordWithParts[]> {
         return this.prisma.maintenanceRecord.findMany({
             where: {
                 OR: [
@@ -88,6 +107,7 @@ export class MaintenanceRecordService {
                     { car: { access_entries: { some: { user: { google_id: googleId }, accepted_at: { not: null } } } } },
                 ],
             },
+            include: { parts: true },
         });
     }
 }

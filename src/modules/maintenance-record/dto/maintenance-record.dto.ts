@@ -1,7 +1,8 @@
-import {IsString, IsInt, IsDate, IsNumber, IsEnum} from 'class-validator';
+import {IsString, IsInt, IsDate, IsNumber, IsEnum, IsBoolean, IsArray} from 'class-validator';
 import {ApiProperty} from "@nestjs/swagger";
 import {ServiceType} from "../../document/enum/service-type.enum";
 import {ServiceCategory} from "../../document/enum/service-category.enum";
+import {MaintenancePartDto} from "./maintenance-part.dto";
 
 export class MaintenanceRecordDto {
     @IsInt()
@@ -39,4 +40,12 @@ export class MaintenanceRecordDto {
     @IsDate()
     @ApiProperty({ example: 'Insurance' })
     readonly expiry_date: Date;
+
+    @IsBoolean()
+    @ApiProperty({ example: false })
+    readonly is_diy: boolean;
+
+    @IsArray()
+    @ApiProperty({ type: [MaintenancePartDto] })
+    readonly parts: MaintenancePartDto[];
 }

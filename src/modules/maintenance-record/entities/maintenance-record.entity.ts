@@ -10,4 +10,5 @@ export class MaintenanceRecordEntity implements MaintenanceRecord {
     service_category: ServiceCategory;
     cost: number;
     expiry_date: Date;
+    is_diy: boolean;
 }
