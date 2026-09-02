@@ -2461,6 +2461,15 @@ components:
         damage_limits:
           type: "string"
           description: "Damage limits (despăgubire maximă)"
+        color:
+          type: "string"
+          description: "Vehicle color"
+        fuel_type:
+          type: "string"
+          description: "Fuel type code (PETROL, DIESEL, HYBRID, PLUGIN_HYBRID, ELECTRIC, LPG)"
+        manufacture_year:
+          type: "string"
+          description: "Year of manufacture (\"an fabricație\")"
     ExtractionResultDto:
       type: "object"
       properties:
