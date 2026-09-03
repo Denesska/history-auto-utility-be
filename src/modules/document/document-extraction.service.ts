@@ -1,8 +1,8 @@
-import { BadRequestException, Injectable, UnsupportedMediaTypeException } from '@nestjs/common';
+import { BadRequestException, Injectable, ServiceUnavailableException, UnsupportedMediaTypeException } from '@nestjs/common';
 import { ExtractionResultDto } from './dto/extraction-result.dto';
 import { DocumentParser } from './parsers/document-parser.interface';
 import { RcaParser } from './parsers/rca.parser';
-import { GeminiExtractionService } from './gemini-extraction.service';
+import { GeminiExtractionService, GeminiServiceUnavailableError } from './gemini-extraction.service';
 
 const SUPPORTED_MIME_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']);
 const MAX_RAW_TEXT_CHARS = 3000;
@@ -52,7 +52,17 @@ export class DocumentExtractionService {
         }
 
         // Fallback (or primary path for images / scanned PDFs / non-RCA document types): AI extraction.
-        const aiResult = await this.geminiExtractionService.extract(buffer, mimeType);
+        let aiResult;
+        try {
+            aiResult = await this.geminiExtractionService.extract(buffer, mimeType);
+        } catch (err) {
+            if (err instanceof GeminiServiceUnavailableError) {
+                throw new ServiceUnavailableException(
+                    'The document analysis service is temporarily overloaded. Please try again in a few minutes, or fill in the fields manually.',
+                );
+            }
+            throw err;
+        }
         if (aiResult) {
             return {
                 detected: aiResult.detected,

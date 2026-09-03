@@ -80,6 +80,18 @@ const RESPONSE_SCHEMA = {
 };
 
 /**
+ * Thrown when the Gemini API itself is unreachable/overloaded (e.g. HTTP 503 "UNAVAILABLE" —
+ * high demand), as opposed to a document that simply isn't a recognisable type. Callers should
+ * surface this distinctly to the user rather than treating it as "document not detected".
+ */
+export class GeminiServiceUnavailableError extends Error {
+    constructor() {
+        super('Gemini extraction service is temporarily unavailable.');
+        this.name = 'GeminiServiceUnavailableError';
+    }
+}
+
+/**
  * AI-based fallback extractor for document types/formats the regex parsers can't handle
  * (photos, scans, and any document type other than text-based RCA PDFs).
  *
@@ -136,8 +148,21 @@ export class GeminiExtractionService {
                 warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
             };
         } catch (err) {
-            this.logger.error(`Gemini extraction failed: ${err instanceof Error ? err.message : err}`);
+            const message = err instanceof Error ? err.message : String(err);
+            this.logger.error(`Gemini extraction failed: ${message}`);
+            if (this.isServiceUnavailable(err, message)) {
+                throw new GeminiServiceUnavailableError();
+            }
             return null;
         }
+    }
+
+    // Distinguishes a transient Gemini outage/overload (HTTP 503 "UNAVAILABLE") from any other
+    // extraction failure — the SDK error shape isn't strongly typed, so check status/code fields
+    // first and fall back to sniffing the (often JSON-stringified) message.
+    private isServiceUnavailable(err: unknown, message: string): boolean {
+        const status = (err as { status?: number; code?: number })?.status ?? (err as { code?: number })?.code;
+        if (status === 503) return true;
+        return /"code"\s*:\s*503/.test(message) || /UNAVAILABLE/.test(message);
     }
 }

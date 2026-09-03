@@ -107,6 +107,7 @@ export class DocumentController {
   @ApiResponse({ status: 200, type: ExtractionResultDto })
   @ApiResponse({ status: 400, description: 'No file provided or file could not be read.' })
   @ApiResponse({ status: 415, description: 'Unsupported file type.' })
+  @ApiResponse({ status: 503, description: 'AI extraction service is temporarily unavailable (high demand).' })
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } }))
   async extractDocument(
     @UploadedFile() file: Express.Multer.File,
