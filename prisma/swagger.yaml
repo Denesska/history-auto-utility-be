@@ -301,6 +301,16 @@ paths:
           description: "Google authentication failed."
       tags:
         - "auth"
+  /api/auth/dev-login:
+    get:
+      operationId: "AuthController_devLogin"
+      summary: "[dev only] Log in as the dev-bypass user, no Google OAuth"
+      parameters: []
+      responses:
+        200:
+          description: ""
+      tags:
+        - "auth"
   /api/auth/refresh:
     post:
       operationId: "AuthController_refreshAccessToken"
