@@ -1,11 +1,12 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RequestWithUser } from '../auth/express-request.interface';
 import { UploadService } from './upload.service';
-import { RequestUploadDto } from './dto/request-upload.dto';
+import { CONTEXT_TYPES, ContextType, RequestUploadDto } from './dto/request-upload.dto';
 import {
   ConfirmUploadResponseDto,
+  ContextFileDto,
   ReadUrlResponseDto,
   UploadResponseDto,
 } from './dto/upload-response.dto';
@@ -63,6 +64,20 @@ export class UploadController {
     @Param('id', ParseIntPipe) id: number,
   ): Promise<ReadUrlResponseDto> {
     return this.uploadService.getReadUrl(req.user.id, id);
+  }
+
+  @Get('context/:contextType/:contextId')
+  @ApiOperation({ summary: 'List uploaded files attached to a context (e.g. a maintenance record)' })
+  @ApiResponse({ status: 200, type: [ContextFileDto] })
+  getFilesForContext(
+    @Req() req: RequestWithUser,
+    @Param('contextType') contextType: string,
+    @Param('contextId', ParseIntPipe) contextId: number,
+  ): Promise<ContextFileDto[]> {
+    if (!CONTEXT_TYPES.includes(contextType as ContextType)) {
+      throw new BadRequestException(`Invalid context type: ${contextType}`);
+    }
+    return this.uploadService.getFilesForContext(req.user.id, contextType as ContextType, contextId);
   }
 
   @Delete(':id')

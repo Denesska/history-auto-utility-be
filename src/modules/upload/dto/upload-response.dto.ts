@@ -32,3 +32,20 @@ export class ReadUrlResponseDto {
   @ApiProperty()
   expiresIn: number;
 }
+
+export class ContextFileDto {
+  @ApiProperty()
+  fileId: number;
+
+  @ApiProperty()
+  fileKey: string;
+
+  @ApiProperty()
+  fileName: string;
+
+  @ApiProperty()
+  mimeType: string;
+
+  @ApiProperty()
+  size: number;
+}

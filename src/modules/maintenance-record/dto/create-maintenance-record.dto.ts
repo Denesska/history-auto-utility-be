@@ -14,9 +14,10 @@ export class CreateMaintenanceRecordDto {
     @ApiProperty({ example: '2023-01-01' })
     readonly service_date: string;
 
+    @IsOptional()
     @IsInt()
-    @ApiProperty({ example: 51000 })
-    readonly mileage: number;
+    @ApiPropertyOptional({ example: 51000 })
+    readonly mileage?: number;
 
     @IsString()
     @ApiProperty({ example: 'Oil 10W40, air filter MANN' })

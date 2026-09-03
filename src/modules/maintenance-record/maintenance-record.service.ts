@@ -3,12 +3,17 @@ import { MaintenanceRecord, MaintenancePart, ServiceCategory } from '@prisma/cli
 import {PrismaService} from "../../prisma/prisma.service";
 import {CreateMaintenanceRecordDto} from "./dto/create-maintenance-record.dto";
 import {UpdateMaintenanceRecordDto} from "./dto/update-maintenance-record.dto";
+import { UploadService } from '../upload/upload.service';
 
 export type MaintenanceRecordWithParts = MaintenanceRecord & { parts: MaintenancePart[] };
+export type MaintenanceRecordWithMeta = MaintenanceRecordWithParts & { attachmentsCount: number; thumbnailUrl: string | null };
 
 @Injectable()
 export class MaintenanceRecordService {
-    constructor(private prisma: PrismaService) {}
+    constructor(
+        private prisma: PrismaService,
+        private uploadService: UploadService,
+    ) {}
 
     async createMaintenanceRecord(data: CreateMaintenanceRecordDto): Promise<MaintenanceRecordWithParts> {
         const record = await this.prisma.maintenanceRecord.create({
@@ -79,8 +84,10 @@ export class MaintenanceRecordService {
     // OIL_CHANGE record, since the frontend's "next oil service" estimate is
     // derived from those car fields rather than from the records list directly.
     private async _syncLastOilService(carId: number): Promise<void> {
+        // mileage is now optional on a record — exclude records without one so
+        // a null doesn't sort ahead of a real, comparable mileage value.
         const latestOilChange = await this.prisma.maintenanceRecord.findFirst({
-            where: { car_id: carId, service_category: 'OIL_CHANGE' },
+            where: { car_id: carId, service_category: 'OIL_CHANGE', mileage: { not: null } },
             orderBy: { mileage: 'desc' },
         });
         await this.prisma.car.update({
@@ -92,15 +99,16 @@ export class MaintenanceRecordService {
         });
     }
 
-    async getMaintenanceRecordsByCarId(carId: number): Promise<MaintenanceRecordWithParts[]> {
-        return this.prisma.maintenanceRecord.findMany({
+    async getMaintenanceRecordsByCarId(carId: number): Promise<MaintenanceRecordWithMeta[]> {
+        const records = await this.prisma.maintenanceRecord.findMany({
             where: { car_id: carId },
             include: { parts: true },
         });
+        return this._withAttachmentMeta(records);
     }
 
-    async getAllByUser(googleId: string): Promise<MaintenanceRecordWithParts[]> {
-        return this.prisma.maintenanceRecord.findMany({
+    async getAllByUser(googleId: string): Promise<MaintenanceRecordWithMeta[]> {
+        const records = await this.prisma.maintenanceRecord.findMany({
             where: {
                 OR: [
                     { car: { user: { google_id: googleId } } },
@@ -109,5 +117,46 @@ export class MaintenanceRecordService {
             },
             include: { parts: true },
         });
+        return this._withAttachmentMeta(records);
+    }
+
+    // Attachments live in the generic uploaded_files table (not a Prisma
+    // relation), keyed by context_type/context_id — matched by record id only,
+    // deliberately not scoped to a particular uploader, so a shared car's
+    // maintenance history shows the same attachment count/thumbnail to every
+    // viewer regardless of who originally uploaded the file.
+    private async _withAttachmentMeta(records: MaintenanceRecordWithParts[]): Promise<MaintenanceRecordWithMeta[]> {
+        if (!records.length) return [];
+        const files = await this.prisma.uploadedFile.findMany({
+            where: { context_type: 'maintenance', context_id: { in: records.map(r => r.id) }, status: 'UPLOADED' },
+            orderBy: { created_at: 'asc' },
+        });
+
+        const filesByRecord = new Map<number, typeof files>();
+        for (const file of files) {
+            if (file.context_id == null) continue;
+            const list = filesByRecord.get(file.context_id) ?? [];
+            list.push(file);
+            filesByRecord.set(file.context_id, list);
+        }
+
+        const thumbnailUrlByKey = new Map<string, string>();
+        const result: MaintenanceRecordWithMeta[] = [];
+        for (const record of records) {
+            const recordFiles = filesByRecord.get(record.id) ?? [];
+            const firstImage = recordFiles.find(f => f.mime_type.startsWith('image/'));
+
+            let thumbnailUrl: string | null = null;
+            if (firstImage) {
+                thumbnailUrl = thumbnailUrlByKey.get(firstImage.file_key) ?? null;
+                if (!thumbnailUrl) {
+                    thumbnailUrl = await this.uploadService.createReadUrlForKey(firstImage.file_key);
+                    thumbnailUrlByKey.set(firstImage.file_key, thumbnailUrl);
+                }
+            }
+
+            result.push({ ...record, attachmentsCount: recordFiles.length, thumbnailUrl });
+        }
+        return result;
     }
 }

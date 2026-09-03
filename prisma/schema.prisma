@@ -193,7 +193,7 @@ model MaintenanceRecord {
   id               Int               @id @default(autoincrement())
   car_id           Int
   service_date     DateTime
-  mileage          Int
+  mileage          Int?
   description      String
   service_type     ServiceType
   service_category ServiceCategory   @default(OTHER)
