@@ -20,5 +20,6 @@ export const DEFAULT_MAINTENANCE_INTERVALS: Record<ServiceCategory, MaintenanceI
   BATTERY_SERVICE:       { interval_km: null,  interval_months: 48 },
   FILTER_SERVICE:        { interval_km: 15000, interval_months: 12 },
   LIGHT_SERVICE:         { interval_km: null,  interval_months: null },
+  COMBUSTIBIL:           { interval_km: null,  interval_months: null },
   OTHER:                 { interval_km: null,  interval_months: null },
 };

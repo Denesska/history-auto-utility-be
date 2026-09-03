@@ -190,18 +190,20 @@ model Document {
 }
 
 model MaintenanceRecord {
-  id               Int               @id @default(autoincrement())
-  car_id           Int
-  service_date     DateTime
-  mileage          Int?
-  description      String
-  service_type     ServiceType
-  service_category ServiceCategory   @default(OTHER)
-  cost             Float
-  expiry_date      DateTime?
-  is_diy           Boolean           @default(false)
-  car              Car               @relation(fields: [car_id], references: [id], onDelete: Cascade)
-  parts            MaintenancePart[]
+  id                 Int               @id @default(autoincrement())
+  car_id             Int
+  service_date       DateTime
+  mileage            Int?
+  description        String
+  service_type       ServiceType
+  service_category   ServiceCategory   @default(OTHER)
+  cost               Float
+  expiry_date        DateTime?
+  is_diy             Boolean           @default(false)
+  fuel_liters        Float?
+  is_company_expense Boolean           @default(false)
+  car                Car               @relation(fields: [car_id], references: [id], onDelete: Cascade)
+  parts              MaintenancePart[]
 }
 
 model MaintenancePart {
@@ -247,6 +249,7 @@ enum ServiceType {
   MAINTENANCE
   IMPROVEMENT
   PASSION
+  ALIMENTARE
 }
 
 enum ServiceCategory {
@@ -260,6 +263,7 @@ enum ServiceCategory {
   BATTERY_SERVICE
   FILTER_SERVICE
   LIGHT_SERVICE
+  COMBUSTIBIL
   OTHER
 }
 

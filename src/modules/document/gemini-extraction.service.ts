@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ParseResult } from './parsers/document-parser.interface';
 
-const KNOWN_DOCUMENT_TYPES = new Set(['RCA', 'ITP', 'ROV', 'REGISTRATION', 'ROAD_TAX']);
+const KNOWN_DOCUMENT_TYPES = new Set(['RCA', 'ITP', 'ROV', 'REGISTRATION', 'ROAD_TAX', 'FUEL_RECEIPT', 'ODOMETER']);
 
 const PROMPT = `You are analysing a photo or scan of a Romanian vehicle-related document. Identify which of these document types it is:
 - RCA: mandatory third-party liability insurance policy/certificate ("poliță RCA", "certificat de asigurare", "carte verde")
@@ -11,6 +11,8 @@ const PROMPT = `You are analysing a photo or scan of a Romanian vehicle-related 
 - ROV: road vignette/toll receipt ("rovinietă")
 - REGISTRATION: vehicle registration certificate ("certificat de înmatriculare", "talon")
 - ROAD_TAX: road tax payment receipt ("taxă auto", "impozit auto")
+- FUEL_RECEIPT: this covers TWO possible source photos, classify both as FUEL_RECEIPT — either a printed fuel/gas station purchase receipt ("bon fiscal", "bon de alimentare"), OR a photo of the fuel pump/dispenser's own digital display screen showing liters, price per liter and total amount at the end of a fill-up (no paper receipt involved)
+- ODOMETER: a photo of a vehicle's instrument cluster/dashboard showing the odometer reading ("bord", "kilometraj")
 
 If the document is not one of these types, or the image is unreadable/unrelated, set "detected" to false and "document_type" to null.
 
@@ -23,6 +25,18 @@ For REGISTRATION (vehicle registration certificate / "certificat de înmatricula
 - "fuel_type" must be one of these exact codes: PETROL, DIESEL, HYBRID, PLUGIN_HYBRID, ELECTRIC, LPG — map "benzină"→PETROL, "motorină"/"diesel"→DIESEL, "hibrid"→HYBRID, "hibrid plug-in"→PLUGIN_HYBRID, "electric"→ELECTRIC, "GPL"→LPG.
 - "color" ("culoare") should be a plain color name in Romanian (e.g. "Alb", "Negru", "Gri", "Roșu", "Albastru").
 - "manufacture_year" is the 4-digit year of manufacture ("an fabricație"), not the first-registration date.
+
+For FUEL_RECEIPT documents specifically:
+- "fuel_liters" is the quantity of fuel purchased (litri), as a plain numeric string.
+- "fuel_price_per_liter" is the unit price per liter, if printed.
+- "fuel_total_amount" is the amount paid FOR FUEL ONLY — find the specific fuel line item(s) (e.g. "Motorină", "Benzină Premium") and sum only those, ignoring any other products on the same receipt (car wash, shop items, coffee, etc). Only set this field if you can confidently isolate the fuel-only amount — if the receipt has no other products, this is simply the receipt total; if it does and you cannot clearly tell which lines are fuel, leave "fuel_total_amount" unset rather than guessing.
+- "receipt_total_amount" is the overall receipt total ("total de plată") — only set this field when it differs from "fuel_total_amount" (i.e. the receipt includes non-fuel products), so the app can flag it for the user to double-check.
+- "fuel_station_name" is the gas station brand/name if visible (e.g. "Petrom", "OMV", "MOL").
+- "issue_date" is the transaction date/time printed on the receipt.
+- If this is a PUMP/DISPENSER DISPLAY SCREEN rather than a printed receipt: it inherently shows fuel-only data (no other products can appear on it), so "fuel_total_amount" is simply the displayed total and "receipt_total_amount" should be left unset — there is nothing else to compare it against. It will typically have no station name or date visible; leave those fields out.
+
+For ODOMETER photos specifically:
+- "odometer_km" is the total distance reading shown on the instrument cluster, as a plain integer string. Dashboards often show both a resettable trip counter and the main odometer — always prefer the larger, non-resettable total odometer reading over a trip counter if both are visible.
 
 Set "confidence" to "high" only if the document type and most key fields (policy/document number, dates) are clearly legible; "medium" if legible but with some uncertainty; "low" if partially legible or you had to infer the type.
 
@@ -60,6 +74,12 @@ const EXTRACTED_FIELDS_SCHEMA = {
         color: { type: Type.STRING },
         fuel_type: { type: Type.STRING },
         manufacture_year: { type: Type.STRING },
+        fuel_liters: { type: Type.STRING },
+        fuel_price_per_liter: { type: Type.STRING },
+        fuel_total_amount: { type: Type.STRING },
+        receipt_total_amount: { type: Type.STRING },
+        fuel_station_name: { type: Type.STRING },
+        odometer_km: { type: Type.STRING },
     },
 };
 
@@ -69,7 +89,7 @@ const RESPONSE_SCHEMA = {
         detected: { type: Type.BOOLEAN },
         document_type: {
             type: Type.STRING,
-            enum: ['RCA', 'ITP', 'ROV', 'REGISTRATION', 'ROAD_TAX'],
+            enum: ['RCA', 'ITP', 'ROV', 'REGISTRATION', 'ROAD_TAX', 'FUEL_RECEIPT', 'ODOMETER'],
             nullable: true,
         },
         confidence: { type: Type.STRING, enum: ['high', 'medium', 'low'] },

@@ -47,6 +47,16 @@ export class CreateMaintenanceRecordDto {
     readonly is_diy?: boolean;
 
     @IsOptional()
+    @IsNumber()
+    @ApiPropertyOptional({ example: 42.5, description: 'Fuel quantity in liters, for ALIMENTARE records' })
+    readonly fuel_liters?: number;
+
+    @IsOptional()
+    @IsBoolean()
+    @ApiPropertyOptional({ example: false, description: 'Whether this expense is a company expense (reimbursable)' })
+    readonly is_company_expense?: boolean;
+
+    @IsOptional()
     @IsArray()
     @ValidateNested({ each: true })
     @Type(() => MaintenancePartInputDto)

@@ -3,4 +3,5 @@ export enum ServiceType {
     MAINTENANCE = 'MAINTENANCE',
     IMPROVEMENT = 'IMPROVEMENT',
     PASSION = 'PASSION',
+    ALIMENTARE = 'ALIMENTARE',
 }

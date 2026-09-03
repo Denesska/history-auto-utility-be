@@ -11,4 +11,6 @@ export class MaintenanceRecordEntity implements MaintenanceRecord {
     cost: number;
     expiry_date: Date;
     is_diy: boolean;
+    fuel_liters: number | null;
+    is_company_expense: boolean;
 }

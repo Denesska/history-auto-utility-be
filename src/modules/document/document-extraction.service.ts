@@ -81,7 +81,7 @@ export class DocumentExtractionService {
             fields: {},
             warnings: [
                 'Document type could not be detected or is not supported yet. ' +
-                'Currently supported: RCA, ITP, road vignette (rovinietă), registration certificate, road tax.',
+                'Currently supported: RCA, ITP, road vignette (rovinietă), registration certificate, road tax, fuel receipt, odometer photo.',
             ],
             raw_text: rawText ? rawText.slice(0, MAX_RAW_TEXT_CHARS) : undefined,
         };

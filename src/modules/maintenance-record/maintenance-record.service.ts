@@ -6,7 +6,11 @@ import {UpdateMaintenanceRecordDto} from "./dto/update-maintenance-record.dto";
 import { UploadService } from '../upload/upload.service';
 
 export type MaintenanceRecordWithParts = MaintenanceRecord & { parts: MaintenancePart[] };
-export type MaintenanceRecordWithMeta = MaintenanceRecordWithParts & { attachmentsCount: number; thumbnailUrl: string | null };
+export type MaintenanceRecordWithMeta = MaintenanceRecordWithParts & {
+    attachmentsCount: number;
+    thumbnailUrl: string | null;
+    consumption_l_100km?: number;
+};
 
 @Injectable()
 export class MaintenanceRecordService {
@@ -27,6 +31,8 @@ export class MaintenanceRecordService {
                 cost:             data.cost,
                 expiry_date:      data.expiry_date ? new Date(data.expiry_date) : null,
                 is_diy:           data.is_diy ?? false,
+                fuel_liters:        data.fuel_liters,
+                is_company_expense: data.is_company_expense ?? false,
                 parts: data.parts?.length
                     ? { create: data.parts.map(p => ({ name: p.name, code: p.code, quantity: p.quantity, price: p.price })) }
                     : undefined,
@@ -34,7 +40,8 @@ export class MaintenanceRecordService {
             include: { parts: true },
         });
         await this._syncLastOilService(record.car_id);
-        return record;
+        await this._syncActualMileage(record.car_id, record.mileage);
+        return this._attachConsumptionSingle(record);
     }
 
     async getMaintenanceRecord(id: number): Promise<MaintenanceRecordWithParts | null> {
@@ -62,6 +69,8 @@ export class MaintenanceRecordService {
                 cost:             data.cost,
                 expiry_date:      data.expiry_date !== undefined ? (data.expiry_date ? new Date(data.expiry_date) : null) : undefined,
                 is_diy:           data.is_diy,
+                fuel_liters:        data.fuel_liters,
+                is_company_expense: data.is_company_expense,
                 parts: data.parts !== undefined
                     ? { create: data.parts.map(p => ({ name: p.name, code: p.code, quantity: p.quantity, price: p.price })) }
                     : undefined,
@@ -69,7 +78,8 @@ export class MaintenanceRecordService {
             include: { parts: true },
         });
         await this._syncLastOilService(record.car_id);
-        return record;
+        await this._syncActualMileage(record.car_id, record.mileage);
+        return this._attachConsumptionSingle(record);
     }
 
     async deleteMaintenanceRecord(id: number): Promise<MaintenanceRecord> {
@@ -97,6 +107,37 @@ export class MaintenanceRecordService {
                 last_oil_service_date:    latestOilChange?.service_date ?? null,
             },
         });
+    }
+
+    // Any maintenance record with a known mileage is evidence of the car's odometer at that
+    // point in time — push Car.actual_mileage forward when it's a newer/higher reading than
+    // what's on file. Deliberately one-directional (never lowers or clears it, and never runs
+    // on delete) so a backdated/lower-mileage record can't fight a more recent reading entered
+    // elsewhere — the record itself still keeps its own mileage exactly as entered either way.
+    private async _syncActualMileage(carId: number, mileage: number | null | undefined): Promise<void> {
+        if (mileage == null) return;
+        const car = await this.prisma.car.findUnique({ where: { id: carId }, select: { actual_mileage: true } });
+        if (car && (car.actual_mileage == null || mileage > car.actual_mileage)) {
+            await this.prisma.car.update({
+                where: { id: carId },
+                data: { actual_mileage: mileage, actual_mileage_updated_at: new Date() },
+            });
+        }
+    }
+
+    // create/update return the bare Prisma row (no attachment/consumption enrichment, unlike the
+    // list endpoints below) — compute consumption for just this one record so it's correct
+    // immediately in the response, rather than only after the next full list reload.
+    private async _attachConsumptionSingle(record: MaintenanceRecordWithParts): Promise<MaintenanceRecordWithParts & { consumption_l_100km?: number }> {
+        if (record.service_type !== 'ALIMENTARE' || record.mileage == null || record.fuel_liters == null) {
+            return record;
+        }
+        // The just-created/updated record is already committed, so this already includes it —
+        // _computeConsumption excludes self by id, so no special-casing needed here.
+        const siblings = await this.prisma.maintenanceRecord.findMany({
+            where: { car_id: record.car_id, service_type: 'ALIMENTARE', mileage: { not: null } },
+        });
+        return { ...record, consumption_l_100km: this._computeConsumption(record, siblings as MaintenanceRecordWithParts[]) };
     }
 
     async getMaintenanceRecordsByCarId(carId: number): Promise<MaintenanceRecordWithMeta[]> {
@@ -155,8 +196,36 @@ export class MaintenanceRecordService {
                 }
             }
 
-            result.push({ ...record, attachmentsCount: recordFiles.length, thumbnailUrl });
+            result.push({
+                ...record,
+                attachmentsCount: recordFiles.length,
+                thumbnailUrl,
+                consumption_l_100km: this._computeConsumption(record, records),
+            });
         }
         return result;
+    }
+
+    // L/100km for an ALIMENTARE record, computed against the same car's previous ALIMENTARE
+    // record (highest mileage strictly below this one) — not persisted, so it's always derived
+    // from the current data rather than risking drift after edits/deletes.
+    private _computeConsumption(record: MaintenanceRecordWithParts, allRecords: MaintenanceRecordWithParts[]): number | undefined {
+        if (record.service_type !== 'ALIMENTARE' || record.mileage == null || record.fuel_liters == null) return undefined;
+
+        const previous = allRecords
+            .filter(r =>
+                r.id !== record.id &&
+                r.car_id === record.car_id &&
+                r.service_type === 'ALIMENTARE' &&
+                r.mileage != null &&
+                r.mileage < record.mileage!,
+            )
+            .sort((a, b) => b.mileage! - a.mileage!)[0];
+
+        if (!previous) return undefined;
+        const distance = record.mileage - previous.mileage!;
+        if (distance <= 0) return undefined;
+
+        return Math.round((record.fuel_liters / distance) * 100 * 10) / 10;
     }
 }

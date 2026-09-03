@@ -1447,6 +1447,10 @@ paths:
       responses:
         200:
           description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BootstrapResponseDto"
       tags:
         - "app-data"
       security:
@@ -1855,6 +1859,7 @@ components:
             - "BATTERY_SERVICE"
             - "FILTER_SERVICE"
             - "LIGHT_SERVICE"
+            - "COMBUSTIBIL"
             - "OTHER"
         tracked:
           type: "boolean"
@@ -2235,6 +2240,7 @@ components:
             - "MAINTENANCE"
             - "IMPROVEMENT"
             - "PASSION"
+            - "ALIMENTARE"
         service_category:
           type: "string"
           example: "OIL_CHANGE"
@@ -2249,6 +2255,7 @@ components:
             - "BATTERY_SERVICE"
             - "FILTER_SERVICE"
             - "LIGHT_SERVICE"
+            - "COMBUSTIBIL"
             - "OTHER"
         cost:
           type: "number"
@@ -2260,6 +2267,18 @@ components:
         is_diy:
           type: "boolean"
           example: false
+        fuel_liters:
+          type: "number"
+          example: 42.5
+          description: "Fuel quantity in liters, for ALIMENTARE records"
+        is_company_expense:
+          type: "boolean"
+          example: false
+          description: "Whether this expense is a company expense (reimbursable)"
+        consumption_l_100km:
+          type: "number"
+          example: 7.4
+          description: "Computed fuel consumption (L/100km) vs. the previous ALIMENTARE record for the same car, when available"
         parts:
           type: "array"
           items:
@@ -2280,6 +2299,7 @@ components:
         - "cost"
         - "expiry_date"
         - "is_diy"
+        - "is_company_expense"
         - "parts"
         - "attachmentsCount"
     MaintenancePartInputDto:
@@ -2322,6 +2342,7 @@ components:
             - "MAINTENANCE"
             - "IMPROVEMENT"
             - "PASSION"
+            - "ALIMENTARE"
         service_category:
           type: "string"
           example: "OIL_CHANGE"
@@ -2336,6 +2357,7 @@ components:
             - "BATTERY_SERVICE"
             - "FILTER_SERVICE"
             - "LIGHT_SERVICE"
+            - "COMBUSTIBIL"
             - "OTHER"
         cost:
           type: "number"
@@ -2346,6 +2368,14 @@ components:
         is_diy:
           type: "boolean"
           example: false
+        fuel_liters:
+          type: "number"
+          example: 42.5
+          description: "Fuel quantity in liters, for ALIMENTARE records"
+        is_company_expense:
+          type: "boolean"
+          example: false
+          description: "Whether this expense is a company expense (reimbursable)"
         parts:
           type: "array"
           items:
@@ -2660,6 +2690,24 @@ components:
         manufacture_year:
           type: "string"
           description: "Year of manufacture (\"an fabricație\")"
+        fuel_liters:
+          type: "string"
+          description: "Fuel quantity purchased, in liters, as a numeric string"
+        fuel_price_per_liter:
+          type: "string"
+          description: "Fuel unit price per liter, as a numeric string"
+        fuel_total_amount:
+          type: "string"
+          description: "Amount paid for fuel only (excludes any other products on the same receipt)"
+        receipt_total_amount:
+          type: "string"
+          description: "Overall receipt total — only set when it differs from fuel_total_amount (receipt includes non-fuel products)"
+        fuel_station_name:
+          type: "string"
+          description: "Fuel/gas station brand or name"
+        odometer_km:
+          type: "string"
+          description: "Odometer reading in km, as a plain integer string"
     ExtractionResultDto:
       type: "object"
       properties:
@@ -3083,6 +3131,9 @@ components:
               - 7
               - 14
               - 30
+    BootstrapResponseDto:
+      type: "object"
+      properties: {}
     CreateCarNoteDto:
       type: "object"
       properties:
