@@ -17,6 +17,7 @@ import {
 } from './dto/request-upload.dto';
 import {
   ConfirmUploadResponseDto,
+  ContextFileDto,
   ReadUrlResponseDto,
   UploadResponseDto,
 } from './dto/upload-response.dto';
@@ -97,6 +98,27 @@ export class UploadService {
     const record = await this.findOwnedRecord(userId, fileId);
     const readUrl = await this.storage.createPresignedGetUrl(record.file_key, this.expiresIn);
     return { readUrl, expiresIn: this.expiresIn };
+  }
+
+  // For callers that already own/scoped the file lookup themselves (e.g. a
+  // maintenance-record list query filtered by user_id) and just need a signed
+  // URL for a known key, skipping the per-file ownership round trip above.
+  async createReadUrlForKey(fileKey: string): Promise<string> {
+    return this.storage.createPresignedGetUrl(fileKey, this.expiresIn);
+  }
+
+  async getFilesForContext(userId: number, contextType: ContextType, contextId: number): Promise<ContextFileDto[]> {
+    const records = await this.prisma.uploadedFile.findMany({
+      where: { user_id: userId, context_type: contextType, context_id: contextId, status: 'UPLOADED' },
+      orderBy: { created_at: 'asc' },
+    });
+    return records.map(r => ({
+      fileId: r.id,
+      fileKey: r.file_key,
+      fileName: r.original_file_name,
+      mimeType: r.mime_type,
+      size: r.size,
+    }));
   }
 
   async deleteFile(userId: number, fileId: number): Promise<void> {

@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { MaintenanceRecord, ServiceCategory } from '@prisma/client';
+import { ServiceCategory } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CarService } from '../car/car.service';
 import { CarAccessService } from '../car-access/car-access.service';
 import { DocumentService } from '../document/document.service';
-import { MaintenanceRecordService } from '../maintenance-record/maintenance-record.service';
+import { MaintenanceRecordService, MaintenanceRecordWithMeta } from '../maintenance-record/maintenance-record.service';
 import { DEFAULT_MAINTENANCE_INTERVALS } from '../maintenance-record/maintenance-interval.defaults';
 import { CarMaintenanceSettingsService } from '../car-maintenance-settings/car-maintenance-settings.service';
 import { BootstrapResponseDto, SharedCarEntry } from './dto/bootstrap-response.dto';
@@ -57,7 +57,7 @@ export class BootstrapService {
       documents[d.car_id].push(d);
     });
 
-    const maintenance: Record<number, MaintenanceRecord[]> = {};
+    const maintenance: Record<number, MaintenanceRecordWithMeta[]> = {};
     allMaintenance.forEach(m => {
       if (!maintenance[m.car_id]) maintenance[m.car_id] = [];
       maintenance[m.car_id].push(m);

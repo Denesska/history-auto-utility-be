@@ -1,7 +1,8 @@
-import {IsString, IsInt, IsDate, IsNumber, IsEnum} from 'class-validator';
-import {ApiProperty} from "@nestjs/swagger";
+import {IsString, IsInt, IsDate, IsNumber, IsEnum, IsBoolean, IsArray, IsOptional} from 'class-validator';
+import {ApiProperty, ApiPropertyOptional} from "@nestjs/swagger";
 import {ServiceType} from "../../document/enum/service-type.enum";
 import {ServiceCategory} from "../../document/enum/service-category.enum";
+import {MaintenancePartDto} from "./maintenance-part.dto";
 
 export class MaintenanceRecordDto {
     @IsInt()
@@ -16,9 +17,10 @@ export class MaintenanceRecordDto {
     @ApiProperty({ example: '2023-01-01T00:00:00.000Z' })
     readonly service_date: Date;
 
+    @IsOptional()
     @IsInt()
-    @ApiProperty({ example: '380000' })
-    readonly mileage: number;
+    @ApiPropertyOptional({ example: '380000' })
+    readonly mileage?: number | null;
 
     @IsString()
     @ApiProperty({ example: 'Oil 10W40, air filter MANN' })
@@ -39,4 +41,21 @@ export class MaintenanceRecordDto {
     @IsDate()
     @ApiProperty({ example: 'Insurance' })
     readonly expiry_date: Date;
+
+    @IsBoolean()
+    @ApiProperty({ example: false })
+    readonly is_diy: boolean;
+
+    @IsArray()
+    @ApiProperty({ type: [MaintenancePartDto] })
+    readonly parts: MaintenancePartDto[];
+
+    @IsInt()
+    @ApiProperty({ example: 2 })
+    readonly attachmentsCount: number;
+
+    @IsOptional()
+    @IsString()
+    @ApiPropertyOptional({ example: 'https://r2.example.com/signed-url' })
+    readonly thumbnailUrl?: string | null;
 }
