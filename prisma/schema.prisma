@@ -10,60 +10,66 @@ generator client {
 }
 
 model User {
-  id            Int              @id @default(autoincrement())
-  google_id     String           @unique
-  email         String           @unique
-  first_name    String
-  last_name     String
-  picture       String
-  created_at    DateTime         @default(now())
-  cars           Car[]
-  refresh_token  String?
-  car_accesses   CarUserAccess[]  @relation("UserAccesses")
-  invitations    CarUserAccess[]  @relation("InvitedBy")
-  blog_entries   BlogEntry[]
-  uploaded_files UploadedFile[]
-  settings       UserSettings?
-  notifications  Notification[]
-  push_tokens    PushToken[]
-  reminders_sent DocumentReminderSent[]
+  id                   Int                     @id @default(autoincrement())
+  google_id            String                  @unique
+  email                String                  @unique
+  first_name           String
+  last_name            String
+  picture              String
+  created_at           DateTime                @default(now())
+  cars                 Car[]
+  refresh_token        String?
+  car_accesses         CarUserAccess[]         @relation("UserAccesses")
+  invitations          CarUserAccess[]         @relation("InvitedBy")
+  blog_entries         BlogEntry[]
+  uploaded_files       UploadedFile[]
+  settings             UserSettings?
+  deadline_orders      CarDeadlineOrder[]
+  notifications        Notification[]
+  push_tokens          PushToken[]
+  reminders_sent       DocumentReminderSent[]
+  maintenance_settings CarMaintenanceSetting[]
+  maintenance_profiles MaintenanceProfile[]
 }
 
 model Car {
-  id                       Int               @id @default(autoincrement())
-  vin                      String?           @unique
-  nickname                 String?           @unique
-  make                     String
-  model                    String
-  variant                  String?
-  year                     Int?
-  license_plate            String?
-  fuel_type                FuelType?
-  transmission             TransmissionType?
-  engine                   String?
-  color                    String?
-  current_mileage          Int?
-  actual_mileage           Int?
+  id                        Int                     @id @default(autoincrement())
+  vin                       String?                 @unique
+  nickname                  String?                 @unique
+  make                      String
+  model                     String
+  variant                   String?
+  year                      Int?
+  license_plate             String?
+  fuel_type                 FuelType?
+  transmission              TransmissionType?
+  engine                    String?
+  color                     String?
+  current_mileage           Int?
+  actual_mileage            Int?
   actual_mileage_updated_at DateTime?
-  purchase_price           Float?
-  purchase_price_currency  String?           @default("EUR")
-  ownership_start_date     DateTime?
-  rca_expiry_date          DateTime?
-  itp_expiry_date          DateTime?
-  rov_expiry_date          DateTime?
-  last_oil_service_date    DateTime?
-  last_oil_service_mileage Int?
-  status                   CarStatus         @default(ACTIVE)
-  sold_at                  DateTime?
-  user_id                  Int
-  user                     User              @relation(fields: [user_id], references: [id])
-  maintenanceRecords       MaintenanceRecord[]
-  documents                Document[]
-  photos                   CarPhoto[]
-  access_entries           CarUserAccess[]
-  blog_entries             BlogEntry[]
-  reminders_sent           DocumentReminderSent[]
-  notes                    CarNote[]
+  purchase_price            Float?
+  purchase_price_currency   String?                 @default("EUR")
+  ownership_start_date      DateTime?
+  rca_expiry_date           DateTime?
+  itp_expiry_date           DateTime?
+  rov_expiry_date           DateTime?
+  last_oil_service_date     DateTime?
+  last_oil_service_mileage  Int?
+  status                    CarStatus               @default(ACTIVE)
+  sold_at                   DateTime?
+  user_id                   Int
+  user                      User                    @relation(fields: [user_id], references: [id])
+  maintenanceRecords        MaintenanceRecord[]
+  documents                 Document[]
+  photos                    CarPhoto[]
+  access_entries            CarUserAccess[]
+  blog_entries              BlogEntry[]
+  deadline_orders           CarDeadlineOrder[]
+  reminders_sent            DocumentReminderSent[]
+  notes                     CarNote[]
+  maintenance_settings      CarMaintenanceSetting[]
+  maintenance_profiles      MaintenanceProfile[]
 }
 
 model CarNote {
@@ -78,17 +84,17 @@ model CarNote {
 }
 
 model CarUserAccess {
-  id                Int            @id @default(autoincrement())
-  car_id            Int
-  user_id           Int
-  role              CarAccessRole
+  id                 Int           @id @default(autoincrement())
+  car_id             Int
+  user_id            Int
+  role               CarAccessRole
   invited_by_user_id Int
-  accepted_at       DateTime?
-  created_at        DateTime       @default(now())
+  accepted_at        DateTime?
+  created_at         DateTime      @default(now())
 
-  car               Car            @relation(fields: [car_id], references: [id], onDelete: Cascade)
-  user              User           @relation("UserAccesses", fields: [user_id], references: [id])
-  invited_by        User           @relation("InvitedBy", fields: [invited_by_user_id], references: [id])
+  car        Car  @relation(fields: [car_id], references: [id], onDelete: Cascade)
+  user       User @relation("UserAccesses", fields: [user_id], references: [id])
+  invited_by User @relation("InvitedBy", fields: [invited_by_user_id], references: [id])
 
   @@unique([car_id, user_id])
   @@index([user_id])
@@ -133,8 +139,8 @@ model DocumentReminderSent {
   days_before Int
   sent_at     DateTime           @default(now())
 
-  user        User               @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  car         Car                @relation(fields: [car_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  car  Car  @relation(fields: [car_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id, car_id, doc_type, expiry_date, days_before])
 }
@@ -164,38 +170,53 @@ model CarPhoto {
 }
 
 model Document {
-  id                 Int       @id @default(autoincrement())
-  car_id             Int
-  document_type      String
-  issue_date         DateTime?
-  expiry_date        DateTime?
-  provider           String?
-  policy_series      String?
-  policy_number      String?
-  premium            Float?
-  currency           String?
-  bonus_malus_class  String?
-  status             String?   @default("Active")
-  policyholder       String?
-  cnp_id             String?
-  file_url           String?
-  file_name          String?
-  file_size          Int?
-  is_active          Boolean   @default(true)
-  car                Car       @relation(fields: [car_id], references: [id], onDelete: Cascade)
+  id                Int       @id @default(autoincrement())
+  car_id            Int
+  document_type     String
+  issue_date        DateTime?
+  expiry_date       DateTime?
+  provider          String?
+  policy_series     String?
+  policy_number     String?
+  premium           Float?
+  currency          String?
+  bonus_malus_class String?
+  status            String?   @default("Active")
+  policyholder      String?
+  cnp_id            String?
+  file_url          String?
+  file_name         String?
+  file_size         Int?
+  is_active         Boolean   @default(true)
+  car               Car       @relation(fields: [car_id], references: [id], onDelete: Cascade)
 }
 
 model MaintenanceRecord {
-  id               Int             @id @default(autoincrement())
-  car_id           Int
-  service_date     DateTime
-  mileage          Int
-  description      String
-  service_type     ServiceType
-  service_category ServiceCategory
-  cost             Float
-  expiry_date      DateTime?
-  car              Car             @relation(fields: [car_id], references: [id], onDelete: Cascade)
+  id                 Int               @id @default(autoincrement())
+  car_id             Int
+  service_date       DateTime
+  mileage            Int?
+  description        String
+  service_type       ServiceType
+  service_category   ServiceCategory   @default(OTHER)
+  cost               Float
+  expiry_date        DateTime?
+  is_diy             Boolean           @default(false)
+  fuel_liters        Float?
+  energy_kwh         Float?
+  is_company_expense Boolean           @default(false)
+  car                Car               @relation(fields: [car_id], references: [id], onDelete: Cascade)
+  parts              MaintenancePart[]
+}
+
+model MaintenancePart {
+  id                    Int               @id @default(autoincrement())
+  maintenance_record_id Int
+  name                  String
+  code                  String?
+  quantity              Int?
+  price                 Float?
+  maintenanceRecord     MaintenanceRecord @relation(fields: [maintenance_record_id], references: [id], onDelete: Cascade)
 }
 
 enum CarStatus {
@@ -231,6 +252,7 @@ enum ServiceType {
   MAINTENANCE
   IMPROVEMENT
   PASSION
+  ALIMENTARE
 }
 
 enum ServiceCategory {
@@ -244,6 +266,7 @@ enum ServiceCategory {
   BATTERY_SERVICE
   FILTER_SERVICE
   LIGHT_SERVICE
+  COMBUSTIBIL
   OTHER
 }
 
@@ -366,16 +389,16 @@ enum UploadStatus {
 }
 
 model UserSettings {
-  id                        Int      @id @default(autoincrement())
-  user_id                   Int      @unique
-  user                      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  language                  String   @default("en")
-  theme                     String   @default("auto")
-  view_mode                 String   @default("cards")
-  expiry_reminders_enabled  Boolean  @default(true)
-  expiry_reminder_days      Int[]    @default([7])
-  created_at                DateTime @default(now())
-  updated_at                DateTime @updatedAt
+  id                       Int      @id @default(autoincrement())
+  user_id                  Int      @unique
+  user                     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  language                 String   @default("en")
+  theme                    String   @default("auto")
+  view_mode                String   @default("cards")
+  expiry_reminders_enabled Boolean  @default(true)
+  expiry_reminder_days     Int[]    @default([7])
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
 }
 
 model UploadedFile {
@@ -396,6 +419,75 @@ model UploadedFile {
   @@index([user_id])
   @@index([context_type, context_id])
   @@map("uploaded_files")
+}
+
+/// The order in which one user wants a car's deadlines (documents + maintenance)
+/// listed on the car hub. Per user as well as per car: a shared car can be
+/// arranged differently by each person who sees it.
+model CarDeadlineOrder {
+  id             Int      @id @default(autoincrement())
+  car_id         Int
+  user_id        Int
+  /// Ordered list of stable deadline keys, e.g. ["doc:RCA", "plan:OIL_CHANGE"].
+  /// Empty array = back to the automatic, most-urgent-first order.
+  item_keys      String[]
+  /// Deadline keys the user dismissed from the list entirely (document-kind
+  /// only — maintenance categories use CarMaintenanceSetting.tracked instead,
+  /// which already has its own undo UI). Empty array = nothing dismissed.
+  dismissed_keys String[] @default([])
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  car  Car  @relation(fields: [car_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([car_id, user_id])
+}
+
+/// A named, per-user set of maintenance overrides for one car — an alternative to the
+/// three built-in usage profiles (normal/intensive/occasional, which stay client-side
+/// and are never persisted here). Created either implicitly (default name "Profilul
+/// meu") the moment a user edits an interval while a built-in profile is selected, or
+/// explicitly when they want more than one (e.g. "Iarnă", "Taxi"). Deleting a profile
+/// cascades its CarMaintenanceSetting rows.
+model MaintenanceProfile {
+  id         Int      @id @default(autoincrement())
+  car_id     Int
+  user_id    Int
+  name       String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  car      Car                     @relation(fields: [car_id], references: [id], onDelete: Cascade)
+  user     User                    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  settings CarMaintenanceSetting[]
+
+  @@unique([car_id, user_id, name])
+}
+
+/// A per-user override of a maintenance category on one car, scoped to a specific
+/// MaintenanceProfile: whether the user wants it tracked (progress bar shown) and/or
+/// a custom interval instead of the global default from DEFAULT_MAINTENANCE_INTERVALS.
+/// Sparse on purpose — a row only exists when the user deviates from the neutral state
+/// (tracked=true, no custom interval) within that profile; resetting back to neutral
+/// deletes the row rather than storing a no-op override.
+model CarMaintenanceSetting {
+  id                     Int             @id @default(autoincrement())
+  car_id                 Int
+  user_id                Int
+  profile_id             Int
+  category               ServiceCategory
+  tracked                Boolean         @default(true)
+  custom_interval_km     Int?
+  custom_interval_months Int?
+  created_at             DateTime        @default(now())
+  updated_at             DateTime        @updatedAt
+
+  car     Car                @relation(fields: [car_id], references: [id], onDelete: Cascade)
+  user    User               @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  profile MaintenanceProfile @relation(fields: [profile_id], references: [id], onDelete: Cascade)
+
+  @@unique([car_id, user_id, profile_id, category])
 }
 
 // A destination shared from a phone (Google Maps) to be picked up by the car head unit

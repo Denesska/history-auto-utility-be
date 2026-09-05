@@ -1,7 +1,9 @@
-import { IsString, IsInt, IsNumber, IsEnum, IsOptional, IsDateString } from 'class-validator';
+import { IsString, IsInt, IsNumber, IsEnum, IsOptional, IsDateString, IsBoolean, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ServiceType } from '../../document/enum/service-type.enum';
 import { ServiceCategory } from '../../document/enum/service-category.enum';
+import { MaintenancePartInputDto } from './maintenance-part-input.dto';
 
 export class CreateMaintenanceRecordDto {
     @IsInt()
@@ -12,9 +14,10 @@ export class CreateMaintenanceRecordDto {
     @ApiProperty({ example: '2023-01-01' })
     readonly service_date: string;
 
+    @IsOptional()
     @IsInt()
-    @ApiProperty({ example: 51000 })
-    readonly mileage: number;
+    @ApiPropertyOptional({ example: 51000 })
+    readonly mileage?: number;
 
     @IsString()
     @ApiProperty({ example: 'Oil 10W40, air filter MANN' })
@@ -24,9 +27,10 @@ export class CreateMaintenanceRecordDto {
     @IsEnum(ServiceType)
     readonly service_type: ServiceType;
 
-    @ApiProperty({ example: 'OIL_CHANGE', enum: ServiceCategory })
+    @IsOptional()
+    @ApiPropertyOptional({ example: 'OIL_CHANGE', enum: ServiceCategory })
     @IsEnum(ServiceCategory)
-    readonly service_category: ServiceCategory;
+    readonly service_category?: ServiceCategory;
 
     @IsNumber()
     @ApiProperty({ example: 250 })
@@ -36,4 +40,31 @@ export class CreateMaintenanceRecordDto {
     @IsDateString()
     @ApiPropertyOptional({ example: '2024-01-01' })
     readonly expiry_date?: string;
+
+    @IsOptional()
+    @IsBoolean()
+    @ApiPropertyOptional({ example: false })
+    readonly is_diy?: boolean;
+
+    @IsOptional()
+    @IsNumber()
+    @ApiPropertyOptional({ example: 42.5, description: 'Fuel quantity in liters, for ALIMENTARE records (combustion cars)' })
+    readonly fuel_liters?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @ApiPropertyOptional({ example: 32.5, description: 'Energy delivered in kWh, for ALIMENTARE records (electric/hybrid cars charging instead of refueling)' })
+    readonly energy_kwh?: number;
+
+    @IsOptional()
+    @IsBoolean()
+    @ApiPropertyOptional({ example: false, description: 'Whether this expense is a company expense (reimbursable)' })
+    readonly is_company_expense?: boolean;
+
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => MaintenancePartInputDto)
+    @ApiPropertyOptional({ type: [MaintenancePartInputDto] })
+    readonly parts?: MaintenancePartInputDto[];
 }

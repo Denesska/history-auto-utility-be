@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtUserPayload } from './dto/jwt-payload.dto';
+import { DEV_BYPASS_USER } from './auth.constants';
 
 @Injectable()
 export class AuthService {
@@ -48,6 +49,17 @@ export class AuthService {
     } catch {
       return false;
     }
+  }
+
+  // Dev-only: upserts the fixed dev-bypass identity so /auth/dev-login always
+  // has a User row to issue tokens for, without touching real accounts.
+  async upsertDevBypassUser(): Promise<JwtUserPayload> {
+    const user = await this.prisma.user.upsert({
+      where: { google_id: DEV_BYPASS_USER.google_id },
+      update: {},
+      create: { ...DEV_BYPASS_USER },
+    });
+    return { id: user.id, google_id: user.google_id, email: user.email };
   }
 
   async removeRefreshToken(googleId: string): Promise<void> {

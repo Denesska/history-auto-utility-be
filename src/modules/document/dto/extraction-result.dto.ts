@@ -78,6 +78,45 @@ export class ExtractedFieldsDto {
 
     @ApiPropertyOptional({ description: 'Damage limits (despăgubire maximă)' })
     damage_limits?: string;
+
+    @ApiPropertyOptional({ description: 'Vehicle color' })
+    color?: string;
+
+    @ApiPropertyOptional({ description: 'Fuel type code (PETROL, DIESEL, HYBRID, PLUGIN_HYBRID, ELECTRIC, LPG)' })
+    fuel_type?: string;
+
+    @ApiPropertyOptional({ description: 'Year of manufacture ("an fabricație")' })
+    manufacture_year?: string;
+
+    @ApiPropertyOptional({ description: 'Fuel quantity purchased, in liters, as a numeric string' })
+    fuel_liters?: string;
+
+    @ApiPropertyOptional({ description: 'Fuel unit price per liter, as a numeric string' })
+    fuel_price_per_liter?: string;
+
+    @ApiPropertyOptional({ description: 'Amount paid for fuel only (excludes any other products on the same receipt)' })
+    fuel_total_amount?: string;
+
+    @ApiPropertyOptional({ description: 'Overall receipt total — only set when it differs from fuel_total_amount (receipt includes non-fuel products)' })
+    receipt_total_amount?: string;
+
+    @ApiPropertyOptional({ description: 'Fuel/gas station brand or name' })
+    fuel_station_name?: string;
+
+    @ApiPropertyOptional({ description: 'Energy delivered in a charging session, in kWh, as a numeric string' })
+    energy_kwh?: string;
+
+    @ApiPropertyOptional({ description: 'Energy unit price per kWh, as a numeric string' })
+    energy_price_per_kwh?: string;
+
+    @ApiPropertyOptional({ description: 'Total amount paid for a charging session' })
+    energy_total_amount?: string;
+
+    @ApiPropertyOptional({ description: 'Charging network/operator name' })
+    charging_station_name?: string;
+
+    @ApiPropertyOptional({ description: 'Odometer reading in km, as a plain integer string' })
+    odometer_km?: string;
 }
 
 export class ExtractionResultDto {

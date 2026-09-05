@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Logger,
+  NotFoundException,
   Post,
   Req,
   Res,
@@ -17,6 +18,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { GoogleAuthGuard } from './google-auth.guard';
 import {
   ALLOWED_LOGIN_ORIGINS,
+  DEV_BYPASS_USER,
   isMobileLoginOrigin,
 } from './auth.constants';
 
@@ -53,8 +55,28 @@ export class AuthController {
   @ApiResponse({ status: 302, description: 'Authenticated and redirected to frontend.' })
   @ApiResponse({ status: 401, description: 'Google authentication failed.' })
   async googleAuthRedirect(@Req() req, @Res() res: Response): Promise<void> {
-    const user = req.user;
+    await this.issueSessionAndRedirect(req.user, req, res);
+  }
 
+  // Dev-only shortcut that skips Google entirely: logs in as a fixed
+  // dev-bypass account so Claude/local tooling can reach authenticated
+  // screens without a real Google login. Hard-gated so it can never exist
+  // on test/prod, even if DEV_AUTH_BYPASS were mistakenly set there.
+  @Get('dev-login')
+  @ApiOperation({ summary: '[dev only] Log in as the dev-bypass user, no Google OAuth' })
+  async devLogin(@Req() req, @Res() res: Response): Promise<void> {
+    const isProdEnv = this.configService.get<string>('NODE_ENV') === 'production';
+    const bypassEnabled = this.configService.get<string>('DEV_AUTH_BYPASS') === 'true';
+
+    if (isProdEnv || !bypassEnabled) {
+      throw new NotFoundException();
+    }
+
+    const user = await this.authService.upsertDevBypassUser();
+    await this.issueSessionAndRedirect(user, req, res);
+  }
+
+  private async issueSessionAndRedirect(user: { google_id: string; email: string }, req, res: Response): Promise<void> {
     res.clearCookie('access_token', this.cookieConfig);
 
     const accessToken = this.authService.generateAccessToken(user);
