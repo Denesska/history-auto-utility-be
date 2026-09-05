@@ -10,6 +10,7 @@ export type MaintenanceRecordWithMeta = MaintenanceRecordWithParts & {
     attachmentsCount: number;
     thumbnailUrl: string | null;
     consumption_l_100km?: number;
+    consumption_kwh_100km?: number;
 };
 
 @Injectable()
@@ -32,6 +33,7 @@ export class MaintenanceRecordService {
                 expiry_date:      data.expiry_date ? new Date(data.expiry_date) : null,
                 is_diy:           data.is_diy ?? false,
                 fuel_liters:        data.fuel_liters,
+                energy_kwh:         data.energy_kwh,
                 is_company_expense: data.is_company_expense ?? false,
                 parts: data.parts?.length
                     ? { create: data.parts.map(p => ({ name: p.name, code: p.code, quantity: p.quantity, price: p.price })) }
@@ -70,6 +72,7 @@ export class MaintenanceRecordService {
                 expiry_date:      data.expiry_date !== undefined ? (data.expiry_date ? new Date(data.expiry_date) : null) : undefined,
                 is_diy:           data.is_diy,
                 fuel_liters:        data.fuel_liters,
+                energy_kwh:         data.energy_kwh,
                 is_company_expense: data.is_company_expense,
                 parts: data.parts !== undefined
                     ? { create: data.parts.map(p => ({ name: p.name, code: p.code, quantity: p.quantity, price: p.price })) }
@@ -128,16 +131,20 @@ export class MaintenanceRecordService {
     // create/update return the bare Prisma row (no attachment/consumption enrichment, unlike the
     // list endpoints below) — compute consumption for just this one record so it's correct
     // immediately in the response, rather than only after the next full list reload.
-    private async _attachConsumptionSingle(record: MaintenanceRecordWithParts): Promise<MaintenanceRecordWithParts & { consumption_l_100km?: number }> {
-        if (record.service_type !== 'ALIMENTARE' || record.mileage == null || record.fuel_liters == null) {
+    private async _attachConsumptionSingle(record: MaintenanceRecordWithParts): Promise<MaintenanceRecordWithParts & { consumption_l_100km?: number; consumption_kwh_100km?: number }> {
+        if (record.service_type !== 'ALIMENTARE' || record.mileage == null || (record.fuel_liters == null && record.energy_kwh == null)) {
             return record;
         }
         // The just-created/updated record is already committed, so this already includes it —
-        // _computeConsumption excludes self by id, so no special-casing needed here.
+        // _computeConsumption/_computeEnergyConsumption exclude self by id, so no special-casing needed here.
         const siblings = await this.prisma.maintenanceRecord.findMany({
             where: { car_id: record.car_id, service_type: 'ALIMENTARE', mileage: { not: null } },
         });
-        return { ...record, consumption_l_100km: this._computeConsumption(record, siblings as MaintenanceRecordWithParts[]) };
+        return {
+            ...record,
+            consumption_l_100km: this._computeConsumption(record, siblings as MaintenanceRecordWithParts[]),
+            consumption_kwh_100km: this._computeEnergyConsumption(record, siblings as MaintenanceRecordWithParts[]),
+        };
     }
 
     async getMaintenanceRecordsByCarId(carId: number): Promise<MaintenanceRecordWithMeta[]> {
@@ -201,14 +208,17 @@ export class MaintenanceRecordService {
                 attachmentsCount: recordFiles.length,
                 thumbnailUrl,
                 consumption_l_100km: this._computeConsumption(record, records),
+                consumption_kwh_100km: this._computeEnergyConsumption(record, records),
             });
         }
         return result;
     }
 
-    // L/100km for an ALIMENTARE record, computed against the same car's previous ALIMENTARE
-    // record (highest mileage strictly below this one) — not persisted, so it's always derived
-    // from the current data rather than risking drift after edits/deletes.
+    // L/100km for an ALIMENTARE fuel record, computed against the same car's previous ALIMENTARE
+    // *fuel* record (highest mileage strictly below this one) — not persisted, so it's always
+    // derived from the current data rather than risking drift after edits/deletes. Filters out
+    // charging records (energy_kwh set, no fuel_liters) so a hybrid's charge sessions don't get
+    // used as the fuel reference point, and vice versa in _computeEnergyConsumption below.
     private _computeConsumption(record: MaintenanceRecordWithParts, allRecords: MaintenanceRecordWithParts[]): number | undefined {
         if (record.service_type !== 'ALIMENTARE' || record.mileage == null || record.fuel_liters == null) return undefined;
 
@@ -217,6 +227,7 @@ export class MaintenanceRecordService {
                 r.id !== record.id &&
                 r.car_id === record.car_id &&
                 r.service_type === 'ALIMENTARE' &&
+                r.fuel_liters != null &&
                 r.mileage != null &&
                 r.mileage < record.mileage!,
             )
@@ -227,5 +238,31 @@ export class MaintenanceRecordService {
         if (distance <= 0) return undefined;
 
         return Math.round((record.fuel_liters / distance) * 100 * 10) / 10;
+    }
+
+    // Same idea as _computeConsumption, but for the energy_kwh side (electric/hybrid cars
+    // charging instead of refueling) — kept as a separate method rather than a shared one
+    // with a field-name parameter, since a record only ever has one of the two set and the
+    // "previous" record for each axis must be filtered independently (a charge session's
+    // consumption compares against the previous charge, never a fuel fill-up in between).
+    private _computeEnergyConsumption(record: MaintenanceRecordWithParts, allRecords: MaintenanceRecordWithParts[]): number | undefined {
+        if (record.service_type !== 'ALIMENTARE' || record.mileage == null || record.energy_kwh == null) return undefined;
+
+        const previous = allRecords
+            .filter(r =>
+                r.id !== record.id &&
+                r.car_id === record.car_id &&
+                r.service_type === 'ALIMENTARE' &&
+                r.energy_kwh != null &&
+                r.mileage != null &&
+                r.mileage < record.mileage!,
+            )
+            .sort((a, b) => b.mileage! - a.mileage!)[0];
+
+        if (!previous) return undefined;
+        const distance = record.mileage - previous.mileage!;
+        if (distance <= 0) return undefined;
+
+        return Math.round((record.energy_kwh / distance) * 100 * 10) / 10;
     }
 }

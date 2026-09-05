@@ -26,7 +26,8 @@
     "seed:vehicle-catalog": "ts-node prisma/seed-vehicle-catalog.ts",
     "seed:carsbase": "ts-node prisma/seed-carsbase.ts",
     "seed:teoalida": "ts-node prisma/seed-teoalida.ts",
-    "seed:bmw-strict": "ts-node prisma/seed-bmw-strict.ts"
+    "seed:bmw-strict": "ts-node prisma/seed-bmw-strict.ts",
+    "backfill:maintenance-profiles:dev": "DATABASE_URL=\"postgresql://postgres:123Hello!@localhost:5432/hau_db_dev?schema=public\" ts-node prisma/backfill-maintenance-profiles.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1063.0",

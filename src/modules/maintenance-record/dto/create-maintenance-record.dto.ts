@@ -48,8 +48,13 @@ export class CreateMaintenanceRecordDto {
 
     @IsOptional()
     @IsNumber()
-    @ApiPropertyOptional({ example: 42.5, description: 'Fuel quantity in liters, for ALIMENTARE records' })
+    @ApiPropertyOptional({ example: 42.5, description: 'Fuel quantity in liters, for ALIMENTARE records (combustion cars)' })
     readonly fuel_liters?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @ApiPropertyOptional({ example: 32.5, description: 'Energy delivered in kWh, for ALIMENTARE records (electric/hybrid cars charging instead of refueling)' })
+    readonly energy_kwh?: number;
 
     @IsOptional()
     @IsBoolean()

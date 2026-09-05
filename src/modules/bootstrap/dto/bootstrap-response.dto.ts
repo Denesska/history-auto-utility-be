@@ -5,6 +5,7 @@ import { CarAccessUserDto, SharedCarDto } from '../../car-access/dto/car-access.
 import { MaintenanceIntervalDto } from '../../maintenance-record/dto/maintenance-interval.dto';
 import { MaintenanceRecordWithMeta } from '../../maintenance-record/maintenance-record.service';
 import { MaintenanceSettingDto } from '../../car-maintenance-settings/dto/maintenance-setting.dto';
+import { MaintenanceProfileDto } from '../../car-maintenance-profiles/dto/maintenance-profile.dto';
 
 export class SharedCarEntry {
   car: CarDto;
@@ -20,4 +21,5 @@ export class BootstrapResponseDto {
   maintenance: Record<number, MaintenanceRecordWithMeta[]>;
   maintenanceIntervals: MaintenanceIntervalDto[];
   carMaintenanceSettings: Record<number, MaintenanceSettingDto[]>;
+  maintenanceProfiles: Record<number, MaintenanceProfileDto[]>;
 }

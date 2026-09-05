@@ -103,6 +103,18 @@ export class ExtractedFieldsDto {
     @ApiPropertyOptional({ description: 'Fuel/gas station brand or name' })
     fuel_station_name?: string;
 
+    @ApiPropertyOptional({ description: 'Energy delivered in a charging session, in kWh, as a numeric string' })
+    energy_kwh?: string;
+
+    @ApiPropertyOptional({ description: 'Energy unit price per kWh, as a numeric string' })
+    energy_price_per_kwh?: string;
+
+    @ApiPropertyOptional({ description: 'Total amount paid for a charging session' })
+    energy_total_amount?: string;
+
+    @ApiPropertyOptional({ description: 'Charging network/operator name' })
+    charging_station_name?: string;
+
     @ApiPropertyOptional({ description: 'Odometer reading in km, as a plain integer string' })
     odometer_km?: string;
 }

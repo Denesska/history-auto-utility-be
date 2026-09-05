@@ -424,11 +424,16 @@ paths:
   /api/car/{carId}/maintenance-settings:
     get:
       operationId: "CarMaintenanceSettingsController_getSettings"
-      summary: "Get this user's maintenance tracking settings for a car, merged with the global defaults"
+      summary: "Get this user's maintenance tracking settings for one of their maintenance profiles on a car, merged with the global defaults"
       parameters:
         - name: "carId"
           required: true
           in: "path"
+          schema:
+            type: "number"
+        - name: "profileId"
+          required: true
+          in: "query"
           schema:
             type: "number"
       responses:
@@ -447,7 +452,7 @@ paths:
   /api/car/{carId}/maintenance-settings/{category}:
     put:
       operationId: "CarMaintenanceSettingsController_setSetting"
-      summary: "Update this user's tracked flag and/or custom interval for one category on a car"
+      summary: "Update this user's tracked flag and/or custom interval for one category, within one maintenance profile, on a car"
       parameters:
         - name: "carId"
           required: true
@@ -459,6 +464,11 @@ paths:
           in: "path"
           schema:
             type: "string"
+        - name: "profileId"
+          required: true
+          in: "query"
+          schema:
+            type: "number"
       requestBody:
         required: true
         content:
@@ -474,6 +484,108 @@ paths:
                 $ref: "#/components/schemas/MaintenanceSettingDto"
       tags:
         - "car-maintenance-settings"
+      security:
+        - cookie: []
+  /api/car/{carId}/maintenance-profiles:
+    get:
+      operationId: "CarMaintenanceProfilesController_getProfiles"
+      summary: "Get this user's named custom maintenance profiles for a car"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/MaintenanceProfileDto"
+      tags:
+        - "car-maintenance-profiles"
+      security:
+        - cookie: []
+    post:
+      operationId: "CarMaintenanceProfilesController_createProfile"
+      summary: "Create a new named custom maintenance profile for a car"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMaintenanceProfileDto"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceProfileDto"
+      tags:
+        - "car-maintenance-profiles"
+      security:
+        - cookie: []
+  /api/car/{carId}/maintenance-profiles/{profileId}:
+    patch:
+      operationId: "CarMaintenanceProfilesController_renameProfile"
+      summary: "Rename a custom maintenance profile"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+        - name: "profileId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMaintenanceProfileDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceProfileDto"
+      tags:
+        - "car-maintenance-profiles"
+      security:
+        - cookie: []
+    delete:
+      operationId: "CarMaintenanceProfilesController_deleteProfile"
+      summary: "Delete a custom maintenance profile and its overrides"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+        - name: "profileId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        204:
+          description: ""
+      tags:
+        - "car-maintenance-profiles"
       security:
         - cookie: []
   /api/car:
@@ -1845,6 +1957,10 @@ components:
     MaintenanceSettingDto:
       type: "object"
       properties:
+        profile_id:
+          type: "number"
+          example: 1
+          description: "Which MaintenanceProfile this override belongs to"
         category:
           type: "string"
           example: "OIL_CHANGE"
@@ -1884,6 +2000,7 @@ components:
           example: false
           description: "True if interval_months came from a user override rather than the global default"
       required:
+        - "profile_id"
         - "category"
         - "tracked"
         - "is_custom_km"
@@ -1904,6 +2021,39 @@ components:
           nullable: true
           example: 12
           description: "Send null to clear the override and fall back to the default"
+    MaintenanceProfileDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+          example: 1
+        name:
+          type: "string"
+          example: "Profilul meu"
+        created_at:
+          format: "date-time"
+          type: "string"
+          example: "2026-09-04T10:00:00.000Z"
+      required:
+        - "id"
+        - "name"
+        - "created_at"
+    CreateMaintenanceProfileDto:
+      type: "object"
+      properties:
+        name:
+          type: "string"
+          example: "Iarnă"
+      required:
+        - "name"
+    UpdateMaintenanceProfileDto:
+      type: "object"
+      properties:
+        name:
+          type: "string"
+          example: "Iarnă"
+      required:
+        - "name"
     AddCarDto:
       type: "object"
       properties:
@@ -2270,7 +2420,11 @@ components:
         fuel_liters:
           type: "number"
           example: 42.5
-          description: "Fuel quantity in liters, for ALIMENTARE records"
+          description: "Fuel quantity in liters, for ALIMENTARE records (combustion cars)"
+        energy_kwh:
+          type: "number"
+          example: 32.5
+          description: "Energy delivered in kWh, for ALIMENTARE records (electric/hybrid cars charging instead of refueling)"
         is_company_expense:
           type: "boolean"
           example: false
@@ -2278,7 +2432,11 @@ components:
         consumption_l_100km:
           type: "number"
           example: 7.4
-          description: "Computed fuel consumption (L/100km) vs. the previous ALIMENTARE record for the same car, when available"
+          description: "Computed fuel consumption (L/100km) vs. the previous ALIMENTARE fuel record for the same car, when available"
+        consumption_kwh_100km:
+          type: "number"
+          example: 18.2
+          description: "Computed energy consumption (kWh/100km) vs. the previous ALIMENTARE charging record for the same car, when available"
         parts:
           type: "array"
           items:
@@ -2371,7 +2529,11 @@ components:
         fuel_liters:
           type: "number"
           example: 42.5
-          description: "Fuel quantity in liters, for ALIMENTARE records"
+          description: "Fuel quantity in liters, for ALIMENTARE records (combustion cars)"
+        energy_kwh:
+          type: "number"
+          example: 32.5
+          description: "Energy delivered in kWh, for ALIMENTARE records (electric/hybrid cars charging instead of refueling)"
         is_company_expense:
           type: "boolean"
           example: false
@@ -2705,6 +2867,18 @@ components:
         fuel_station_name:
           type: "string"
           description: "Fuel/gas station brand or name"
+        energy_kwh:
+          type: "string"
+          description: "Energy delivered in a charging session, in kWh, as a numeric string"
+        energy_price_per_kwh:
+          type: "string"
+          description: "Energy unit price per kWh, as a numeric string"
+        energy_total_amount:
+          type: "string"
+          description: "Total amount paid for a charging session"
+        charging_station_name:
+          type: "string"
+          description: "Charging network/operator name"
         odometer_km:
           type: "string"
           description: "Odometer reading in km, as a plain integer string"

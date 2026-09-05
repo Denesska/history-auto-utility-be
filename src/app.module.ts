@@ -15,6 +15,7 @@ import { UserSettingsModule } from './modules/user-settings/user-settings.module
 import { BootstrapModule } from './modules/bootstrap/bootstrap.module';
 import { CarDeadlineOrderModule } from './modules/car-deadline-order/car-deadline-order.module';
 import { CarMaintenanceSettingsModule } from './modules/car-maintenance-settings/car-maintenance-settings.module';
+import { CarMaintenanceProfilesModule } from './modules/car-maintenance-profiles/car-maintenance-profiles.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { DocumentRemindersModule } from './modules/document-reminders/document-reminders.module';
 import { CarNoteModule } from './modules/car-note/car-note.module';
@@ -28,6 +29,8 @@ import { NavRelayModule } from './modules/nav-relay/nav-relay.module';
     CarDeadlineOrderModule,
     // Same reasoning: /car/:carId/maintenance-settings is a 3+-segment route.
     CarMaintenanceSettingsModule,
+    // Same reasoning: /car/:carId/maintenance-profiles is a 3+-segment route.
+    CarMaintenanceProfilesModule,
     CarModule,
     VehicleCatalogModule,
     PrismaModule,

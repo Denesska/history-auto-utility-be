@@ -9,23 +9,27 @@ import { UpdateMaintenanceSettingDto } from './dto/update-maintenance-setting.dt
 export class CarMaintenanceSettingsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getSettings(carId: number, userId: number): Promise<MaintenanceSettingDto[]> {
+  /** Every override the user has across every one of their profiles for this car, resolved against the defaults. */
+  async getSettings(carId: number, userId: number, profileId: number): Promise<MaintenanceSettingDto[]> {
     await this.assertCanSeeCar(carId, userId);
+    await this.assertCanSeeProfile(carId, userId, profileId);
 
-    const rows = await this.prisma.carMaintenanceSetting.findMany({ where: { car_id: carId, user_id: userId } });
-    return this.mergeWithDefaults(rows);
+    const rows = await this.prisma.carMaintenanceSetting.findMany({ where: { car_id: carId, user_id: userId, profile_id: profileId } });
+    return this.mergeWithDefaults(profileId, rows);
   }
 
   async setSetting(
     carId: number,
     userId: number,
+    profileId: number,
     category: ServiceCategory,
     dto: UpdateMaintenanceSettingDto,
   ): Promise<MaintenanceSettingDto> {
     await this.assertCanSeeCar(carId, userId);
+    await this.assertCanSeeProfile(carId, userId, profileId);
 
     const existing = await this.prisma.carMaintenanceSetting.findUnique({
-      where: { car_id_user_id_category: { car_id: carId, user_id: userId, category } },
+      where: { car_id_user_id_profile_id_category: { car_id: carId, user_id: userId, profile_id: profileId, category } },
     });
 
     const tracked = dto.tracked ?? existing?.tracked ?? true;
@@ -42,15 +46,16 @@ export class CarMaintenanceSettingsService {
       row = null;
     } else {
       row = await this.prisma.carMaintenanceSetting.upsert({
-        where: { car_id_user_id_category: { car_id: carId, user_id: userId, category } },
-        create: { car_id: carId, user_id: userId, category, tracked, custom_interval_km: customKm, custom_interval_months: customMonths },
+        where: { car_id_user_id_profile_id_category: { car_id: carId, user_id: userId, profile_id: profileId, category } },
+        create: { car_id: carId, user_id: userId, profile_id: profileId, category, tracked, custom_interval_km: customKm, custom_interval_months: customMonths },
         update: { tracked, custom_interval_km: customKm, custom_interval_months: customMonths },
       });
     }
 
-    return this.toDto(category, row);
+    return this.toDto(profileId, category, row);
   }
 
+  /** Sparse — only the categories actually overridden, across every car/profile the user can see. Used by bootstrap. */
   async getAllByUser(userId: number): Promise<Record<number, MaintenanceSettingDto[]>> {
     const rows = await this.prisma.carMaintenanceSetting.findMany({
       where: {
@@ -70,21 +75,22 @@ export class CarMaintenanceSettingsService {
 
     const result: Record<number, MaintenanceSettingDto[]> = {};
     Object.entries(byCarId).forEach(([carId, carRows]) => {
-      result[Number(carId)] = carRows.map(r => this.toDto(r.category, r));
+      result[Number(carId)] = carRows.map(r => this.toDto(r.profile_id, r.category, r));
     });
     return result;
   }
 
-  private mergeWithDefaults(rows: CarMaintenanceSetting[]): MaintenanceSettingDto[] {
+  private mergeWithDefaults(profileId: number, rows: CarMaintenanceSetting[]): MaintenanceSettingDto[] {
     const byCategory = new Map(rows.map(r => [r.category, r]));
     return (Object.keys(DEFAULT_MAINTENANCE_INTERVALS) as ServiceCategory[]).map(category =>
-      this.toDto(category, byCategory.get(category) ?? null),
+      this.toDto(profileId, category, byCategory.get(category) ?? null),
     );
   }
 
-  private toDto(category: ServiceCategory, row: CarMaintenanceSetting | null): MaintenanceSettingDto {
+  private toDto(profileId: number, category: ServiceCategory, row: CarMaintenanceSetting | null): MaintenanceSettingDto {
     const def = DEFAULT_MAINTENANCE_INTERVALS[category];
     return {
+      profile_id: profileId,
       category,
       tracked: row?.tracked ?? true,
       interval_km: row?.custom_interval_km ?? def.interval_km,
@@ -111,5 +117,16 @@ export class CarMaintenanceSettingsService {
       select: { accepted_at: true },
     });
     if (!access?.accepted_at) throw new ForbiddenException('No access to this car');
+  }
+
+  /** A profile is per (car, user) — must belong to this exact pair, regardless of car access level. */
+  private async assertCanSeeProfile(carId: number, userId: number, profileId: number): Promise<void> {
+    const profile = await this.prisma.maintenanceProfile.findUnique({
+      where: { id: profileId },
+      select: { car_id: true, user_id: true },
+    });
+    if (!profile || profile.car_id !== carId || profile.user_id !== userId) {
+      throw new NotFoundException('Maintenance profile not found');
+    }
   }
 }

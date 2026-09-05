@@ -7,6 +7,7 @@ import { DocumentService } from '../document/document.service';
 import { MaintenanceRecordService, MaintenanceRecordWithMeta } from '../maintenance-record/maintenance-record.service';
 import { DEFAULT_MAINTENANCE_INTERVALS } from '../maintenance-record/maintenance-interval.defaults';
 import { CarMaintenanceSettingsService } from '../car-maintenance-settings/car-maintenance-settings.service';
+import { CarMaintenanceProfilesService } from '../car-maintenance-profiles/car-maintenance-profiles.service';
 import { BootstrapResponseDto, SharedCarEntry } from './dto/bootstrap-response.dto';
 import { DocumentDto } from '../document/dto/document.dto';
 import { MaintenanceIntervalDto } from '../maintenance-record/dto/maintenance-interval.dto';
@@ -20,6 +21,7 @@ export class BootstrapService {
     private readonly documentService: DocumentService,
     private readonly maintenanceRecordService: MaintenanceRecordService,
     private readonly carMaintenanceSettingsService: CarMaintenanceSettingsService,
+    private readonly carMaintenanceProfilesService: CarMaintenanceProfilesService,
   ) {}
 
   async getInitialData(googleId: string): Promise<BootstrapResponseDto> {
@@ -35,7 +37,7 @@ export class BootstrapService {
     const accepted = sharedInvitations.filter(s => s.accepted_at !== null);
     const pendingInvites = sharedInvitations.filter(s => s.accepted_at === null);
 
-    const [sharedCarEntries, allDocuments, allMaintenance, carMaintenanceSettings] = await Promise.all([
+    const [sharedCarEntries, allDocuments, allMaintenance, carMaintenanceSettings, maintenanceProfiles] = await Promise.all([
       Promise.all(
         accepted.map(async s => {
           const car = await this.carService.getCar(s.id);
@@ -45,6 +47,7 @@ export class BootstrapService {
       this.documentService.getAllDocumentsByUser(googleId),
       this.maintenanceRecordService.getAllByUser(googleId),
       me ? this.carMaintenanceSettingsService.getAllByUser(me.id) : Promise.resolve({}),
+      me ? this.carMaintenanceProfilesService.getAllByUser(me.id) : Promise.resolve({}),
     ]);
 
     const validSharedCars: SharedCarEntry[] = (sharedCarEntries as (SharedCarEntry | null)[]).filter(
@@ -76,6 +79,7 @@ export class BootstrapService {
       maintenance,
       maintenanceIntervals,
       carMaintenanceSettings,
+      maintenanceProfiles,
     };
   }
 }

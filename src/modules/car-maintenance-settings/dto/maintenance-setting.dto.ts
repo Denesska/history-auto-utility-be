@@ -2,6 +2,9 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ServiceCategory } from '@prisma/client';
 
 export class MaintenanceSettingDto {
+  @ApiProperty({ example: 1, description: 'Which MaintenanceProfile this override belongs to' })
+  profile_id: number;
+
   @ApiProperty({ example: 'OIL_CHANGE', enum: ServiceCategory })
   category: ServiceCategory;
 

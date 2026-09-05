@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ParseResult } from './parsers/document-parser.interface';
 
-const KNOWN_DOCUMENT_TYPES = new Set(['RCA', 'ITP', 'ROV', 'REGISTRATION', 'ROAD_TAX', 'FUEL_RECEIPT', 'ODOMETER']);
+const KNOWN_DOCUMENT_TYPES = new Set(['RCA', 'ITP', 'ROV', 'REGISTRATION', 'ROAD_TAX', 'FUEL_RECEIPT', 'CHARGING_RECEIPT', 'ODOMETER']);
 
 const PROMPT = `You are analysing a photo or scan of a Romanian vehicle-related document. Identify which of these document types it is:
 - RCA: mandatory third-party liability insurance policy/certificate ("poliță RCA", "certificat de asigurare", "carte verde")
@@ -12,6 +12,7 @@ const PROMPT = `You are analysing a photo or scan of a Romanian vehicle-related 
 - REGISTRATION: vehicle registration certificate ("certificat de înmatriculare", "talon")
 - ROAD_TAX: road tax payment receipt ("taxă auto", "impozit auto")
 - FUEL_RECEIPT: this covers TWO possible source photos, classify both as FUEL_RECEIPT — either a printed fuel/gas station purchase receipt ("bon fiscal", "bon de alimentare"), OR a photo of the fuel pump/dispenser's own digital display screen showing liters, price per liter and total amount at the end of a fill-up (no paper receipt involved)
+- CHARGING_RECEIPT: an EV charging session receipt/summary — either a printed receipt from a charging station, or (more commonly) a screenshot of a charging app/network's session summary screen (e.g. Tesla, ENGIE, E.ON DRIVE, Ionity), showing energy delivered in kWh, price and total amount
 - ODOMETER: a photo of a vehicle's instrument cluster/dashboard showing the odometer reading ("bord", "kilometraj")
 
 If the document is not one of these types, or the image is unreadable/unrelated, set "detected" to false and "document_type" to null.
@@ -34,6 +35,13 @@ For FUEL_RECEIPT documents specifically:
 - "fuel_station_name" is the gas station brand/name if visible (e.g. "Petrom", "OMV", "MOL").
 - "issue_date" is the transaction date/time printed on the receipt.
 - If this is a PUMP/DISPENSER DISPLAY SCREEN rather than a printed receipt: it inherently shows fuel-only data (no other products can appear on it), so "fuel_total_amount" is simply the displayed total and "receipt_total_amount" should be left unset — there is nothing else to compare it against. It will typically have no station name or date visible; leave those fields out.
+
+For CHARGING_RECEIPT documents specifically:
+- "energy_kwh" is the amount of energy delivered (kWh), as a plain numeric string.
+- "energy_price_per_kwh" is the unit price per kWh, if shown.
+- "energy_total_amount" is the total amount paid for the charging session. Charging summaries rarely include unrelated products, so unlike fuel receipts this is normally just the session total.
+- "charging_station_name" is the charging network/operator name if visible (e.g. "Tesla Supercharger", "ENGIE", "E.ON DRIVE", "Ionity").
+- "issue_date" is the session date/time.
 
 For ODOMETER photos specifically:
 - "odometer_km" is the total distance reading shown on the instrument cluster, as a plain integer string. Dashboards often show both a resettable trip counter and the main odometer — always prefer the larger, non-resettable total odometer reading over a trip counter if both are visible.
@@ -79,6 +87,10 @@ const EXTRACTED_FIELDS_SCHEMA = {
         fuel_total_amount: { type: Type.STRING },
         receipt_total_amount: { type: Type.STRING },
         fuel_station_name: { type: Type.STRING },
+        energy_kwh: { type: Type.STRING },
+        energy_price_per_kwh: { type: Type.STRING },
+        energy_total_amount: { type: Type.STRING },
+        charging_station_name: { type: Type.STRING },
         odometer_km: { type: Type.STRING },
     },
 };
@@ -89,7 +101,7 @@ const RESPONSE_SCHEMA = {
         detected: { type: Type.BOOLEAN },
         document_type: {
             type: Type.STRING,
-            enum: ['RCA', 'ITP', 'ROV', 'REGISTRATION', 'ROAD_TAX', 'FUEL_RECEIPT', 'ODOMETER'],
+            enum: ['RCA', 'ITP', 'ROV', 'REGISTRATION', 'ROAD_TAX', 'FUEL_RECEIPT', 'CHARGING_RECEIPT', 'ODOMETER'],
             nullable: true,
         },
         confidence: { type: Type.STRING, enum: ['high', 'medium', 'low'] },

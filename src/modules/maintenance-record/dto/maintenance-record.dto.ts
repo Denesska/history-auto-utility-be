@@ -48,8 +48,13 @@ export class MaintenanceRecordDto {
 
     @IsOptional()
     @IsNumber()
-    @ApiPropertyOptional({ example: 42.5, description: 'Fuel quantity in liters, for ALIMENTARE records' })
+    @ApiPropertyOptional({ example: 42.5, description: 'Fuel quantity in liters, for ALIMENTARE records (combustion cars)' })
     readonly fuel_liters?: number | null;
+
+    @IsOptional()
+    @IsNumber()
+    @ApiPropertyOptional({ example: 32.5, description: 'Energy delivered in kWh, for ALIMENTARE records (electric/hybrid cars charging instead of refueling)' })
+    readonly energy_kwh?: number | null;
 
     @IsBoolean()
     @ApiProperty({ example: false, description: 'Whether this expense is a company expense (reimbursable)' })
@@ -57,8 +62,13 @@ export class MaintenanceRecordDto {
 
     @IsOptional()
     @IsNumber()
-    @ApiPropertyOptional({ example: 7.4, description: 'Computed fuel consumption (L/100km) vs. the previous ALIMENTARE record for the same car, when available' })
+    @ApiPropertyOptional({ example: 7.4, description: 'Computed fuel consumption (L/100km) vs. the previous ALIMENTARE fuel record for the same car, when available' })
     readonly consumption_l_100km?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @ApiPropertyOptional({ example: 18.2, description: 'Computed energy consumption (kWh/100km) vs. the previous ALIMENTARE charging record for the same car, when available' })
+    readonly consumption_kwh_100km?: number;
 
     @IsArray()
     @ApiProperty({ type: [MaintenancePartDto] })
