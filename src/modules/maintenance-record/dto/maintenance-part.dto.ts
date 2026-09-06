@@ -16,8 +16,8 @@ export class MaintenancePartDto {
     readonly code?: string | null;
 
     @IsOptional()
-    @IsInt()
-    @ApiPropertyOptional({ example: 1 })
+    @IsNumber()
+    @ApiPropertyOptional({ example: 1, description: 'Quantity, can be fractional (e.g. liters of fluid)' })
     readonly quantity?: number | null;
 
     @IsOptional()

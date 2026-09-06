@@ -214,7 +214,7 @@ model MaintenancePart {
   maintenance_record_id Int
   name                  String
   code                  String?
-  quantity              Int?
+  quantity              Float?
   price                 Float?
   maintenanceRecord     MaintenanceRecord @relation(fields: [maintenance_record_id], references: [id], onDelete: Cascade)
 }

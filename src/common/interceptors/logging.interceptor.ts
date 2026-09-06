@@ -20,7 +20,11 @@ export class LoggingInterceptor implements NestInterceptor {
     return next.handle().pipe(
       tap(() => console.log(`Outgoing Response: ${method} ${url} - ${Date.now() - now}ms`)),
       catchError((err) => {
-        console.error(`Error Response: ${method} ${url} - ${Date.now() - now}ms | ${err.message}`);
+        const detail = typeof err.getResponse === 'function' ? err.getResponse() : err.message;
+        console.error(`Error Response: ${method} ${url} - ${Date.now() - now}ms | ${JSON.stringify(detail)}`);
+        if (method === 'POST' || method === 'PUT') {
+          console.error(`  Body: ${JSON.stringify(request.body)}`);
+        }
         return throwError(() => err);
       }),
     );
