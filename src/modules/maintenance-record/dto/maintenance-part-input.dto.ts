@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class MaintenancePartInputDto {
@@ -12,8 +12,8 @@ export class MaintenancePartInputDto {
     readonly code?: string;
 
     @IsOptional()
-    @IsInt()
-    @ApiPropertyOptional({ example: 1 })
+    @IsNumber()
+    @ApiPropertyOptional({ example: 1, description: 'Quantity, can be fractional (e.g. liters of fluid)' })
     readonly quantity?: number;
 
     @IsOptional()
