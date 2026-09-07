@@ -7,6 +7,7 @@ import {
   Post,
   Put,
   Req,
+  ServiceUnavailableException,
   UseGuards,
 } from '@nestjs/common';
 import { RequestWithUser } from '../auth/express-request.interface';
@@ -22,6 +23,11 @@ import {
 } from '@nestjs/swagger';
 import { MaintenanceRecordDto } from './dto/maintenance-record.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { SuggestCategoryDto, SuggestedCategoryDto } from './dto/suggest-category.dto';
+import {
+  CategorySuggestionService,
+  CategorySuggestionServiceUnavailableError,
+} from './category-suggestion.service';
 
 @ApiTags('maintenance-record')
 @ApiBearerAuth()
@@ -30,7 +36,34 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class MaintenanceRecordController {
   constructor(
     private readonly maintenanceRecordService: MaintenanceRecordService,
+    private readonly categorySuggestionService: CategorySuggestionService,
   ) {}
+
+  @Post('suggest-category')
+  @ApiOperation({
+    summary:
+      "AI fallback: suggest a service_category from a record's description/parts text. Suggestion only, does not save.",
+  })
+  @ApiResponse({ status: 200, type: SuggestedCategoryDto })
+  @ApiResponse({ status: 503, description: 'The category suggestion service is temporarily unavailable.' })
+  async suggestCategory(
+    @Body() suggestCategoryDto: SuggestCategoryDto,
+  ): Promise<SuggestedCategoryDto> {
+    try {
+      const result = await this.categorySuggestionService.suggest(
+        suggestCategoryDto.description,
+        suggestCategoryDto.part_names ?? [],
+      );
+      return result ?? { category: null, confidence: 'low' };
+    } catch (err) {
+      if (err instanceof CategorySuggestionServiceUnavailableError) {
+        throw new ServiceUnavailableException(
+          'The category suggestion service is temporarily overloaded. Please pick a category manually.',
+        );
+      }
+      throw err;
+    }
+  }
 
   @Get('all')
   @ApiOperation({ summary: 'Get all maintenance records for the authenticated user (owned + shared cars)' })
