@@ -3,6 +3,16 @@ import { ConfigService } from '@nestjs/config';
 import { S3Client, DeleteObjectCommand, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
+/**
+ * `filename` keeps only characters that are safe inside a quoted HTTP header
+ * value (for old clients); `filename*` carries the real, possibly non-ASCII
+ * name (RFC 5987) and is what every current browser actually uses.
+ */
+function buildAttachmentDisposition(fileName: string): string {
+  const ascii = fileName.replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '_');
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
+}
+
 @Injectable()
 export class StorageService {
   private readonly client: S3Client;
@@ -33,8 +43,21 @@ export class StorageService {
     return getSignedUrl(this.client, command, { expiresIn: expiresIn ?? this.defaultExpiresIn });
   }
 
-  createPresignedGetUrl(key: string, expiresIn?: number): Promise<string> {
-    const command = new GetObjectCommand({ Bucket: this.bucket, Key: key });
+  /**
+   * @param downloadFileName when set, the signed URL carries a
+   *   `Content-Disposition: attachment` override, so following it saves the file
+   *   under that name instead of rendering it in the browser. This is the only
+   *   way to force a real download for a cross-origin object — the HTML
+   *   `download` attribute is ignored on another origin.
+   */
+  createPresignedGetUrl(key: string, expiresIn?: number, downloadFileName?: string): Promise<string> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      ...(downloadFileName
+        ? { ResponseContentDisposition: buildAttachmentDisposition(downloadFileName) }
+        : {}),
+    });
     return getSignedUrl(this.client, command, { expiresIn: expiresIn ?? this.defaultExpiresIn });
   }
 

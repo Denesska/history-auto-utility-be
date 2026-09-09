@@ -7,6 +7,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   Req,
   UploadedFile,
   UseGuards,
@@ -23,8 +24,9 @@ import { DocumentExtractionService } from './document-extraction.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { DocumentDto } from './dto/document.dto';
+import { DocumentFileLinkDto } from './dto/document-file-link.dto';
 import { ExtractionResultDto } from './dto/extraction-result.dto';
-import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 const uploadStorage = diskStorage({
@@ -85,6 +87,25 @@ export class DocumentController {
   @ApiResponse({ status: 200, type: DocumentDto })
   async deleteDocument(@Param('id') id: string): Promise<DocumentDto> {
     return this.documentService.deleteDocument(Number(id));
+  }
+
+  @Get(':id/file')
+  @ApiOperation({
+    summary: 'Get a fresh, temporary link to the file attached to a document',
+    description:
+      'Returns a short-lived URL for the attached file. `mode=inline` (default) is meant for ' +
+      'previewing it in the app; `mode=download` returns a URL that saves the file under its ' +
+      'original name. Only the car owner and users the car is shared with can call this.',
+  })
+  @ApiQuery({ name: 'mode', required: false, enum: ['inline', 'download'] })
+  @ApiResponse({ status: 200, type: DocumentFileLinkDto })
+  @ApiResponse({ status: 404, description: 'Document not found, or it has no file attached.' })
+  async getDocumentFileLink(
+    @Req() req: RequestWithUser,
+    @Param('id') id: string,
+    @Query('mode') mode?: string,
+  ): Promise<DocumentFileLinkDto> {
+    return this.documentService.getFileLink(Number(id), req.user.google_id, mode === 'download');
   }
 
   @Get('car/:carId')

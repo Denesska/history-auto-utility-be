@@ -126,6 +126,15 @@ export class UploadService {
 
     await this.storage.deleteObject(record.file_key);
 
+    // Drop the owning entity's reference too, or it keeps advertising a file that
+    // is no longer in the bucket (a download link that 404s).
+    if (record.context_type === 'document' && record.context_id != null) {
+      await this.prisma.document.updateMany({
+        where: { id: record.context_id, file_url: record.file_key },
+        data: { file_url: null, file_name: null, file_size: null },
+      });
+    }
+
     await this.prisma.uploadedFile.update({
       where: { id: fileId },
       data: { status: 'DELETED', deleted_at: new Date() },

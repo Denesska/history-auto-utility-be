@@ -1220,6 +1220,36 @@ paths:
                 $ref: "#/components/schemas/DocumentDto"
       tags:
         - "document"
+  /api/document/{id}/file:
+    get:
+      operationId: "DocumentController_getDocumentFileLink"
+      summary: "Get a fresh, temporary link to the file attached to a document"
+      description: "Returns a short-lived URL for the attached file. `mode=inline` (default) is meant for previewing it in the app; `mode=download` returns a URL that saves the file under its original name. Only the car owner and users the car is shared with can call this."
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+        - name: "mode"
+          required: false
+          in: "query"
+          schema:
+            enum:
+              - "inline"
+              - "download"
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentFileLinkDto"
+        404:
+          description: "Document not found, or it has no file attached."
+      tags:
+        - "document"
   /api/document/car/{carId}:
     get:
       operationId: "DocumentController_getDocumentsByCarId"
@@ -2357,6 +2387,7 @@ components:
         quantity:
           type: "number"
           example: 1
+          description: "Quantity, can be fractional (e.g. liters of fluid)"
         price:
           type: "number"
           example: 76
@@ -2472,6 +2503,7 @@ components:
         quantity:
           type: "number"
           example: 1
+          description: "Quantity, can be fractional (e.g. liters of fluid)"
         price:
           type: "number"
           example: 76
@@ -2762,6 +2794,28 @@ components:
     UpdateDocumentDto:
       type: "object"
       properties: {}
+    DocumentFileLinkDto:
+      type: "object"
+      properties:
+        url:
+          type: "string"
+          description: "Temporary URL to the attached file. Signed for R2-stored files; an absolute API URL for legacy files still served from the backend's /uploads directory."
+        file_name:
+          type: "string"
+          example: "RCA BV31HAU.pdf"
+          description: "Original file name, as uploaded"
+        file_size:
+          type: "number"
+          nullable: true
+          example: 596001
+        expires_in:
+          type: "number"
+          example: 3600
+          description: "Seconds until the returned URL stops working"
+      required:
+        - "url"
+        - "file_name"
+        - "expires_in"
     ExtractedFieldsDto:
       type: "object"
       properties:
