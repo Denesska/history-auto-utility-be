@@ -856,6 +856,30 @@ paths:
                   $ref: "#/components/schemas/YearResponseDto"
       tags:
         - "vehicle-catalog"
+  /api/maintenance-record/suggest-category:
+    post:
+      operationId: "MaintenanceRecordController_suggestCategory"
+      summary: "AI fallback: suggest a service_category from a record's description/parts text. Suggestion only, does not save."
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuggestCategoryDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestedCategoryDto"
+        503:
+          description: "The category suggestion service is temporarily unavailable."
+      tags:
+        - "maintenance-record"
+      security:
+        - bearer: []
   /api/maintenance-record/all:
     get:
       operationId: "MaintenanceRecordController_getAllMaintenanceRecords"
@@ -2372,6 +2396,49 @@ components:
         - "id"
         - "modelId"
         - "year"
+    SuggestCategoryDto:
+      type: "object"
+      properties:
+        description:
+          type: "string"
+          example: "Schimb ulei motor și filtru"
+        part_names:
+          example:
+            - "Filtru ulei MANN W712/75"
+          type: "array"
+          items:
+            type: "string"
+      required:
+        - "description"
+    SuggestedCategoryDto:
+      type: "object"
+      properties:
+        category:
+          type: "string"
+          enum:
+            - "OIL_CHANGE"
+            - "BRAKE_SERVICE"
+            - "TRANSMISSION_SERVICE"
+            - "TIRE_SERVICE"
+            - "FLUID_SERVICE"
+            - "ENGINE_SERVICE"
+            - "INSPECTION"
+            - "BATTERY_SERVICE"
+            - "FILTER_SERVICE"
+            - "LIGHT_SERVICE"
+            - "COMBUSTIBIL"
+            - "OTHER"
+          nullable: true
+          example: "OIL_CHANGE"
+        confidence:
+          type: "string"
+          enum:
+            - "high"
+            - "medium"
+            - "low"
+      required:
+        - "category"
+        - "confidence"
     MaintenancePartDto:
       type: "object"
       properties:
