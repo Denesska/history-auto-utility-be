@@ -506,3 +506,17 @@ model NavDestination {
   @@index([slug, id])
   @@map("nav_destinations")
 }
+
+/// The head unit's own settings and saved places, one document per channel. The server stores it
+/// verbatim and never reads inside it, so adding a setting on the car needs no migration here.
+/// [revision] is lifted out of the payload only so a stale device can be refused without parsing it.
+model CockpitProfile {
+  id         Int      @id @default(autoincrement())
+  slug       String   @unique
+  revision   Int      @default(0)
+  payload    Json
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("cockpit_profiles")
+}

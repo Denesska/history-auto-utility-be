@@ -20,6 +20,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { DocumentRemindersModule } from './modules/document-reminders/document-reminders.module';
 import { CarNoteModule } from './modules/car-note/car-note.module';
 import { NavRelayModule } from './modules/nav-relay/nav-relay.module';
+import { CockpitProfileModule } from './modules/cockpit-profile/cockpit-profile.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { NavRelayModule } from './modules/nav-relay/nav-relay.module';
     DocumentRemindersModule,
     CarNoteModule,
     NavRelayModule,
+    CockpitProfileModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: process.env.ENV_FILE ?? '.env',
