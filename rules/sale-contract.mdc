@@ -121,7 +121,7 @@ the tool's provider; they are not a substitute for the parties' handwritten sign
 | `CONTRACT_ENCRYPTION_KEY` | yes | base64, decodes to exactly 32 bytes. Without it the module's encryption refuses to run. |
 | `CONTRACT_RETENTION_DAYS` | no (90) | Default retention window. |
 | `CONTRACT_KEPT_RETENTION_DAYS` | no (1825) | Window when the user opts to keep the contract. |
-| `IDENTITY_EXTRACTION_PROVIDER` | no | `claude` or `cloudflare`; falls back to whichever is configured. |
+| `IDENTITY_EXTRACTION_PROVIDER` | no | `cloudflare` (the intended vendor, and the default when both are configured) or `claude` (kept wired up as the comparison arm for the accuracy A/B). |
 | `ANTHROPIC_API_KEY` | per provider | Claude adapter. |
 | `ANTHROPIC_IDENTITY_MODEL` | no | Defaults to `claude-haiku-4-5`. |
 | `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_AI_TOKEN` / `CLOUDFLARE_VISION_MODEL` | per provider | Workers AI adapter. |

@@ -29,8 +29,18 @@ import { priceInWords } from './price-in-words.util';
 export class SaleContractPdfService {
     private readonly logger = new Logger(SaleContractPdfService.name);
 
-    /** 1 original + 3 copies: seller, buyer, local tax authority, DRPCIV. */
-    private static readonly DEFAULT_COPIES = 4;
+    /**
+     * One page. The contract is filed in several exemplars (seller, buyer, local
+     * tax authority, DRPCIV), but the user multiplies it at the printer — putting
+     * four identical pages in the file just makes the download heavier and the
+     * print dialog more confusing.
+     *
+     * Note the consequence: the single page has "Original" ticked, so every
+     * printed copy says Original. Callers that want the Original/Copie ticks to
+     * come out right can still ask for more pages via `opts.copies`, and page 2
+     * onwards are ticked "Copie".
+     */
+    private static readonly DEFAULT_COPIES = 1;
 
     /** Nobody needs more than a handful, and an unbounded count from a request
      *  parameter is a cheap way to exhaust memory. */

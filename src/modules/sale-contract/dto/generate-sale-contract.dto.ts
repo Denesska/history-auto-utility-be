@@ -46,10 +46,11 @@ export class GenerateSaleContractDto {
 
     @ApiPropertyOptional({
         description:
-            'How many identical copies the PDF should contain. Four by default: one original plus copies for ' +
-            'the seller, the buyer, the local tax authority and the vehicle registration office.',
-        default: 4,
-        example: 4,
+            'How many pages the PDF should contain. One by default — the contract is filed in several ' +
+            'exemplars, but the user multiplies it at the printer. Ask for more only when the Original/Copie ' +
+            'ticks need to differ per page: page 1 is ticked Original, pages 2 onwards Copie.',
+        default: 1,
+        example: 1,
     })
     @IsOptional()
     @IsInt()

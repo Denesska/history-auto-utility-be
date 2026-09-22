@@ -88,7 +88,10 @@ export class IdentityExtractionService {
     // -----------------------------------------------------------------------
 
     private selectProvider(): IdentityExtractionProvider | null {
-        const providers: IdentityExtractionProvider[] = [this.claude, this.cloudflare];
+        // Cloudflare first: it is the vendor this feature is meant to run on, so
+        // it wins when the env does not say otherwise. Claude stays wired up as
+        // the comparison arm for the accuracy A/B on real ID photos.
+        const providers: IdentityExtractionProvider[] = [this.cloudflare, this.claude];
         const requested = this.config.get<string>('IDENTITY_EXTRACTION_PROVIDER')?.trim().toLowerCase();
 
         if (requested) {

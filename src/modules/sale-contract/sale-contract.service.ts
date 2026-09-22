@@ -150,7 +150,7 @@ export class SaleContractService {
             );
         }
 
-        const copies = dto.copies ?? 4;
+        const copies = dto.copies ?? 1;
         const pdfData = this.toPdfData(contract);
         const bytes = await this.pdf.generate(pdfData, { copies });
 
