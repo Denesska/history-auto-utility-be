@@ -1,0 +1,749 @@
+{
+  "source": "itl-054-anexa-2.pdf",
+  "generatedAt": "2026-09-22T12:45:28.858Z",
+  "page": {
+    "width": 595.32,
+    "height": 841.92
+  },
+  "fields": {
+    "seller.full_name": {
+      "x": 331.21,
+      "y": 691.1,
+      "width": 227.86,
+      "size": 8.96,
+      "label": "RE ÎNSTRĂINEAZĂ Subsemnatul(a)Subscrisa … cu"
+    },
+    "seller.address.country": {
+      "x": 171.49,
+      "y": 679.58,
+      "width": 53.37,
+      "size": 8.96,
+      "label": "domiciliul/sediul în ROMÂNIA/ …, judeţul .............."
+    },
+    "seller.address.county": {
+      "x": 268.44,
+      "y": 679.58,
+      "width": 75.74,
+      "size": 8.96,
+      "label": "OMÂNIA/ ......................, judeţul …, codul poştal ........."
+    },
+    "seller.address.postal_code": {
+      "x": 412.57,
+      "y": 679.58,
+      "width": 46.91,
+      "size": 8.96,
+      "label": "........................., codul poştal …, municipiul/oraşul/comu"
+    },
+    "seller.address.city": {
+      "x": 32.04,
+      "y": 668.06,
+      "width": 111.18,
+      "size": 8.96,
+      "label": "…, satul/sectorul ......."
+    },
+    "seller.address.village_or_sector": {
+      "x": 209.48,
+      "y": 668.06,
+      "width": 83.82,
+      "size": 8.96,
+      "label": "......................., satul/sectorul …, str. ................."
+    },
+    "seller.address.street": {
+      "x": 318.32,
+      "y": 668.06,
+      "width": 200.66,
+      "size": 8.96,
+      "label": "................................., str. …, nr. ......, bl."
+    },
+    "seller.address.street_number": {
+      "x": 542.54,
+      "y": 668.06,
+      "width": 13.43,
+      "size": 8.96,
+      "label": ".................................., nr. …, bl."
+    },
+    "seller.address.building": {
+      "x": 32.04,
+      "y": 656.54,
+      "width": 13.62,
+      "size": 8.96,
+      "label": "…, sc. ......., et. ....."
+    },
+    "seller.address.staircase": {
+      "x": 90.47,
+      "y": 656.54,
+      "width": 16.14,
+      "size": 8.96,
+      "label": "......, sc. …, et. ......, ap ......,"
+    },
+    "seller.address.floor": {
+      "x": 150.21,
+      "y": 656.54,
+      "width": 13.62,
+      "size": 8.96,
+      "label": "......, sc. ......., et. …, ap ......, identificat"
+    },
+    "seller.address.apartment": {
+      "x": 207.89,
+      "y": 656.54,
+      "width": 13.5,
+      "size": 8.96,
+      "label": "......, sc. ......., et. ......, ap …, identificat prin B.I./"
+    },
+    "seller.id_series": {
+      "x": 475.49,
+      "y": 656.54,
+      "width": 13.54,
+      "size": 8.96,
+      "label": "at prin B.I./C.I./C.I.P./Paşaport seria … nr. ................,"
+    },
+    "seller.id_number": {
+      "x": 531.91,
+      "y": 656.54,
+      "width": 38.53,
+      "size": 8.96,
+      "label": "./C.I./C.I.P./Paşaport seria ...... nr. …,"
+    },
+    "seller.cnp_or_cif": {
+      "x": 88.22,
+      "y": 645.02,
+      "width": 128.7,
+      "size": 8.96,
+      "label": "C.N.P./C.I.F…, tel./fax ............."
+    },
+    "seller.phone": {
+      "x": 259.08,
+      "y": 645.02,
+      "width": 78.54,
+      "size": 8.96,
+      "label": "............................., tel./fax …, e-mail …………………….………………"
+    },
+    "seller.email": {
+      "x": 377.93,
+      "y": 645.02,
+      "width": 134,
+      "size": 8.96,
+      "label": "..............................., e-mail …, şi domiciliul"
+    },
+    "seller.fiscal_address.country": {
+      "x": 178.11,
+      "y": 633.62,
+      "width": 50.86,
+      "size": 8.96,
+      "label": "fiscal în ROMÂNIA/ …, judeţul .............."
+    },
+    "seller.fiscal_address.county": {
+      "x": 304.84,
+      "y": 633.62,
+      "width": 98.11,
+      "size": 8.96,
+      "label": "ROMÂNIA/ ....................., judeţul …, codul poştal ........."
+    },
+    "seller.fiscal_address.postal_code": {
+      "x": 519.13,
+      "y": 633.62,
+      "width": 51.98,
+      "size": 8.96,
+      "label": "........................., codul poştal …,"
+    },
+    "seller.fiscal_address.city": {
+      "x": 137.02,
+      "y": 622.1,
+      "width": 100.64,
+      "size": 8.96,
+      "label": "municipiul/oraşul/comuna…, satul/sectorul ......."
+    },
+    "seller.fiscal_address.village_or_sector": {
+      "x": 300.66,
+      "y": 622.1,
+      "width": 84.15,
+      "size": 8.96,
+      "label": "......................., satul/sectorul …, str. ................."
+    },
+    "seller.fiscal_address.street": {
+      "x": 406.91,
+      "y": 622.1,
+      "width": 163.84,
+      "size": 8.96,
+      "label": "................................., str. …,"
+    },
+    "seller.fiscal_address.street_number": {
+      "x": 48.08,
+      "y": 610.58,
+      "width": 18.45,
+      "size": 8.96,
+      "label": "nr. …, bl. .........., sc. .."
+    },
+    "seller.fiscal_address.building": {
+      "x": 91.04,
+      "y": 610.58,
+      "width": 23.47,
+      "size": 8.96,
+      "label": "nr. ........, bl. …, sc. ........, et. ...."
+    },
+    "seller.fiscal_address.staircase": {
+      "x": 139.53,
+      "y": 610.58,
+      "width": 18.34,
+      "size": 8.96,
+      "label": "nr. ........, bl. .........., sc. …, et. ......., ap ......"
+    },
+    "seller.fiscal_address.floor": {
+      "x": 181.91,
+      "y": 610.58,
+      "width": 15.94,
+      "size": 8.96,
+      "label": "...., bl. .........., sc. ........, et. …, ap .........., repreze"
+    },
+    "seller.fiscal_address.apartment": {
+      "x": 221.54,
+      "y": 610.58,
+      "width": 23.47,
+      "size": 8.96,
+      "label": "........, sc. ........, et. ......., ap …, reprezentată prin ...."
+    },
+    "seller.representative.full_name": {
+      "x": 335.47,
+      "y": 610.58,
+      "width": 170.46,
+      "size": 8.96,
+      "label": "....., ap .........., reprezentată prin … identificat prin"
+    },
+    "seller.representative.id_series": {
+      "x": 165.56,
+      "y": 599.06,
+      "width": 18.48,
+      "size": 8.96,
+      "label": "B.I./C.I./C.I.P./Paşaport seria … nr. .............., C.I"
+    },
+    "seller.representative.id_number": {
+      "x": 215.28,
+      "y": 599.06,
+      "width": 33.4,
+      "size": 8.96,
+      "label": "I./C.I./C.I.P./Paşaport seria ….... nr. …, C.I.F ................"
+    },
+    "seller.representative.cif": {
+      "x": 292.04,
+      "y": 599.06,
+      "width": 103.13,
+      "size": 8.96,
+      "label": "t seria ….... nr. .............., C.I.F …, tel./fax.............."
+    },
+    "seller.representative.phone": {
+      "x": 436.71,
+      "y": 599.06,
+      "width": 99.19,
+      "size": 8.96,
+      "label": ".............................., tel./fax…, e-mail"
+    },
+    "seller.representative.email": {
+      "x": 32.04,
+      "y": 587.51,
+      "width": 125.97,
+      "size": 8.96,
+      "label": "…, în calitate de ......."
+    },
+    "seller.capacity": {
+      "x": 218.15,
+      "y": 587.51,
+      "width": 208.62,
+      "size": 8.96,
+      "label": "......................…, în calitate de …"
+    },
+    "buyer.full_name": {
+      "x": 329.88,
+      "y": 575.51,
+      "width": 227.86,
+      "size": 8.96,
+      "label": "CARE DOBÂNDEŞTE Subsemnatul(a)Subscrisa … cu"
+    },
+    "buyer.address.country": {
+      "x": 171.49,
+      "y": 564.11,
+      "width": 53.37,
+      "size": 8.96,
+      "label": "domiciliul/sediul în ROMÂNIA/ …, judeţul .............."
+    },
+    "buyer.address.county": {
+      "x": 268.44,
+      "y": 564.11,
+      "width": 75.74,
+      "size": 8.96,
+      "label": "OMÂNIA/ ......................, judeţul …, codul poştal ........."
+    },
+    "buyer.address.postal_code": {
+      "x": 412.57,
+      "y": 564.11,
+      "width": 46.91,
+      "size": 8.96,
+      "label": "........................., codul poştal …, municipiul/oraşul/comu"
+    },
+    "buyer.address.city": {
+      "x": 32.04,
+      "y": 552.59,
+      "width": 111.18,
+      "size": 8.96,
+      "label": "…, satul/sectorul ......."
+    },
+    "buyer.address.village_or_sector": {
+      "x": 209.48,
+      "y": 552.59,
+      "width": 83.82,
+      "size": 8.96,
+      "label": "......................., satul/sectorul …, str. ................."
+    },
+    "buyer.address.street": {
+      "x": 318.32,
+      "y": 552.59,
+      "width": 200.66,
+      "size": 8.96,
+      "label": "................................., str. …, nr. ......, bl."
+    },
+    "buyer.address.street_number": {
+      "x": 542.54,
+      "y": 552.59,
+      "width": 13.43,
+      "size": 8.96,
+      "label": ".................................., nr. …, bl."
+    },
+    "buyer.address.building": {
+      "x": 32.04,
+      "y": 541.07,
+      "width": 13.59,
+      "size": 8.96,
+      "label": "…, sc. ......., et. ....."
+    },
+    "buyer.address.staircase": {
+      "x": 90.44,
+      "y": 541.07,
+      "width": 16.05,
+      "size": 8.96,
+      "label": "......, sc. …, et. ......, ap ......,"
+    },
+    "buyer.address.floor": {
+      "x": 150.1,
+      "y": 541.07,
+      "width": 13.54,
+      "size": 8.96,
+      "label": "......, sc. ......., et. …, ap ......, identificat"
+    },
+    "buyer.address.apartment": {
+      "x": 207.71,
+      "y": 541.07,
+      "width": 13.43,
+      "size": 8.96,
+      "label": "......, sc. ......., et. ......, ap …, identificat prin B.I./"
+    },
+    "buyer.id_series": {
+      "x": 475.09,
+      "y": 541.07,
+      "width": 13.54,
+      "size": 8.96,
+      "label": "at prin B.I./C.I./C.I.P./Paşaport seria … nr. ................,"
+    },
+    "buyer.id_number": {
+      "x": 531.51,
+      "y": 541.07,
+      "width": 38.53,
+      "size": 8.96,
+      "label": "./C.I./C.I.P./Paşaport seria ...... nr. …,"
+    },
+    "buyer.cnp_or_cif": {
+      "x": 88.22,
+      "y": 529.55,
+      "width": 128.7,
+      "size": 8.96,
+      "label": "C.N.P./C.I.F…, tel./fax ............."
+    },
+    "buyer.phone": {
+      "x": 259.08,
+      "y": 529.55,
+      "width": 78.54,
+      "size": 8.96,
+      "label": "............................., tel./fax …, e-mail …………………….………………"
+    },
+    "buyer.email": {
+      "x": 377.93,
+      "y": 529.55,
+      "width": 134,
+      "size": 8.96,
+      "label": "..............................., e-mail …, şi domiciliul"
+    },
+    "buyer.fiscal_address.country": {
+      "x": 178.11,
+      "y": 518.03,
+      "width": 50.86,
+      "size": 8.96,
+      "label": "fiscal în ROMÂNIA/ …, judeţul .............."
+    },
+    "buyer.fiscal_address.county": {
+      "x": 304.84,
+      "y": 518.03,
+      "width": 98.11,
+      "size": 8.96,
+      "label": "ROMÂNIA/ ....................., judeţul …, codul poştal ........."
+    },
+    "buyer.fiscal_address.postal_code": {
+      "x": 519.13,
+      "y": 518.03,
+      "width": 51.98,
+      "size": 8.96,
+      "label": "........................., codul poştal …,"
+    },
+    "buyer.fiscal_address.city": {
+      "x": 137.02,
+      "y": 506.51,
+      "width": 100.64,
+      "size": 8.96,
+      "label": "municipiul/oraşul/comuna…, satul/sectorul ......."
+    },
+    "buyer.fiscal_address.village_or_sector": {
+      "x": 300.66,
+      "y": 506.51,
+      "width": 84.19,
+      "size": 8.96,
+      "label": "......................., satul/sectorul …, str. ................."
+    },
+    "buyer.fiscal_address.street": {
+      "x": 406.95,
+      "y": 506.51,
+      "width": 163.4,
+      "size": 8.96,
+      "label": "................................., str. …,"
+    },
+    "buyer.fiscal_address.street_number": {
+      "x": 48.08,
+      "y": 495.11,
+      "width": 18.45,
+      "size": 8.96,
+      "label": "nr. …, bl. .........., sc. .."
+    },
+    "buyer.fiscal_address.building": {
+      "x": 91.04,
+      "y": 495.11,
+      "width": 23.47,
+      "size": 8.96,
+      "label": "nr. ........, bl. …, sc. ........, et. ...."
+    },
+    "buyer.fiscal_address.staircase": {
+      "x": 139.53,
+      "y": 495.11,
+      "width": 18.34,
+      "size": 8.96,
+      "label": "nr. ........, bl. .........., sc. …, et. ......., ap ......"
+    },
+    "buyer.fiscal_address.floor": {
+      "x": 181.91,
+      "y": 495.11,
+      "width": 15.94,
+      "size": 8.96,
+      "label": "...., bl. .........., sc. ........, et. …, ap .........., repreze"
+    },
+    "buyer.fiscal_address.apartment": {
+      "x": 221.54,
+      "y": 495.11,
+      "width": 23.47,
+      "size": 8.96,
+      "label": "........, sc. ........, et. ......., ap …, reprezentată prin ...."
+    },
+    "buyer.representative.full_name": {
+      "x": 335.47,
+      "y": 495.11,
+      "width": 170.46,
+      "size": 8.96,
+      "label": "....., ap .........., reprezentată prin … identificat prin"
+    },
+    "buyer.representative.id_series": {
+      "x": 165.56,
+      "y": 483.59,
+      "width": 18.48,
+      "size": 8.96,
+      "label": "B.I./C.I./C.I.P./Paşaport seria … nr. .............., C.I"
+    },
+    "buyer.representative.id_number": {
+      "x": 215.28,
+      "y": 483.59,
+      "width": 33.4,
+      "size": 8.96,
+      "label": "I./C.I./C.I.P./Paşaport seria ….... nr. …, C.I.F ................"
+    },
+    "buyer.representative.cif": {
+      "x": 292.04,
+      "y": 483.59,
+      "width": 103.13,
+      "size": 8.96,
+      "label": "t seria ….... nr. .............., C.I.F …, tel./fax.............."
+    },
+    "buyer.representative.phone": {
+      "x": 436.71,
+      "y": 483.59,
+      "width": 99.19,
+      "size": 8.96,
+      "label": ".............................., tel./fax…, e-mail"
+    },
+    "buyer.representative.email": {
+      "x": 32.04,
+      "y": 472.07,
+      "width": 125.97,
+      "size": 8.96,
+      "label": "…, în calitate de ......."
+    },
+    "buyer.capacity": {
+      "x": 218.15,
+      "y": 472.07,
+      "width": 208.22,
+      "size": 8.96,
+      "label": "......................…, în calitate de …"
+    },
+    "vehicle.make": {
+      "x": 147.97,
+      "y": 448.55,
+      "width": 103.32,
+      "size": 8.96,
+      "label": "Mijlocul de transport: marca … tipul ……………., număr de"
+    },
+    "vehicle.type": {
+      "x": 276.07,
+      "y": 448.55,
+      "width": 50.79,
+      "size": 8.96,
+      "label": "de transport: marca ………………………….. tipul …, număr de identificare"
+    },
+    "vehicle.vin": {
+      "x": 420.92,
+      "y": 448.55,
+      "width": 130.69,
+      "size": 8.96,
+      "label": "….. tipul ……………., număr de identificare … serie"
+    },
+    "vehicle.engine_series": {
+      "x": 58.86,
+      "y": 437.03,
+      "width": 63.39,
+      "size": 8.96,
+      "label": "motor … capacitatea cilindrică"
+    },
+    "vehicle.engine_capacity_cm3": {
+      "x": 214.29,
+      "y": 437.03,
+      "width": 28.44,
+      "size": 8.96,
+      "label": "…….............. capacitatea cilindrică … cm³, greutate maximă ad"
+    },
+    "vehicle.max_weight_tons": {
+      "x": 490.66,
+      "y": 437.03,
+      "width": 30.89,
+      "size": 8.96,
+      "label": "imă admisă (pentru remorci/semiremorci) … tone, număr"
+    },
+    "vehicle.license_plate": {
+      "x": 148.19,
+      "y": 425.49,
+      "width": 68.46,
+      "size": 8.96,
+      "label": "de înmatriculare/înregistrare …, data la care expiră in"
+    },
+    "vehicle.itp_expiry_date": {
+      "x": 408.39,
+      "y": 425.49,
+      "width": 90.74,
+      "size": 8.96,
+      "label": "care expiră inspecţia tehnică periodică …, numărul cărţii de"
+    },
+    "vehicle.civ_number": {
+      "x": 126.25,
+      "y": 414.09,
+      "width": 53.2,
+      "size": 8.96,
+      "label": "identitate a vehiculului …, anul de fabricaţie ..."
+    },
+    "vehicle.manufacture_year": {
+      "x": 257.92,
+      "y": 414.09,
+      "width": 60.9,
+      "size": 8.96,
+      "label": "vehiculului …………….., anul de fabricaţie …, norma euro ......... d"
+    },
+    "vehicle.euro_norm": {
+      "x": 373.54,
+      "y": 414.09,
+      "width": 20.85,
+      "size": 8.96,
+      "label": "e ........................., norma euro … dobândit la data de ..."
+    },
+    "vehicle.acquired_date": {
+      "x": 476.7,
+      "y": 414.09,
+      "width": 94,
+      "size": 8.96,
+      "label": "orma euro ......... dobândit la data de …,"
+    },
+    "vehicle.acquired_document": {
+      "x": 82.59,
+      "y": 402.57,
+      "width": 240.73,
+      "size": 8.96,
+      "label": "conform act …"
+    },
+    "price_lei": {
+      "x": 122.85,
+      "y": 390.57,
+      "width": 88.41,
+      "size": 8.96,
+      "label": "(4) PREŢUL în cifre … lei , în litere …………………"
+    },
+    "price_in_words": {
+      "x": 265.96,
+      "y": 390.57,
+      "width": 180.82,
+      "size": 8.96,
+      "label": "n cifre ………………........… lei , în litere …"
+    },
+    "signing_date": {
+      "x": 184.43,
+      "y": 274.41,
+      "width": 110.9,
+      "size": 8.96,
+      "label": "Data şi locul încheierii contractului … / …………………………………………….."
+    },
+    "signing_place": {
+      "x": 304.62,
+      "y": 274.41,
+      "width": 173.39,
+      "size": 8.96,
+      "label": "încheierii contractului ……………………………. / …"
+    }
+  },
+  "marks": {
+    "original": {
+      "x": 39.48,
+      "y": 714.22,
+      "size": 8,
+      "label": "Original"
+    },
+    "copy": {
+      "x": 101.02199999999999,
+      "y": 714.22,
+      "size": 8,
+      "label": "Copie"
+    },
+    "annexes_yes": {
+      "x": 94.824,
+      "y": 330.53,
+      "size": 8.04,
+      "label": "Anexe la contract: Da"
+    },
+    "annexes_no": {
+      "x": 124.94,
+      "y": 330.53,
+      "size": 8.04,
+      "label": "Anexe la contract: Nu"
+    }
+  },
+  "unmapped": [
+    {
+      "y": 736.5,
+      "run": 0,
+      "label": "Nr. …/…………..20…",
+      "reason": "cartuş A — REMTII number, filled by the local tax authority"
+    },
+    {
+      "y": 736.5,
+      "run": 1,
+      "label": "Nr. …….....…../…20…",
+      "reason": "cartuş A — REMTII month/year, filled by the local tax authority"
+    },
+    {
+      "y": 725,
+      "run": 0,
+      "label": "Rol nr.: …",
+      "reason": "cartuş A — \"Rol nr.\", filled by the local tax authority"
+    },
+    {
+      "y": 745.5,
+      "run": 0,
+      "label": "Prenumele …",
+      "reason": "cartuş B — official's first name"
+    },
+    {
+      "y": 734,
+      "run": 0,
+      "label": "Numele …",
+      "reason": "cartuş B — official's surname"
+    },
+    {
+      "y": 722.5,
+      "run": 0,
+      "label": "Funcţia …",
+      "reason": "cartuş B — official's function"
+    },
+    {
+      "y": 262,
+      "run": 0,
+      "label": "Semnătura persoanei care înstrăinează … Semnătura persoanei ca",
+      "reason": "signature line — signed by hand"
+    },
+    {
+      "y": 262,
+      "run": 1,
+      "label": ".. Semnătura persoanei care dobândeşte …",
+      "reason": "signature line — signed by hand"
+    },
+    {
+      "y": 202.5,
+      "run": 0,
+      "label": "…",
+      "reason": "\"Conform cu originalul\" signature line — signed by hand on the copies"
+    },
+    {
+      "y": 202.5,
+      "run": 1,
+      "label": "............. …",
+      "reason": "\"Conform cu originalul\" signature line — signed by hand on the copies"
+    },
+    {
+      "y": 119.5,
+      "run": 0,
+      "label": "REMTIINr. …/……….…..20…...",
+      "reason": "cartuş C — REMTII number, filled by the local tax authority"
+    },
+    {
+      "y": 119.5,
+      "run": 1,
+      "label": "REMTIINr. ……..............…../…20…...",
+      "reason": "cartuş C — REMTII month, filled by the local tax authority"
+    },
+    {
+      "y": 119.5,
+      "run": 2,
+      "label": "REMTIINr. ……..............…../……….…..20…",
+      "reason": "cartuş C — REMTII year, filled by the local tax authority"
+    },
+    {
+      "y": 109,
+      "run": 0,
+      "label": "Rol nr.: …",
+      "reason": "cartuş C — \"Rol nr.\", filled by the local tax authority"
+    },
+    {
+      "y": 122,
+      "run": 0,
+      "label": "Prenumele …",
+      "reason": "cartuş D — official's first name"
+    },
+    {
+      "y": 111.5,
+      "run": 0,
+      "label": "Numele …",
+      "reason": "cartuş D — official's surname"
+    },
+    {
+      "y": 101.5,
+      "run": 0,
+      "label": "Funcția …",
+      "reason": "cartuş D — official's function"
+    }
+  ]
+}

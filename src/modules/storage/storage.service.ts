@@ -61,6 +61,18 @@ export class StorageService {
     return getSignedUrl(this.client, command, { expiresIn: expiresIn ?? this.defaultExpiresIn });
   }
 
+  /**
+   * Uploads a buffer the backend produced itself, rather than handing the
+   * client a presigned URL to upload through. Used for generated files — a
+   * sale contract PDF is built server-side and must never make a round trip
+   * through the browser, because it carries both parties' personal data.
+   */
+  async putObject(key: string, body: Buffer, mimeType: string): Promise<void> {
+    await this.client.send(
+      new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: body, ContentType: mimeType }),
+    );
+  }
+
   async deleteObject(key: string): Promise<void> {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
   }
