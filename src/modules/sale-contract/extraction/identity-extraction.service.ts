@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import sharp = require('sharp');
 import { ContractAddress, ExtractionConfidence, IdentityDocumentFields, IdentityExtractionProvider, IdentityExtractionResult, IdentityExtractionUnavailableError } from '../sale-contract.types';
 import { ClaudeIdentityProvider } from './claude-identity.provider';
 import { CloudflareIdentityProvider } from './cloudflare-identity.provider';
@@ -7,6 +8,14 @@ import { describeCnpProblem, isValidCnp } from '../../../common/crypto/cnp.util'
 import { redactText } from '../../../common/crypto/redact.util';
 
 const CNP_FALLBACK_WARNING = 'CNP-ul citit pare gresit. Verifica-l cifra cu cifra inainte de a continua.';
+
+// A phone photo of an ID card routinely arrives at 8-12MP; none of that helps a
+// vision model read printed text that occupies a fraction of the frame, it just
+// inflates the base64 payload, the request latency and the per-call cost. 1600px
+// on the long edge keeps the card's text comfortably legible while cutting a
+// typical 4096x3072 phone photo to a few hundred KB.
+const MAX_IMAGE_DIMENSION = 1600;
+const JPEG_QUALITY = 82;
 
 /**
  * The facade the rest of the app calls to read a Romanian identity card.
@@ -57,10 +66,11 @@ export class IdentityExtractionService {
         }
 
         const startedAt = Date.now();
+        const { buffer: preparedImage, mimeType: preparedMimeType } = await this.prepareImage(image, mimeType);
         let result: IdentityExtractionResult | null;
 
         try {
-            result = await this.provider.extract(image, mimeType);
+            result = await this.provider.extract(preparedImage, preparedMimeType);
         } catch (err) {
             const elapsed = Date.now() - startedAt;
             if (err instanceof IdentityExtractionUnavailableError) {
@@ -81,6 +91,47 @@ export class IdentityExtractionService {
         const processed = this.postProcess(result);
         this.logger.log(`[${this.provider.name}] identity extraction done in ${elapsed}ms: detected=${processed.detected} confidence=${processed.confidence} fields=${Object.keys(processed.fields).length} warnings=${processed.warnings.length}`);
         return processed;
+    }
+
+    // -----------------------------------------------------------------------
+    // Image preprocessing
+    // -----------------------------------------------------------------------
+
+    /**
+     * Downscales and re-encodes the upload before it ever reaches a provider
+     * adapter, so this applies identically to Cloudflare and Claude. Only
+     * shrinks — never upscales a small image — and re-encodes as JPEG, which is
+     * smaller than the PNG a screenshot upload typically arrives as without any
+     * loss that matters for OCR.
+     *
+     * Decoding a corrupt or unsupported buffer must never block extraction: on
+     * any sharp failure this falls back to the original bytes untouched, and the
+     * provider's own mime-type check decides whether to proceed.
+     */
+    private async prepareImage(image: Buffer, mimeType: string): Promise<{ buffer: Buffer; mimeType: string }> {
+        try {
+            const resized = await sharp(image)
+                .rotate() // applies the EXIF orientation before it's stripped, then drops the tag
+                .resize({
+                    width: MAX_IMAGE_DIMENSION,
+                    height: MAX_IMAGE_DIMENSION,
+                    fit: 'inside',
+                    withoutEnlargement: true,
+                })
+                .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
+                .toBuffer();
+
+            if (resized.length >= image.length) {
+                // Already small (e.g. a compressed screenshot) — re-encoding added
+                // overhead for nothing, so keep the original bytes and mime type.
+                return { buffer: image, mimeType };
+            }
+            this.logger.log(`Identity photo prepared: ${image.length}b -> ${resized.length}b.`);
+            return { buffer: resized, mimeType: 'image/jpeg' };
+        } catch (err) {
+            this.logger.warn(`Could not preprocess identity photo (${err instanceof Error ? err.name : 'unknown error'}); sending the original.`);
+            return { buffer: image, mimeType };
+        }
     }
 
     // -----------------------------------------------------------------------

@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import sharp = require('sharp');
 import { IdentityExtractionService } from './identity-extraction.service';
 import { ClaudeIdentityProvider } from './claude-identity.provider';
 import { CloudflareIdentityProvider } from './cloudflare-identity.provider';
@@ -14,6 +15,10 @@ const FAKE_VALID_CNP = '1950101412348';
 const FAKE_INVALID_CNP = '1950101412341';
 
 class StubProvider implements IdentityExtractionProvider {
+    /** What the service actually forwarded, for the preprocessing tests below. */
+    receivedImage: Buffer | null = null;
+    receivedMimeType: string | null = null;
+
     constructor(
         readonly name: string,
         private configured: boolean,
@@ -25,7 +30,9 @@ class StubProvider implements IdentityExtractionProvider {
         return this.configured;
     }
 
-    async extract(): Promise<IdentityExtractionResult | null> {
+    async extract(image: Buffer, mimeType: string): Promise<IdentityExtractionResult | null> {
+        this.receivedImage = image;
+        this.receivedMimeType = mimeType;
         if (this.error) throw this.error;
         return this.result;
     }
@@ -183,6 +190,46 @@ describe('IdentityExtractionService', () => {
             expect(all).not.toContain('123456');
 
             spies.forEach((s) => s.mockRestore());
+        });
+    });
+
+    describe('image preprocessing', () => {
+        it('downscales and re-encodes a large photo before it reaches the provider', async () => {
+            const large = await sharp({ create: { width: 4096, height: 3072, channels: 3, background: { r: 200, g: 200, b: 200 } } })
+                .jpeg({ quality: 100 })
+                .toBuffer();
+
+            const cloudflare = new StubProvider('cloudflare', true, resultWith('cloudflare', {}));
+            const service = buildService({ IDENTITY_EXTRACTION_PROVIDER: 'cloudflare' }, new StubProvider('claude', false), cloudflare);
+            await service.extract(large, 'image/jpeg');
+
+            expect(cloudflare.receivedImage).not.toBeNull();
+            expect(cloudflare.receivedImage!.length).toBeLessThan(large.length);
+            expect(cloudflare.receivedMimeType).toBe('image/jpeg');
+
+            const metadata = await sharp(cloudflare.receivedImage!).metadata();
+            expect(Math.max(metadata.width ?? 0, metadata.height ?? 0)).toBeLessThanOrEqual(1600);
+        });
+
+        it('leaves an already-small image alone rather than re-encoding for no gain', async () => {
+            const small = await sharp({ create: { width: 40, height: 30, channels: 3, background: { r: 10, g: 10, b: 10 } } })
+                .jpeg({ quality: 90 })
+                .toBuffer();
+
+            const cloudflare = new StubProvider('cloudflare', true, resultWith('cloudflare', {}));
+            const service = buildService({ IDENTITY_EXTRACTION_PROVIDER: 'cloudflare' }, new StubProvider('claude', false), cloudflare);
+            await service.extract(small, 'image/jpeg');
+
+            expect(cloudflare.receivedImage).toBe(small);
+        });
+
+        it('falls back to the original bytes when the buffer is not decodable image data', async () => {
+            const cloudflare = new StubProvider('cloudflare', true, resultWith('cloudflare', {}));
+            const service = buildService({ IDENTITY_EXTRACTION_PROVIDER: 'cloudflare' }, new StubProvider('claude', false), cloudflare);
+            await service.extract(IMAGE, 'image/jpeg');
+
+            expect(cloudflare.receivedImage).toBe(IMAGE);
+            expect(cloudflare.receivedMimeType).toBe('image/jpeg');
         });
     });
 });
