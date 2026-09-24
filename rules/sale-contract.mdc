@@ -1,0 +1,159 @@
+---
+description: sale-contract
+globs:
+alwaysApply: false
+---
+# Sale Contract Module
+
+## Overview
+
+Generates the Romanian official vehicle sale-purchase form — **ITL 054, Model 2026,
+Anexa nr. 2**, "contract de înstrăinare-dobândire a unui mijloc de transport" — as a
+downloadable PDF. Party details can be read off a photo of an identity document or
+typed by hand; vehicle details come from the garage, from a photo of the registration
+certificate, or by hand.
+
+The contract works for a car in the user's garage **and** for one they are about to
+buy, which is why `SaleContract.car_id` is nullable and every vehicle detail is
+snapshotted onto the contract row. A contract is a historical record: editing the car
+afterwards must never rewrite what the parties signed.
+
+## Module Structure
+
+```
+sale-contract/
+├── assets/
+│   └── itl-054-anexa-2.pdf          # the official form, used as the PDF template
+├── dto/
+├── extraction/                      # identity-document reading (paid provider)
+├── pdf/                             # field map + PDF filler + price-in-words
+├── sale-contract.types.ts           # shared shapes, named after the form's blanks
+├── sale-contract.controller.ts
+├── sale-contract.service.ts
+├── sale-contract-retention.service.ts
+└── sale-contract.module.ts
+```
+
+## The PDF is stamped, not rebuilt
+
+The form is a flat A4 PDF with no AcroForm fields. We load it as a template and draw
+values on top with `pdf-lib`; we do **not** reconstruct the layout in HTML/CSS and we
+do **not** alter the form's own text.
+
+This is a correctness requirement, not an aesthetic one. ITL 054 is a standardised
+fiscal document filed with the local tax authority — a form that does not match the
+official one can be refused at the counter. It follows that:
+
+- No clause may be added to the form. The declarations the parties make (the vehicle
+  is the seller's property and free of encumbrances; keys, registration certificate
+  and CIV changed hands; the price was paid; both parties know the Criminal Code
+  provisions on forgery) are already printed at **section (5)**.
+- If a "sold as seen, no further claims" clause is wanted, it belongs in a **separate
+  annex** — the form even has an "Anexe la contract: Da / Nu" tick box for it.
+- Cartuşe **A, B, C and D** and the signature lines are left blank. Those are filled
+  by the tax authority and by hand, respectively.
+
+Coordinates live in a generated, committed `pdf/field-map.json`. The running service
+reads that JSON — it must never re-parse the template PDF per request.
+
+Diacritics: the PDF standard fonts have no ă/â/î/ș/ț, so a TTF is embedded. Times New
+Roman cannot be redistributed, so DejaVu Serif (from the `dejavu-fonts-ttf` package)
+is used for the filled-in values. The form's own text is untouched either way.
+
+## Personal data: how this module treats it
+
+This is the only part of the backend that handles **CNPs, ID card series/numbers and
+home addresses** — and for the *other* party to the sale, who is typically not a user
+of this app and never agreed to anything with us. The rules below are not optional
+polish; they are why the feature can ship.
+
+1. **Identity photos are never stored.** `POST /sale-contract/extract-identity` uses
+   `memoryStorage()`, passes the buffer to the AI provider, returns suggestions and
+   drops it. Nothing reaches the disk or the bucket.
+2. **Identity data is encrypted before it reaches Postgres.** Each party's whole
+   payload is one AES-256-GCM blob in `SaleContractParty.data_encrypted`, via
+   `FieldEncryptionService`. Nothing identifying is stored outside the blob — not even
+   a masked name — so the table alone yields no personal data.
+3. **Nothing personal is ever logged.** Not at debug level, not inside an error
+   message. Use `redact()` / `redactText()` from `common/crypto` before logging
+   anything that has been near a party payload or a provider response.
+4. **Contracts are not shared.** Access is by ownership, never by car access: sharing
+   a car with someone was never consent to show them a third party's CNP.
+5. **Retention is enforced by a job, not by good intentions.**
+   `SaleContractRetentionService` runs daily and erases the parties' data and the
+   stored PDF once `retention_until` passes, leaving only the non-identifying vehicle,
+   price and date so the car's history keeps its shape. Default 90 days; the user can
+   opt in to keep the contract, which extends it — but still bounds it.
+6. **Delete means delete.** `DELETE /sale-contract/:id` removes the row and the stored
+   object. No soft delete: a row that still holds an encrypted CNP has not been
+   deleted.
+7. **Consent is recorded.** Reading the other party's document requires stating which
+   version of the consent wording was shown; it is stored with a timestamp.
+
+### Why identity extraction has its own AI provider
+
+The rest of the app extracts documents with Gemini on the **free** tier, whose terms
+allow the provider to use submitted data to improve their products. That is acceptable
+for an insurance policy photo and unacceptable for an identity card. Identity
+extraction therefore runs through a separate, **paid** provider behind
+`IdentityExtractionProvider`, selected by env, so the two never mix.
+
+A CNP read off a photo is checked against its control digit (`common/crypto/cnp.util`).
+A failing checksum does not discard the value — it downgrades confidence and adds a
+warning, because a single misread digit is the likeliest failure here and produces a
+contract that is invalid at the counter while looking perfectly fine on screen.
+
+## The confirmations are for us, not for the form
+
+`POST /sale-contract/:id/generate` requires four confirmations, each of which must be
+literally `true` or the request is rejected: the data was verified, the section (5)
+declarations were read, the Criminal Code note was acknowledged, and the user
+understands the app generates a form rather than giving legal advice.
+
+They are stored with a timestamp on the contract. They never appear on the PDF. Their
+purpose is evidence of what the user was shown and agreed to — protection for us as
+the tool's provider; they are not a substitute for the parties' handwritten signatures.
+
+## Environment
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `CONTRACT_ENCRYPTION_KEY` | yes | base64, decodes to exactly 32 bytes. Without it the module's encryption refuses to run. |
+| `CONTRACT_RETENTION_DAYS` | no (90) | Default retention window. |
+| `CONTRACT_KEPT_RETENTION_DAYS` | no (1825) | Window when the user opts to keep the contract. |
+| `IDENTITY_EXTRACTION_PROVIDER` | no | `cloudflare` (the intended vendor, and the default when both are configured) or `claude` (kept wired up as the comparison arm for the accuracy A/B). |
+| `ANTHROPIC_API_KEY` | per provider | Claude adapter. |
+| `ANTHROPIC_IDENTITY_MODEL` | no | Defaults to `claude-haiku-4-5`. |
+| `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_AI_TOKEN` / `CLOUDFLARE_VISION_MODEL` | per provider | Workers AI adapter. |
+| `CLOUDFLARE_AI_GATEWAY_URL` | no | If used, **disable log storage on the gateway** — it logs requests and responses by default, which would mean a copy of every identity document. |
+
+Missing keys disable the relevant capability with a warning rather than crashing
+bootstrap, matching `GeminiExtractionService` — the dev checkout is shared with the
+test server, so a hard startup requirement risks taking down unrelated environments.
+
+## Endpoints
+
+All under `JwtAuthGuard`, all scoped to the signed-in user.
+
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/sale-contract/extract-identity` | multipart; suggestions only, stores nothing |
+| GET | `/sale-contract` | summaries, no personal data, no decryption |
+| POST | `/sale-contract` | create draft |
+| GET | `/sale-contract/:id` | full, decrypted, owner only |
+| PUT | `/sale-contract/:id` | update draft |
+| POST | `/sale-contract/:id/generate` | confirmations required; returns a signed link |
+| GET | `/sale-contract/:id/download` | fresh signed link |
+| DELETE | `/sale-contract/:id` | hard delete, including the stored PDF |
+| GET/PUT/DELETE | `/sale-contract/my-identity` | the user's own saved details |
+
+**Route order matters**: `my-identity` is declared before the `:id` routes, or Nest
+matches it as an id and the request dies in `ParseIntPipe`.
+
+## Schema notes
+
+`prisma db push` is how this schema reaches an environment (see the `db:push:*`
+scripts), matching how the other recent models were added.
+
+`SaleContract.status` gains `PURGED`, which means "this sale happened, and its personal
+data has been erased" — distinct from a contract that was deleted outright.

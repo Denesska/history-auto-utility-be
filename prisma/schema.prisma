@@ -30,6 +30,8 @@ model User {
   reminders_sent       DocumentReminderSent[]
   maintenance_settings CarMaintenanceSetting[]
   maintenance_profiles MaintenanceProfile[]
+  sale_contracts       SaleContract[]
+  identity             UserIdentity?
 }
 
 model Car {
@@ -70,6 +72,7 @@ model Car {
   notes                     CarNote[]
   maintenance_settings      CarMaintenanceSetting[]
   maintenance_profiles      MaintenanceProfile[]
+  sale_contracts            SaleContract[]
 }
 
 model CarNote {
@@ -519,4 +522,132 @@ model CockpitProfile {
   updated_at DateTime @updatedAt
 
   @@map("cockpit_profiles")
+}
+
+// ---------------------------------------------------------------------------
+// Sale contract (ITL 054, Anexa nr. 2 — "contract de înstrăinare-dobândire")
+//
+// Every field that identifies a natural person lives inside an encrypted blob
+// (`data_encrypted`, AES-256-GCM) rather than in its own column. Two reasons:
+// the other party to a sale is a third party who never agreed to have their
+// CNP sitting in our database in the clear, and honouring a deletion request
+// then means nulling one column instead of auditing thirty.
+// ---------------------------------------------------------------------------
+
+/// Which side of the sale the app's own user is on. Drives which party gets
+/// pre-filled from the user's saved identity, and what happens to the car
+/// afterwards (a sale marks it SOLD; a purchase can add it to the garage).
+enum SaleContractRole {
+  SELLER
+  BUYER
+}
+
+enum SaleContractPartySide {
+  SELLER
+  BUYER
+}
+
+enum SaleContractStatus {
+  DRAFT
+  GENERATED
+  /// Personal data purged by the retention job; the row is kept only so the
+  /// car's history still shows that a sale happened, and on what date.
+  PURGED
+}
+
+model SaleContract {
+  id      Int              @id @default(autoincrement())
+  user_id Int
+  /// Null when the contract is for a vehicle that isn't (yet) in the garage —
+  /// the common case when the user is the buyer.
+  car_id  Int?
+  role    SaleContractRole
+
+  // --- Vehicle, section (3) — a snapshot, deliberately denormalised.
+  // A contract is a historical record: editing the car afterwards must not
+  // rewrite what the parties actually signed.
+  vehicle_make        String?
+  vehicle_type        String?
+  vin                 String?
+  engine_series       String?
+  engine_capacity_cm3 Int?
+  max_weight_tons     Decimal?  @db.Decimal(10, 3)
+  license_plate       String?
+  itp_expiry_date     DateTime?
+  civ_number          String?
+  manufacture_year    Int?
+  euro_norm           String?
+  acquired_date       DateTime?
+  acquired_document   String?
+
+  // --- Price, section (4)
+  price_lei      Decimal? @db.Decimal(14, 2)
+  price_in_words String?
+
+  // --- Signing, and the in-app confirmations that stand behind it
+  signing_date        DateTime?
+  signing_place       String?
+  /// "Anexe la contract: Da / Nu" — a tick box on the form itself.
+  has_annexes         Boolean   @default(false)
+  /// What the user ticked before we generated the PDF, and when. This is our
+  /// evidence that the declarations at section (5) were shown and accepted —
+  /// it protects us as the tool's provider, it is not part of the form.
+  confirmations       Json?
+  /// Consent for processing the *other* party's identity document.
+  consent_accepted_at DateTime?
+  consent_version     String?
+
+  status           SaleContractStatus @default(DRAFT)
+  pdf_key          String?
+  pdf_generated_at DateTime?
+
+  /// After this moment the retention job purges the parties' personal data and
+  /// deletes the stored PDF. Extended when the user explicitly opts to keep the
+  /// contract in the car's history.
+  retention_until         DateTime
+  personal_data_purged_at DateTime?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user    User                @relation(fields: [user_id], references: [id])
+  car     Car?                @relation(fields: [car_id], references: [id], onDelete: SetNull)
+  parties SaleContractParty[]
+
+  @@index([user_id])
+  @@index([car_id])
+  @@index([retention_until])
+  @@map("sale_contracts")
+}
+
+model SaleContractParty {
+  id          Int                   @id @default(autoincrement())
+  contract_id Int
+  side        SaleContractPartySide
+  is_company  Boolean               @default(false)
+
+  /// AES-256-GCM blob holding the whole party payload (name, address, fiscal
+  /// domicile, ID series/number, CNP/CIF, phone, e-mail, representative).
+  /// Null once purged. Nothing identifying is stored outside it — not even a
+  /// masked name — so a leak of the table alone yields no personal data.
+  data_encrypted String?
+
+  contract SaleContract @relation(fields: [contract_id], references: [id], onDelete: Cascade)
+
+  @@unique([contract_id, side])
+  @@map("sale_contract_parties")
+}
+
+/// The user's own identity details, saved once so they don't rescan their ID
+/// for every contract. Same encrypted-blob treatment as a contract party.
+model UserIdentity {
+  id             Int      @id @default(autoincrement())
+  user_id        Int      @unique
+  data_encrypted String
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("user_identities")
 }

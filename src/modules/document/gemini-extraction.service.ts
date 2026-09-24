@@ -26,6 +26,7 @@ For REGISTRATION (vehicle registration certificate / "certificat de înmatricula
 - "fuel_type" must be one of these exact codes: PETROL, DIESEL, HYBRID, PLUGIN_HYBRID, ELECTRIC, LPG — map "benzină"→PETROL, "motorină"/"diesel"→DIESEL, "hibrid"→HYBRID, "hibrid plug-in"→PLUGIN_HYBRID, "electric"→ELECTRIC, "GPL"→LPG.
 - "color" ("culoare") should be a plain color name in Romanian (e.g. "Alb", "Negru", "Gri", "Roșu", "Albastru").
 - "manufacture_year" is the 4-digit year of manufacture ("an fabricație"), not the first-registration date.
+- "civ_number" is the series AND number of the vehicle identity card ("seria și numărul cărții de identitate a vehiculului", also printed as "C.I.V."), combined into one string exactly as printed (series letters immediately followed by the number, e.g. "K123456") — this is a field on the registration certificate itself, distinct from the plate number and the VIN.
 
 For FUEL_RECEIPT documents specifically:
 - "fuel_liters" is the quantity of fuel purchased (litri), as a plain numeric string.
@@ -82,6 +83,7 @@ const EXTRACTED_FIELDS_SCHEMA = {
         color: { type: Type.STRING },
         fuel_type: { type: Type.STRING },
         manufacture_year: { type: Type.STRING },
+        civ_number: { type: Type.STRING },
         fuel_liters: { type: Type.STRING },
         fuel_price_per_liter: { type: Type.STRING },
         fuel_total_amount: { type: Type.STRING },

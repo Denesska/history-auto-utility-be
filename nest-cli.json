@@ -3,6 +3,17 @@
   "collection": "@nestjs/schematics",
   "sourceRoot": "src",
   "compilerOptions": {
-    "deleteOutDir": true
+    "deleteOutDir": true,
+    "assets": [
+      {
+        "include": "modules/sale-contract/assets/**/*",
+        "outDir": "dist/src"
+      },
+      {
+        "include": "modules/sale-contract/pdf/*.json",
+        "outDir": "dist/src"
+      }
+    ],
+    "watchAssets": true
   }
 }

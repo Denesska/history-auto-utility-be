@@ -1355,6 +1355,228 @@ paths:
                 $ref: "#/components/schemas/DocumentDto"
       tags:
         - "document"
+  /api/sale-contract/extract-identity:
+    post:
+      operationId: "SaleContractController_extractIdentity"
+      summary: "Read the fields off a photo of an identity document (returns suggestions only)"
+      description: "The photo is processed in memory and never written to disk or to object storage, and nothing is saved by this endpoint. The user reviews and confirms every field before it is stored. Processing the identity document of the other party to the sale requires that person's agreement; the caller states which version of the consent wording was shown."
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: "object"
+              properties:
+                file:
+                  type: "string"
+                  format: "binary"
+                consent_version:
+                  type: "string"
+                  example: "2026-09-v1"
+              required:
+                - "file"
+                - "consent_version"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityExtractionResultDto"
+        400:
+          description: "No file provided, or consent not stated."
+        503:
+          description: "The extraction provider is temporarily unavailable."
+      tags:
+        - "sale-contract"
+  /api/sale-contract/my-identity:
+    get:
+      operationId: "SaleContractController_getMyIdentity"
+      summary: "The signed-in user's own saved contract details"
+      parameters: []
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserIdentityDto"
+      tags:
+        - "sale-contract"
+    put:
+      operationId: "SaleContractController_saveMyIdentity"
+      summary: "Save the user's own details, so they are not re-entered for every contract"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveUserIdentityDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserIdentityDto"
+      tags:
+        - "sale-contract"
+    delete:
+      operationId: "SaleContractController_deleteMyIdentity"
+      summary: "Erase the user's saved details"
+      parameters: []
+      responses:
+        204:
+          description: "Erased."
+      tags:
+        - "sale-contract"
+  /api/sale-contract:
+    get:
+      operationId: "SaleContractController_list"
+      summary: "List the user's contracts"
+      description: "Carries no personal data — listing never decrypts the parties."
+      parameters: []
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/SaleContractSummaryDto"
+      tags:
+        - "sale-contract"
+    post:
+      operationId: "SaleContractController_create"
+      summary: "Create a contract draft"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSaleContractDto"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleContractDto"
+      tags:
+        - "sale-contract"
+  /api/sale-contract/{id}:
+    get:
+      operationId: "SaleContractController_get"
+      summary: "Get one contract, with the parties decrypted"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleContractDto"
+        404:
+          description: "Not found, or not yours."
+      tags:
+        - "sale-contract"
+    put:
+      operationId: "SaleContractController_update"
+      summary: "Update a contract draft"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSaleContractDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleContractDto"
+      tags:
+        - "sale-contract"
+    delete:
+      operationId: "SaleContractController_remove"
+      summary: "Delete a contract and its stored PDF"
+      description: "A real delete: the row and the stored file both go, not a status flag."
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        204:
+          description: "Deleted."
+      tags:
+        - "sale-contract"
+  /api/sale-contract/{id}/generate:
+    post:
+      operationId: "SaleContractController_generate"
+      summary: "Generate the filled ITL 054 form as a PDF"
+      description: "Every confirmation in the body must be true — the request is rejected otherwise. Those tick boxes are an in-app checkpoint recording that the user verified the data and was shown the declarations printed at section (5); they are not added to the form, which must stay the standard one."
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateSaleContractDto"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleContractFileLinkDto"
+        400:
+          description: "A confirmation was missing or false."
+      tags:
+        - "sale-contract"
+  /api/sale-contract/{id}/download:
+    get:
+      operationId: "SaleContractController_download"
+      summary: "A fresh signed download link for an already generated contract"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleContractFileLinkDto"
+        404:
+          description: "Not generated yet."
+      tags:
+        - "sale-contract"
   /api/blog/images:
     post:
       operationId: "BlogController_uploadImage"
@@ -1771,6 +1993,51 @@ paths:
                 $ref: "#/components/schemas/NavDestinationDto"
       tags:
         - "nav-relay"
+  /api/p/{slug}:
+    get:
+      operationId: "CockpitProfileController_get"
+      summary: "The profile stored on this channel"
+      parameters:
+        - name: "slug"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CockpitProfileDto"
+      tags:
+        - "cockpit-profile"
+    put:
+      operationId: "CockpitProfileController_put"
+      summary: "Store the car profile on this channel"
+      parameters:
+        - name: "slug"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PutProfileDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CockpitProfileDto"
+        409:
+          description: "The stored profile has a higher revision"
+      tags:
+        - "cockpit-profile"
 info:
   title: "History Auto Utility API"
   description: "API documentation for History Auto Utility"
@@ -2973,6 +3240,9 @@ components:
         manufacture_year:
           type: "string"
           description: "Year of manufacture (\"an fabricație\")"
+        civ_number:
+          type: "string"
+          description: "Vehicle identity card series and number (\"seria și numărul cărții de identitate a vehiculului\", C.I.V.)"
         fuel_liters:
           type: "string"
           description: "Fuel quantity purchased, in liters, as a numeric string"
@@ -3039,6 +3309,476 @@ components:
         - "confidence"
         - "fields"
         - "warnings"
+    ContractAddressDto:
+      type: "object"
+      properties:
+        country:
+          type: "string"
+          description: "Left empty for Romania."
+          example: "ROMÂNIA"
+        county:
+          type: "string"
+          example: "Cluj"
+        postal_code:
+          type: "string"
+          example: "400001"
+        city:
+          type: "string"
+          description: "municipiul/oraşul/comuna"
+          example: "Cluj-Napoca"
+        village_or_sector:
+          type: "string"
+          description: "satul/sectorul"
+          example: "Sector 3"
+        street:
+          type: "string"
+          example: "Aleea Peana"
+        street_number:
+          type: "string"
+          example: "12A"
+        building:
+          type: "string"
+          example: "D3"
+        staircase:
+          type: "string"
+          example: "2"
+        floor:
+          type: "string"
+          example: "4"
+        apartment:
+          type: "string"
+          example: "17"
+    IdentityDocumentFieldsDto:
+      type: "object"
+      properties:
+        last_name:
+          type: "string"
+        first_name:
+          type: "string"
+        full_name:
+          type: "string"
+        cnp:
+          type: "string"
+        id_series:
+          type: "string"
+          description: "\"Seria\" — two letters"
+        id_number:
+          type: "string"
+          description: "\"Nr.\" — six digits"
+        address:
+          $ref: "#/components/schemas/ContractAddressDto"
+        issued_by:
+          type: "string"
+        issue_date:
+          type: "string"
+        valid_until:
+          type: "string"
+        nationality:
+          type: "string"
+        place_of_birth:
+          type: "string"
+    IdentityExtractionResultDto:
+      type: "object"
+      properties:
+        detected:
+          type: "boolean"
+        confidence:
+          type: "string"
+          enum:
+            - "high"
+            - "medium"
+            - "low"
+        fields:
+          $ref: "#/components/schemas/IdentityDocumentFieldsDto"
+        warnings:
+          description: "End-user phrased notes, in Romanian. A CNP that fails its checksum is reported here rather than silently dropped — a single misread digit is the most likely failure, and the user must re-check it."
+          type: "array"
+          items:
+            type: "string"
+        provider:
+          type: "string"
+          description: "Which AI provider produced this, for comparison. Never a secret."
+      required:
+        - "detected"
+        - "confidence"
+        - "fields"
+        - "warnings"
+        - "provider"
+    ContractRepresentativeDto:
+      type: "object"
+      properties:
+        full_name:
+          type: "string"
+          example: "Ionescu Maria"
+        id_series:
+          type: "string"
+          example: "KX"
+        id_number:
+          type: "string"
+          example: "123456"
+        cif:
+          type: "string"
+          example: "RO12345678"
+        phone:
+          type: "string"
+          example: "0712345678"
+        email:
+          type: "string"
+          example: "maria@example.ro"
+    ContractPartyDto:
+      type: "object"
+      properties:
+        is_company:
+          type: "boolean"
+          description: "A company fills the \"Subscrisa\" and representative blanks instead."
+          example: false
+        full_name:
+          type: "string"
+          example: "Popescu Ion"
+        address:
+          $ref: "#/components/schemas/ContractAddressDto"
+        id_series:
+          type: "string"
+          description: "B.I./C.I./C.I.P./Paşaport"
+          example: "KX"
+        id_number:
+          type: "string"
+          example: "654321"
+        cnp_or_cif:
+          type: "string"
+          description: "CNP for a person, CIF for a company — the form shares one blank."
+        phone:
+          type: "string"
+          example: "0712345678"
+        email:
+          type: "string"
+          example: "ion@example.ro"
+        fiscal_address:
+          description: "Only when it differs from the address above."
+          allOf:
+            - $ref: "#/components/schemas/ContractAddressDto"
+        representative:
+          $ref: "#/components/schemas/ContractRepresentativeDto"
+        capacity:
+          type: "string"
+          description: "\"în calitate de ...\""
+          example: "proprietar"
+      required:
+        - "is_company"
+    UserIdentityDto:
+      type: "object"
+      properties:
+        identity:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/ContractPartyDto"
+        updated_at:
+          format: "date-time"
+          type: "string"
+          nullable: true
+    SaveUserIdentityDto:
+      type: "object"
+      properties:
+        identity:
+          $ref: "#/components/schemas/ContractPartyDto"
+      required:
+        - "identity"
+    SaleContractSummaryDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+          example: 1
+        role:
+          type: "string"
+          enum:
+            - "SELLER"
+            - "BUYER"
+        car_id:
+          type: "number"
+          nullable: true
+          example: 12
+        vehicle_make:
+          type: "string"
+          nullable: true
+          example: "BMW"
+        license_plate:
+          type: "string"
+          nullable: true
+          example: "CJ 12 ABC"
+        price_lei:
+          type: "number"
+          nullable: true
+          example: 2750
+        signing_date:
+          format: "date-time"
+          type: "string"
+          nullable: true
+        status:
+          type: "string"
+          enum:
+            - "DRAFT"
+            - "GENERATED"
+            - "PURGED"
+        pdf_generated_at:
+          format: "date-time"
+          type: "string"
+          nullable: true
+        retention_until:
+          format: "date-time"
+          type: "string"
+          description: "When the personal data on this contract is due to be erased."
+        has_personal_data:
+          type: "boolean"
+          description: "False once the retention job has erased the parties' details."
+        created_at:
+          format: "date-time"
+          type: "string"
+      required:
+        - "id"
+        - "role"
+        - "status"
+        - "retention_until"
+        - "has_personal_data"
+        - "created_at"
+    ContractVehicleDto:
+      type: "object"
+      properties:
+        make:
+          type: "string"
+          example: "BMW"
+        type:
+          type: "string"
+          description: "\"tipul\", as printed on the registration certificate"
+          example: "3 (E46)"
+        vin:
+          type: "string"
+          description: "\"număr de identificare\" — the VIN"
+          example: "WBAAL71060JR12345"
+        engine_series:
+          type: "string"
+          example: "306D2-12345678"
+        engine_capacity_cm3:
+          type: "number"
+          example: 1995
+        max_weight_tons:
+          type: "number"
+          description: "Trailers and semi-trailers only."
+          example: 1.5
+        license_plate:
+          type: "string"
+          example: "CJ 12 ABC"
+        itp_expiry_date:
+          type: "string"
+          example: "2027-04-18"
+        civ_number:
+          type: "string"
+          description: "\"numărul cărţii de identitate a vehiculului\" (CIV)"
+          example: "K123456"
+        manufacture_year:
+          type: "number"
+          example: 2004
+        euro_norm:
+          type: "string"
+          example: "Euro 4"
+        acquired_date:
+          type: "string"
+          description: "When the seller acquired it."
+          example: "2019-08-01"
+        acquired_document:
+          type: "string"
+          description: "\"conform act ...\""
+          example: "contract de vânzare-cumpărare"
+    CreateSaleContractDto:
+      type: "object"
+      properties:
+        role:
+          type: "string"
+          enum:
+            - "SELLER"
+            - "BUYER"
+          description: "Which side of the sale the app user is on."
+        car_id:
+          type: "number"
+          description: "Null when the vehicle is not in the garage — the normal case when the user is the buyer. The vehicle details are snapshotted either way, so later edits to the car never rewrite a signed contract."
+          example: 12
+        seller:
+          $ref: "#/components/schemas/ContractPartyDto"
+        buyer:
+          $ref: "#/components/schemas/ContractPartyDto"
+        vehicle:
+          $ref: "#/components/schemas/ContractVehicleDto"
+        price_lei:
+          type: "number"
+          description: "Price in lei. The words version is generated from it."
+          example: 2750
+        signing_date:
+          type: "string"
+          example: "2026-09-22"
+        signing_place:
+          type: "string"
+          example: "Cluj-Napoca"
+        has_annexes:
+          type: "boolean"
+          description: "\"Anexe la contract: Da / Nu\""
+          default: false
+        consent_version:
+          type: "string"
+          description: "Version of the consent text the user accepted before the other party's identity document was processed. Required as soon as any identity data for the other party is supplied."
+          example: "2026-09-v1"
+        keep_in_history:
+          type: "boolean"
+          description: "Keep the contract in the car history instead of letting the retention job purge it. Opt-in: left off, personal data is erased automatically."
+          default: false
+      required:
+        - "role"
+        - "seller"
+        - "buyer"
+        - "vehicle"
+    SaleContractDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+          example: 1
+        role:
+          type: "string"
+          enum:
+            - "SELLER"
+            - "BUYER"
+        car_id:
+          type: "number"
+          nullable: true
+          example: 12
+        vehicle_make:
+          type: "string"
+          nullable: true
+          example: "BMW"
+        license_plate:
+          type: "string"
+          nullable: true
+          example: "CJ 12 ABC"
+        price_lei:
+          type: "number"
+          nullable: true
+          example: 2750
+        signing_date:
+          format: "date-time"
+          type: "string"
+          nullable: true
+        status:
+          type: "string"
+          enum:
+            - "DRAFT"
+            - "GENERATED"
+            - "PURGED"
+        pdf_generated_at:
+          format: "date-time"
+          type: "string"
+          nullable: true
+        retention_until:
+          format: "date-time"
+          type: "string"
+          description: "When the personal data on this contract is due to be erased."
+        has_personal_data:
+          type: "boolean"
+          description: "False once the retention job has erased the parties' details."
+        created_at:
+          format: "date-time"
+          type: "string"
+        seller:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/ContractPartyDto"
+        buyer:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/ContractPartyDto"
+        vehicle:
+          $ref: "#/components/schemas/ContractVehicleDto"
+        price_in_words:
+          type: "string"
+          nullable: true
+          description: "Generated from the figure, not typed by the user."
+        signing_place:
+          type: "string"
+          nullable: true
+        has_annexes:
+          type: "boolean"
+          description: "\"Anexe la contract: Da / Nu\""
+        confirmations:
+          type: "object"
+          nullable: true
+          description: "What the user confirmed before the PDF was generated."
+        consent_accepted_at:
+          format: "date-time"
+          type: "string"
+          nullable: true
+      required:
+        - "id"
+        - "role"
+        - "status"
+        - "retention_until"
+        - "has_personal_data"
+        - "created_at"
+        - "vehicle"
+        - "has_annexes"
+    UpdateSaleContractDto:
+      type: "object"
+      properties: {}
+    SaleContractConfirmationsDto:
+      type: "object"
+      properties:
+        data_verified:
+          type: "boolean"
+          description: "The user checked the data read from the documents and confirms it is correct."
+        declarations_accepted:
+          type: "boolean"
+          description: "The declarations printed at section (5) of the form were read and accepted."
+        criminal_code_acknowledged:
+          type: "boolean"
+          description: "Acknowledges the Criminal Code provisions on forgery quoted by the form."
+        disclaimer_acknowledged:
+          type: "boolean"
+          description: "Acknowledges that the app generates a form and does not give legal advice."
+      required:
+        - "data_verified"
+        - "declarations_accepted"
+        - "criminal_code_acknowledged"
+        - "disclaimer_acknowledged"
+    GenerateSaleContractDto:
+      type: "object"
+      properties:
+        confirmations:
+          $ref: "#/components/schemas/SaleContractConfirmationsDto"
+        copies:
+          type: "number"
+          description: "How many pages the PDF should contain. One by default — the contract is filed in several exemplars, but the user multiplies it at the printer. Ask for more only when the Original/Copie ticks need to differ per page: page 1 is ticked Original, pages 2 onwards Copie."
+          default: 1
+          example: 1
+        keep_in_history:
+          type: "boolean"
+          description: "Keep the contract and its personal data past the default retention window."
+          default: false
+      required:
+        - "confirmations"
+    SaleContractFileLinkDto:
+      type: "object"
+      properties:
+        url:
+          type: "string"
+          description: "Short-lived signed URL that downloads the generated contract."
+        file_name:
+          type: "string"
+          example: "Contract instrainare-dobandire CJ 12 ABC.pdf"
+        expires_in:
+          type: "number"
+          example: 3600
+          description: "Seconds until the returned URL stops working"
+      required:
+        - "url"
+        - "file_name"
+        - "expires_in"
     VehicleCategoryDto:
       type: "object"
       properties:
@@ -3512,3 +4252,45 @@ components:
           type: "number"
           example: 1721400000
           description: "Unix seconds when it was shared."
+    CockpitProfileDto:
+      type: "object"
+      properties:
+        version:
+          type: "number"
+          example: 1
+        revision:
+          type: "number"
+          example: 12
+        updatedAt:
+          type: "number"
+          example: 1721400000
+        prefs:
+          type: "object"
+        files:
+          type: "object"
+    PutProfileDto:
+      type: "object"
+      properties:
+        version:
+          type: "number"
+          example: 1
+          description: "Snapshot format version written by the car."
+        revision:
+          type: "number"
+          example: 12
+          description: "Counts changes made on the device. Must not go backwards — a lower revision than the stored one is rejected, so a device that fell behind cannot overwrite a newer profile."
+        updatedAt:
+          type: "number"
+          example: 1721400000
+          description: "Unix seconds, from the head unit clock."
+        prefs:
+          type: "object"
+          description: "SharedPreferences files, keyed by name. Opaque to the server."
+        files:
+          type: "object"
+          description: "Data files (favourites, speed dial) as raw text. Opaque to the server."
+      required:
+        - "version"
+        - "revision"
+        - "prefs"
+        - "files"

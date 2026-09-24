@@ -5,6 +5,7 @@ import { CarAccessModule } from './modules/car-access/car-access.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { MaintenanceRecordModule } from './modules/maintenance-record/maintenance-record.module';
 import { DocumentModule } from './modules/document/document.module';
+import { SaleContractModule } from './modules/sale-contract/sale-contract.module';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './modules/auth/auth.module';
 import { VehicleCatalogModule } from './modules/vehicle-catalog/vehicle-catalog.module';
@@ -37,6 +38,7 @@ import { CockpitProfileModule } from './modules/cockpit-profile/cockpit-profile.
     PrismaModule,
     MaintenanceRecordModule,
     DocumentModule,
+    SaleContractModule,
     BlogModule,
     AppVersionModule,
     UploadModule,
