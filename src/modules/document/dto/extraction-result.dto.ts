@@ -88,6 +88,9 @@ export class ExtractedFieldsDto {
     @ApiPropertyOptional({ description: 'Year of manufacture ("an fabricație")' })
     manufacture_year?: string;
 
+    @ApiPropertyOptional({ description: 'Vehicle identity card series and number ("seria și numărul cărții de identitate a vehiculului", C.I.V.)' })
+    civ_number?: string;
+
     @ApiPropertyOptional({ description: 'Fuel quantity purchased, in liters, as a numeric string' })
     fuel_liters?: string;
 

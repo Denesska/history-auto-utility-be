@@ -3240,6 +3240,9 @@ components:
         manufacture_year:
           type: "string"
           description: "Year of manufacture (\"an fabricație\")"
+        civ_number:
+          type: "string"
+          description: "Vehicle identity card series and number (\"seria și numărul cărții de identitate a vehiculului\", C.I.V.)"
         fuel_liters:
           type: "string"
           description: "Fuel quantity purchased, in liters, as a numeric string"
