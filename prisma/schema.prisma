@@ -60,6 +60,9 @@ model Car {
   last_oil_service_mileage  Int?
   status                    CarStatus               @default(ACTIVE)
   sold_at                   DateTime?
+  // Spending ceiling the wishlist's "budget line" is drawn at. One per car
+  // (shared with co-owners), not per user — see CarWish.
+  wishlist_budget           Float?
   user_id                   Int
   user                      User                    @relation(fields: [user_id], references: [id])
   maintenanceRecords        MaintenanceRecord[]
@@ -73,6 +76,7 @@ model Car {
   maintenance_settings      CarMaintenanceSetting[]
   maintenance_profiles      MaintenanceProfile[]
   sale_contracts            SaleContract[]
+  wishes                    CarWish[]
 }
 
 model CarNote {
@@ -84,6 +88,37 @@ model CarNote {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
   car        Car      @relation(fields: [car_id], references: [id], onDelete: Cascade)
+}
+
+// A thing the owner wants done to the car but hasn't paid for yet. Ordered by
+// hand (`position`, lowest first) rather than by date — the wishlist's whole
+// point is the priority order, which is what the budget line is read against.
+// Completing a wish doesn't archive it in place: it graduates into a real
+// MaintenanceRecord via the pre-filled maintenance form, and the wish is only
+// kept as DONE for history.
+model CarWish {
+  id             Int           @id @default(autoincrement())
+  car_id         Int
+  title          String
+  notes          String?
+  estimated_cost Float?
+  // Same axis as MaintenanceRecord.service_type, so a completed wish can
+  // pre-fill the maintenance form without a mapping table.
+  service_type   ServiceType?
+  position       Int           @default(0)
+  status         CarWishStatus @default(ACTIVE)
+  done_at        DateTime?
+  created_at     DateTime      @default(now())
+  updated_at     DateTime      @updatedAt
+  car            Car           @relation(fields: [car_id], references: [id], onDelete: Cascade)
+
+  @@index([car_id, status, position])
+}
+
+enum CarWishStatus {
+  ACTIVE
+  DONE
+  DROPPED
 }
 
 model CarUserAccess {
