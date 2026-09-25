@@ -20,6 +20,7 @@ import { CarMaintenanceProfilesModule } from './modules/car-maintenance-profiles
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { DocumentRemindersModule } from './modules/document-reminders/document-reminders.module';
 import { CarNoteModule } from './modules/car-note/car-note.module';
+import { CarWishModule } from './modules/car-wish/car-wish.module';
 import { NavRelayModule } from './modules/nav-relay/nav-relay.module';
 import { CockpitProfileModule } from './modules/cockpit-profile/cockpit-profile.module';
 
@@ -47,6 +48,7 @@ import { CockpitProfileModule } from './modules/cockpit-profile/cockpit-profile.
     NotificationsModule,
     DocumentRemindersModule,
     CarNoteModule,
+    CarWishModule,
     NavRelayModule,
     CockpitProfileModule,
     ConfigModule.forRoot({
