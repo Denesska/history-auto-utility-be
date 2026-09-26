@@ -3206,6 +3206,33 @@ components:
           type: "boolean"
           example: true
           description: "Whether this document is the active one for its type/period"
+        country:
+          type: "string"
+          nullable: true
+          example: "HU"
+          description: "ISO 3166-1 alpha-2 country a vignette is valid in; null = RO"
+        premium_ron:
+          type: "number"
+          nullable: true
+          example: 5271.8
+          description: "premium converted to RON (equals premium for RON); null if no premium or no rate was available"
+        exchange_rate:
+          type: "number"
+          nullable: true
+          example: 5.2718
+          description: "RON per 1 unit of currency used for premium_ron (BNR multiplier already applied)"
+        exchange_rate_date:
+          format: "date-time"
+          type: "string"
+          nullable: true
+          description: "BNR publication date of the rate used; the save date for MANUAL; null for RON"
+        exchange_rate_source:
+          type: "string"
+          nullable: true
+          enum:
+            - "BNR"
+            - "MANUAL"
+          description: "'BNR' when fetched automatically, 'MANUAL' when supplied by the client; null for RON"
       required:
         - "id"
         - "document_type"
@@ -3258,6 +3285,16 @@ components:
           type: "boolean"
           example: true
           description: "Whether this document is the active one for its type/period"
+        country:
+          type: "string"
+          example: "HU"
+          nullable: true
+          description: "ISO 3166-1 alpha-2 country a vignette is valid in; null/absent = RO"
+        exchange_rate:
+          type: "number"
+          example: 5
+          nullable: true
+          description: "Manual override: RON per 1 unit of currency. When omitted the backend uses the latest BNR rate. premium_ron / exchange_rate_date / exchange_rate_source are always computed server-side."
       required:
         - "document_type"
         - "car_id"
@@ -3409,6 +3446,10 @@ components:
         odometer_km:
           type: "string"
           description: "Odometer reading in km, as a plain integer string"
+        vignette_country:
+          type: "string"
+          description: "ROV only: ISO 3166-1 alpha-2 country the vignette is valid in (e.g. RO, HU)"
+          example: "HU"
     ExtractionResultDto:
       type: "object"
       properties:

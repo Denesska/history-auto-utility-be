@@ -19,4 +19,9 @@ export class DocumentEntity implements Document {
     file_name: string | null;
     file_size: number | null;
     is_active: boolean;
+    country: string | null;
+    premium_ron: number | null;
+    exchange_rate: number | null;
+    exchange_rate_date: Date | null;
+    exchange_rate_source: string | null;
 }

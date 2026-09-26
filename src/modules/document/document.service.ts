@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Document } from '@prisma/client';
 import { DocumentDto } from './dto/document.dto';
@@ -7,15 +7,23 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
+import { ExchangeRateService } from '../exchange-rate/exchange-rate.service';
+
+/** The four columns that record a document price's RON equivalent. */
+type PriceConversion = Pick<Document, 'premium_ron' | 'exchange_rate' | 'exchange_rate_date' | 'exchange_rate_source'>;
+
+const NO_CONVERSION: PriceConversion = { premium_ron: null, exchange_rate: null, exchange_rate_date: null, exchange_rate_source: null };
 
 @Injectable()
 export class DocumentService {
+    private readonly logger = new Logger(DocumentService.name);
     private readonly signedUrlExpiry: number;
     private readonly apiBaseUrl: string;
 
     constructor(
         private prisma: PrismaService,
         private storage: StorageService,
+        private exchangeRates: ExchangeRateService,
         config: ConfigService,
     ) {
         this.signedUrlExpiry = Number(config.get<string>('R2_SIGNED_URL_EXPIRY') ?? '3600');
@@ -23,6 +31,10 @@ export class DocumentService {
     }
 
     async createDocument(data: CreateDocumentDto): Promise<DocumentDto> {
+        const conversion = await this.convertPrice(
+            data.premium ?? null, data.currency ?? null, data.exchange_rate ?? null,
+            data.issue_date ? new Date(data.issue_date) : null,
+        );
         const document = await this.prisma.document.create({
             data: {
                 document_type: data.document_type,
@@ -39,6 +51,8 @@ export class DocumentService {
                 policyholder: data.policyholder ?? null,
                 cnp_id: data.cnp_id ?? null,
                 is_active: data.is_active ?? true,
+                country: data.country ?? null,
+                ...conversion,
             },
         });
         return await this.toDocumentDto(document);
@@ -50,6 +64,7 @@ export class DocumentService {
     }
 
     async updateDocument(id: number, data: UpdateDocumentDto): Promise<DocumentDto> {
+        const conversion = await this.recomputeConversionForUpdate(id, data);
         const document = await this.prisma.document.update({
             where: { id },
             data: {
@@ -67,6 +82,8 @@ export class DocumentService {
                 ...(data.policyholder !== undefined && { policyholder: data.policyholder }),
                 ...(data.cnp_id !== undefined && { cnp_id: data.cnp_id }),
                 ...(data.is_active !== undefined && { is_active: data.is_active }),
+                ...(data.country !== undefined && { country: data.country }),
+                ...conversion,
             },
         });
         return await this.toDocumentDto(document);
@@ -159,6 +176,115 @@ export class DocumentService {
             file_name: document.file_name,
             file_size: document.file_size,
             is_active: document.is_active,
+            country: document.country,
+            premium_ron: document.premium_ron,
+            exchange_rate: document.exchange_rate,
+            exchange_rate_date: document.exchange_rate_date,
+            exchange_rate_source: document.exchange_rate_source,
+        };
+    }
+
+    /**
+     * On update, the RON conversion is only touched when the price actually changes —
+     * `premium`, `currency` or `exchange_rate` present in the payload AND different from
+     * what's stored — so editing e.g. the provider never re-rates an old document to
+     * today's rate. Returns undefined to leave the four columns alone.
+     *
+     * - premium removed → all four cleared.
+     * - `exchange_rate` sent (and different) → MANUAL with that rate.
+     * - `exchange_rate: null` sent → only counts as a change when the stored rate is
+     *   MANUAL (i.e. "drop my override, use BNR"); a client that simply echoes null
+     *   doesn't re-rate a BNR-converted document.
+     * - only `premium` changed, same currency, a rate already stored → keep that
+     *   rate/date/source and just recompute premium_ron (a typo fix on an old invoice
+     *   shouldn't move it to today's rate). No stored rate → fresh lookup.
+     * - currency changed → fresh lookup (MANUAL if a rate was sent, else latest BNR).
+     */
+    private async recomputeConversionForUpdate(id: number, data: UpdateDocumentDto): Promise<PriceConversion | undefined> {
+        if (data.premium === undefined && data.currency === undefined && data.exchange_rate === undefined && data.issue_date === undefined) {
+            return undefined;
+        }
+
+        const stored = await this.prisma.document.findUnique({ where: { id } });
+        if (!stored) return undefined; // let the update itself raise not-found
+
+        const premium = data.premium !== undefined ? data.premium : stored.premium;
+        const currency = data.currency !== undefined ? data.currency : stored.currency;
+        const issueDate = data.issue_date !== undefined ? (data.issue_date ? new Date(data.issue_date) : null) : stored.issue_date;
+
+        const premiumChanged = data.premium !== undefined && data.premium !== stored.premium;
+        const currencyChanged = data.currency !== undefined && normalizeCurrency(data.currency) !== normalizeCurrency(stored.currency);
+        const rateChanged =
+            data.exchange_rate !== undefined &&
+            (data.exchange_rate === null
+                ? stored.exchange_rate_source === 'MANUAL'
+                : data.exchange_rate !== stored.exchange_rate);
+
+        // The BNR rate depends on the transaction date, so moving that date re-rates a
+        // BNR conversion (a manual rate is the user's own number and stays).
+        const dateChanged =
+            data.issue_date !== undefined &&
+            dayKey(issueDate) !== dayKey(stored.issue_date) &&
+            stored.exchange_rate_source !== 'MANUAL';
+
+        if (!premiumChanged && !currencyChanged && !rateChanged && !dateChanged) return undefined;
+        if (premium == null) return NO_CONVERSION;
+
+        if (!currencyChanged && !rateChanged && !dateChanged && stored.exchange_rate != null) {
+            return {
+                premium_ron: roundMoney(premium * stored.exchange_rate),
+                exchange_rate: stored.exchange_rate,
+                exchange_rate_date: stored.exchange_rate_date,
+                exchange_rate_source: stored.exchange_rate_source,
+            };
+        }
+
+        const manualRate = data.exchange_rate != null
+            ? data.exchange_rate
+            : (!rateChanged && !currencyChanged && stored.exchange_rate_source === 'MANUAL' ? stored.exchange_rate : null);
+        return this.convertPrice(premium, currency, manualRate, issueDate);
+    }
+
+    /**
+     * RON equivalent of a price. RON (or no currency) → identity; otherwise the
+     * client's manual rate, else the BNR rate in force on `transactionDate`
+     * (the document's issue date; today when there is none). Never throws: if no rate can
+     * be obtained the price is saved without a conversion (all four null).
+     */
+    private async convertPrice(
+        premium: number | null,
+        currency: string | null,
+        manualRate: number | null,
+        transactionDate: Date | null,
+    ): Promise<PriceConversion> {
+        if (premium == null) return NO_CONVERSION;
+
+        const code = normalizeCurrency(currency);
+        if (code === 'RON') {
+            return { premium_ron: premium, exchange_rate: 1, exchange_rate_date: null, exchange_rate_source: null };
+        }
+
+        if (manualRate != null) {
+            return {
+                premium_ron: roundMoney(premium * manualRate),
+                exchange_rate: manualRate,
+                exchange_rate_date: transactionDate ?? startOfTodayUtc(),
+                exchange_rate_source: 'MANUAL',
+            };
+        }
+
+        // The rate in force on the day the money was paid — the document's issue
+        // date — not the day it was typed in. No issue date → today.
+        const bnr = await this.exchangeRates.getRonRate(code, transactionDate ?? new Date()).catch(() => null);
+        if (!bnr) {
+            this.logger.warn(`No RON exchange rate for ${code}; saving document price without conversion`);
+            return NO_CONVERSION;
+        }
+        return {
+            premium_ron: roundMoney(premium * bnr.rate),
+            exchange_rate: bnr.rate,
+            exchange_rate_date: bnr.date,
+            exchange_rate_source: 'BNR',
         };
     }
 
@@ -177,4 +303,22 @@ export class DocumentService {
         if (storedUrl.startsWith('/')) return this.apiBaseUrl ? `${this.apiBaseUrl}${storedUrl}` : storedUrl;
         return this.storage.createPresignedGetUrl(storedUrl, this.signedUrlExpiry, downloadFileName);
     }
+}
+
+function normalizeCurrency(currency: string | null | undefined): string {
+    return currency?.trim().toUpperCase() || 'RON';
+}
+
+function roundMoney(value: number): number {
+    return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function startOfTodayUtc(): Date {
+    const d = new Date();
+    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
+/** YYYY-MM-DD of a date (or null), for comparing calendar days regardless of time. */
+function dayKey(d: Date | null | undefined): string | null {
+    return d ? d.toISOString().slice(0, 10) : null;
 }

@@ -54,4 +54,19 @@ export class DocumentDto {
 
     @ApiProperty({ example: true, description: 'Whether this document is the active one for its type/period' })
     is_active: boolean;
+
+    @ApiPropertyOptional({ nullable: true, example: 'HU', description: 'ISO 3166-1 alpha-2 country a vignette is valid in; null = RO' })
+    country: string | null;
+
+    @ApiPropertyOptional({ nullable: true, example: 5271.8, description: 'premium converted to RON (equals premium for RON); null if no premium or no rate was available' })
+    premium_ron: number | null;
+
+    @ApiPropertyOptional({ nullable: true, example: 5.2718, description: 'RON per 1 unit of currency used for premium_ron (BNR multiplier already applied)' })
+    exchange_rate: number | null;
+
+    @ApiPropertyOptional({ nullable: true, description: 'BNR publication date of the rate used; the save date for MANUAL; null for RON' })
+    exchange_rate_date: Date | null;
+
+    @ApiPropertyOptional({ nullable: true, enum: ['BNR', 'MANUAL'], description: "'BNR' when fetched automatically, 'MANUAL' when supplied by the client; null for RON" })
+    exchange_rate_source: string | null;
 }
