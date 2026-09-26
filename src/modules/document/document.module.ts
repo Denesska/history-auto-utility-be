@@ -5,9 +5,10 @@ import { DocumentExtractionService } from './document-extraction.service';
 import { GeminiExtractionService } from './gemini-extraction.service';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { StorageModule } from '../storage/storage.module';
+import { ExchangeRateModule } from '../exchange-rate/exchange-rate.module';
 
 @Module({
-    imports: [PrismaModule, StorageModule],
+    imports: [PrismaModule, StorageModule, ExchangeRateModule],
     controllers: [DocumentController],
     providers: [DocumentService, DocumentExtractionService, GeminiExtractionService],
     exports: [DocumentService],

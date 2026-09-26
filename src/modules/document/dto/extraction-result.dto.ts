@@ -120,6 +120,9 @@ export class ExtractedFieldsDto {
 
     @ApiPropertyOptional({ description: 'Odometer reading in km, as a plain integer string' })
     odometer_km?: string;
+
+    @ApiPropertyOptional({ description: 'ROV only: ISO 3166-1 alpha-2 country the vignette is valid in (e.g. RO, HU)', example: 'HU' })
+    vignette_country?: string;
 }
 
 export class ExtractionResultDto {

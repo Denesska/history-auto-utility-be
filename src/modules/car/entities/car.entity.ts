@@ -27,4 +27,5 @@ export class CarEntity implements Car {
   last_oil_service_mileage: number | null;
   status: CarStatus;
   sold_at: Date | null;
+  wishlist_budget: number | null;
 }

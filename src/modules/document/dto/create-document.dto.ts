@@ -1,4 +1,4 @@
-import { IsString, IsDateString, IsInt, IsOptional, IsNumber, IsBoolean } from 'class-validator';
+import { IsString, IsDateString, IsInt, IsOptional, IsNumber, IsBoolean, Matches, IsPositive } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateDocumentDto {
@@ -69,4 +69,19 @@ export class CreateDocumentDto {
     @IsOptional()
     @IsBoolean()
     readonly is_active?: boolean;
+
+    @ApiPropertyOptional({ example: 'HU', nullable: true, description: 'ISO 3166-1 alpha-2 country a vignette is valid in; null/absent = RO' })
+    @IsOptional()
+    @Matches(/^[A-Z]{2}$/)
+    readonly country?: string | null;
+
+    @ApiPropertyOptional({
+        example: 5.0,
+        nullable: true,
+        description: 'Manual override: RON per 1 unit of currency. When omitted the backend uses the latest BNR rate. premium_ron / exchange_rate_date / exchange_rate_source are always computed server-side.',
+    })
+    @IsOptional()
+    @IsNumber()
+    @IsPositive()
+    readonly exchange_rate?: number | null;
 }

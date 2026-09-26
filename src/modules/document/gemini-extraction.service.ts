@@ -8,7 +8,7 @@ const KNOWN_DOCUMENT_TYPES = new Set(['RCA', 'ITP', 'ROV', 'REGISTRATION', 'ROAD
 const PROMPT = `You are analysing a photo or scan of a Romanian vehicle-related document. Identify which of these document types it is:
 - RCA: mandatory third-party liability insurance policy/certificate ("poliță RCA", "certificat de asigurare", "carte verde")
 - ITP: periodic technical inspection certificate/sticker ("inspecție tehnică periodică", "ITP")
-- ROV: road vignette/toll receipt ("rovinietă")
+- ROV: road vignette/toll receipt — the Romanian "rovinietă", or a vignette/e-vignette for another country (e.g. Hungarian "e-matrica"/"autópálya-matrica", Austrian "Vignette"/"Digitale Vignette", Bulgarian "е-винетка", Czech "dálniční známka", Slovak "diaľničná známka", Slovenian "e-vinjeta", Swiss "Vignette", Moldovan "rovinietă"/"vinietă")
 - REGISTRATION: vehicle registration certificate ("certificat de înmatriculare", "talon")
 - ROAD_TAX: road tax payment receipt ("taxă auto", "impozit auto")
 - FUEL_RECEIPT: this covers TWO possible source photos, classify both as FUEL_RECEIPT — either a printed fuel/gas station purchase receipt ("bon fiscal", "bon de alimentare"), OR a photo of the fuel pump/dispenser's own digital display screen showing liters, price per liter and total amount at the end of a fill-up (no paper receipt involved)
@@ -27,6 +27,11 @@ For REGISTRATION (vehicle registration certificate / "certificat de înmatricula
 - "color" ("culoare") should be a plain color name in Romanian (e.g. "Alb", "Negru", "Gri", "Roșu", "Albastru").
 - "manufacture_year" is the 4-digit year of manufacture ("an fabricație"), not the first-registration date.
 - "civ_number" is the series AND number of the vehicle identity card ("seria și numărul cărții de identitate a vehiculului", also printed as "C.I.V."), combined into one string exactly as printed (series letters immediately followed by the number, e.g. "K123456") — this is a field on the registration certificate itself, distinct from the plate number and the VIN.
+
+For ROV (vignette) documents specifically:
+- "vignette_country" is the ISO 3166-1 alpha-2 code of the country whose roads the vignette is valid on (RO, HU, AT, BG, CZ, SK, SI, CH, MD, ...) — NOT the country the vehicle is registered in. A Romanian "rovinietă" is RO.
+- "valid_from" / "valid_until" are the vignette's validity start and end dates.
+- "premium" / "currency" are the price paid, if printed.
 
 For FUEL_RECEIPT documents specifically:
 - "fuel_liters" is the quantity of fuel purchased (litri), as a plain numeric string.
@@ -94,6 +99,7 @@ const EXTRACTED_FIELDS_SCHEMA = {
         energy_total_amount: { type: Type.STRING },
         charging_station_name: { type: Type.STRING },
         odometer_km: { type: Type.STRING },
+        vignette_country: { type: Type.STRING },
     },
 };
 

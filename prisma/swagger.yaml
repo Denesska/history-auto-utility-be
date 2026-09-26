@@ -1949,6 +1949,142 @@ paths:
                   $ref: "#/components/schemas/CarNoteDto"
       tags:
         - "car-note"
+  /api/car-wish/car/{carId}:
+    get:
+      operationId: "CarWishController_getWishlist"
+      summary: "Get the whole wishlist (budget + ordered items) for a car"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarWishlistDto"
+      tags:
+        - "car-wish"
+  /api/car-wish:
+    post:
+      operationId: "CarWishController_createWish"
+      summary: "Add a wish to a car"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCarWishDto"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarWishDto"
+      tags:
+        - "car-wish"
+  /api/car-wish/car/{carId}/reorder:
+    put:
+      operationId: "CarWishController_reorderWishes"
+      summary: "Set the priority order of a car's wishes"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderCarWishesDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/CarWishDto"
+      tags:
+        - "car-wish"
+  /api/car-wish/car/{carId}/budget:
+    put:
+      operationId: "CarWishController_setBudget"
+      summary: "Set the spending ceiling the budget line is drawn at"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWishlistBudgetDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarWishlistDto"
+      tags:
+        - "car-wish"
+  /api/car-wish/{id}:
+    put:
+      operationId: "CarWishController_updateWish"
+      summary: "Update a wish"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCarWishDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarWishDto"
+        404:
+          description: "Wish not found."
+      tags:
+        - "car-wish"
+    delete:
+      operationId: "CarWishController_deleteWish"
+      summary: "Delete a wish"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarWishDto"
+      tags:
+        - "car-wish"
   /api/n/{slug}/set:
     post:
       operationId: "NavRelayController_set"
@@ -3070,6 +3206,33 @@ components:
           type: "boolean"
           example: true
           description: "Whether this document is the active one for its type/period"
+        country:
+          type: "string"
+          nullable: true
+          example: "HU"
+          description: "ISO 3166-1 alpha-2 country a vignette is valid in; null = RO"
+        premium_ron:
+          type: "number"
+          nullable: true
+          example: 5271.8
+          description: "premium converted to RON (equals premium for RON); null if no premium or no rate was available"
+        exchange_rate:
+          type: "number"
+          nullable: true
+          example: 5.2718
+          description: "RON per 1 unit of currency used for premium_ron (BNR multiplier already applied)"
+        exchange_rate_date:
+          format: "date-time"
+          type: "string"
+          nullable: true
+          description: "BNR publication date of the rate used; the save date for MANUAL; null for RON"
+        exchange_rate_source:
+          type: "string"
+          nullable: true
+          enum:
+            - "BNR"
+            - "MANUAL"
+          description: "'BNR' when fetched automatically, 'MANUAL' when supplied by the client; null for RON"
       required:
         - "id"
         - "document_type"
@@ -3122,6 +3285,16 @@ components:
           type: "boolean"
           example: true
           description: "Whether this document is the active one for its type/period"
+        country:
+          type: "string"
+          example: "HU"
+          nullable: true
+          description: "ISO 3166-1 alpha-2 country a vignette is valid in; null/absent = RO"
+        exchange_rate:
+          type: "number"
+          example: 5
+          nullable: true
+          description: "Manual override: RON per 1 unit of currency. When omitted the backend uses the latest BNR rate. premium_ron / exchange_rate_date / exchange_rate_source are always computed server-side."
       required:
         - "document_type"
         - "car_id"
@@ -3273,6 +3446,10 @@ components:
         odometer_km:
           type: "string"
           description: "Odometer reading in km, as a plain integer string"
+        vignette_country:
+          type: "string"
+          description: "ROV only: ISO 3166-1 alpha-2 country the vignette is valid in (e.g. RO, HU)"
+          example: "HU"
     ExtractionResultDto:
       type: "object"
       properties:
@@ -4223,6 +4400,159 @@ components:
     UpdateCarNoteDto:
       type: "object"
       properties: {}
+    CarWishDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+          example: 1
+        car_id:
+          type: "number"
+          example: 1
+        title:
+          type: "string"
+          example: "Jante de iarnă 17\""
+        notes:
+          type: "string"
+          nullable: true
+          example: "Second-hand, set complet cu anvelope"
+        estimated_cost:
+          type: "number"
+          nullable: true
+          example: 2400
+        service_type:
+          type: "string"
+          nullable: true
+          enum:
+            - "REPAIR"
+            - "MAINTENANCE"
+            - "IMPROVEMENT"
+            - "PASSION"
+            - "ALIMENTARE"
+          example: "IMPROVEMENT"
+        position:
+          type: "number"
+          example: 0
+          description: "Hand-set priority order, lowest first."
+        status:
+          type: "string"
+          enum:
+            - "ACTIVE"
+            - "DONE"
+            - "DROPPED"
+          example: "ACTIVE"
+        done_at:
+          format: "date-time"
+          type: "string"
+          nullable: true
+        created_at:
+          format: "date-time"
+          type: "string"
+        updated_at:
+          format: "date-time"
+          type: "string"
+      required:
+        - "id"
+        - "car_id"
+        - "title"
+        - "position"
+        - "status"
+        - "created_at"
+        - "updated_at"
+    CarWishlistDto:
+      type: "object"
+      properties:
+        budget:
+          type: "number"
+          nullable: true
+          example: 5000
+          description: "Spending ceiling the budget line is drawn at, in RON."
+        items:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/CarWishDto"
+      required:
+        - "items"
+    CreateCarWishDto:
+      type: "object"
+      properties:
+        car_id:
+          type: "number"
+          example: 1
+        title:
+          type: "string"
+          example: "Jante de iarnă 17\""
+        notes:
+          type: "string"
+          example: "Second-hand, set complet cu anvelope"
+        estimated_cost:
+          type: "number"
+          example: 2400
+        service_type:
+          type: "string"
+          enum:
+            - "REPAIR"
+            - "MAINTENANCE"
+            - "IMPROVEMENT"
+            - "PASSION"
+            - "ALIMENTARE"
+          example: "IMPROVEMENT"
+      required:
+        - "car_id"
+        - "title"
+    ReorderCarWishesDto:
+      type: "object"
+      properties:
+        ids:
+          example:
+            - 12
+            - 9
+            - 14
+          description: "Wish ids in their new top-to-bottom order."
+          type: "array"
+          items:
+            type: "number"
+      required:
+        - "ids"
+    UpdateWishlistBudgetDto:
+      type: "object"
+      properties:
+        budget:
+          type: "number"
+          nullable: true
+          example: 5000
+          description: "null removes the budget line entirely."
+    UpdateCarWishDto:
+      type: "object"
+      properties:
+        title:
+          type: "string"
+          example: "Jante de iarnă 17\""
+        notes:
+          type: "string"
+          nullable: true
+          example: "Second-hand, set complet cu anvelope"
+        estimated_cost:
+          type: "number"
+          nullable: true
+          example: 2400
+        service_type:
+          type: "string"
+          nullable: true
+          enum:
+            - "REPAIR"
+            - "MAINTENANCE"
+            - "IMPROVEMENT"
+            - "PASSION"
+            - "ALIMENTARE"
+          example: "IMPROVEMENT"
+        status:
+          type: "string"
+          enum:
+            - "ACTIVE"
+            - "DONE"
+            - "DROPPED"
+          example: "DONE"
     SetNavDto:
       type: "object"
       properties:
