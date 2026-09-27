@@ -80,14 +80,25 @@ model Car {
 }
 
 model CarNote {
-  id         Int      @id @default(autoincrement())
-  car_id     Int
-  title      String
-  content    String
-  group_name String?
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-  car        Car      @relation(fields: [car_id], references: [id], onDelete: Cascade)
+  id           Int      @id @default(autoincrement())
+  car_id       Int
+  title        String
+  content      String
+  // Legacy single group — superseded by `labels`. Read lazily as labels=[group_name]
+  // when labels is empty; cleared whenever an update sends labels.
+  group_name   String?
+  labels       String[] @default([])
+  is_checklist Boolean  @default(false)
+  // Checklist display: false = ticked items drop into a "checked" section at the
+  // bottom (Keep's default); true = they stay where they are, just struck through.
+  checked_in_place Boolean @default(false)
+  // [{ "text": string, "checked": boolean }] — only meaningful when is_checklist
+  items        Json?
+  // Palette key (coral, peach, sand, mint, sage, fog, storm, dusk, blossom, clay); null = default
+  color        String?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  car          Car      @relation(fields: [car_id], references: [id], onDelete: Cascade)
 }
 
 // A thing the owner wants done to the car but hasn't paid for yet. Ordered by

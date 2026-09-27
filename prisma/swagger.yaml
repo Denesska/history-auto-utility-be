@@ -4346,6 +4346,18 @@ components:
     BootstrapResponseDto:
       type: "object"
       properties: {}
+    CarNoteChecklistItemDto:
+      type: "object"
+      properties:
+        text:
+          type: "string"
+          example: "Schimb ulei"
+        checked:
+          type: "boolean"
+          example: false
+      required:
+        - "text"
+        - "checked"
     CreateCarNoteDto:
       type: "object"
       properties:
@@ -4361,10 +4373,41 @@ components:
         group_name:
           type: "string"
           example: "Recomandări"
+        labels:
+          example:
+            - "Recomandări"
+            - "Iarnă"
+          type: "array"
+          items:
+            type: "string"
+        is_checklist:
+          type: "boolean"
+          example: false
+        checked_in_place:
+          type: "boolean"
+          example: false
+        items:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/CarNoteChecklistItemDto"
+        color:
+          type: "string"
+          nullable: true
+          enum:
+            - "coral"
+            - "peach"
+            - "sand"
+            - "mint"
+            - "sage"
+            - "fog"
+            - "storm"
+            - "dusk"
+            - "blossom"
+            - "clay"
+          example: "mint"
       required:
         - "car_id"
         - "title"
-        - "content"
     CarNoteDto:
       type: "object"
       properties:
@@ -4384,6 +4427,38 @@ components:
           type: "string"
           nullable: true
           example: "Recomandări"
+        labels:
+          example:
+            - "Recomandări"
+          type: "array"
+          items:
+            type: "string"
+        is_checklist:
+          type: "boolean"
+          example: false
+        checked_in_place:
+          type: "boolean"
+          example: false
+          description: "Ticked checklist items keep their position instead of moving to the bottom."
+        items:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/CarNoteChecklistItemDto"
+        color:
+          type: "string"
+          nullable: true
+          enum:
+            - "coral"
+            - "peach"
+            - "sand"
+            - "mint"
+            - "sage"
+            - "fog"
+            - "storm"
+            - "dusk"
+            - "blossom"
+            - "clay"
+          example: "mint"
         created_at:
           format: "date-time"
           type: "string"
@@ -4395,6 +4470,10 @@ components:
         - "car_id"
         - "title"
         - "content"
+        - "labels"
+        - "is_checklist"
+        - "checked_in_place"
+        - "items"
         - "created_at"
         - "updated_at"
     UpdateCarNoteDto:
