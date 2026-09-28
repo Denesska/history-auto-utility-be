@@ -1,18 +1,24 @@
-import { BadRequestException, Injectable, ServiceUnavailableException, UnsupportedMediaTypeException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, ServiceUnavailableException, UnsupportedMediaTypeException } from '@nestjs/common';
 import { ExtractionResultDto } from './dto/extraction-result.dto';
 import { DocumentParser } from './parsers/document-parser.interface';
 import { RcaParser } from './parsers/rca.parser';
 import { GeminiExtractionService, GeminiServiceUnavailableError } from './gemini-extraction.service';
+import { CloudflareExtractionService, CloudflareExtractionUnavailableError } from './cloudflare-extraction.service';
 
 const SUPPORTED_MIME_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']);
 const MAX_RAW_TEXT_CHARS = 3000;
 
 @Injectable()
 export class DocumentExtractionService {
+    private readonly logger = new Logger(DocumentExtractionService.name);
+
     // Add more parsers here as new text-based document types are supported.
     private readonly parsers: DocumentParser[] = [new RcaParser()];
 
-    constructor(private readonly geminiExtractionService: GeminiExtractionService) {}
+    constructor(
+        private readonly geminiExtractionService: GeminiExtractionService,
+        private readonly cloudflareExtractionService: CloudflareExtractionService,
+    ) {}
 
     async extract(buffer: Buffer, mimeType: string): Promise<ExtractionResultDto> {
         if (!SUPPORTED_MIME_TYPES.has(mimeType)) {
@@ -56,12 +62,24 @@ export class DocumentExtractionService {
         try {
             aiResult = await this.geminiExtractionService.extract(buffer, mimeType);
         } catch (err) {
-            if (err instanceof GeminiServiceUnavailableError) {
-                throw new ServiceUnavailableException(
-                    'The document analysis service is temporarily overloaded. Please try again in a few minutes, or fill in the fields manually.',
-                );
+            if (!(err instanceof GeminiServiceUnavailableError)) throw err;
+
+            // Gemini itself is down (503/overloaded) — try the Cloudflare adapter as a
+            // hot backup before giving up. It only handles image mime types (no PDF),
+            // so a null return here can also mean "can't help with this file" rather
+            // than "ran and found nothing" — either way falling through to the
+            // "not detected, fill in manually" response below is the right outcome.
+            this.logger.warn('Gemini unavailable — retrying extraction via Cloudflare fallback.');
+            try {
+                aiResult = await this.cloudflareExtractionService.extract(buffer, mimeType);
+            } catch (fallbackErr) {
+                if (fallbackErr instanceof CloudflareExtractionUnavailableError) {
+                    throw new ServiceUnavailableException(
+                        'The document analysis service is temporarily overloaded. Please try again in a few minutes, or fill in the fields manually.',
+                    );
+                }
+                throw fallbackErr;
             }
-            throw err;
         }
         if (aiResult) {
             return {
