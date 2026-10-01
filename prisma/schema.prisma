@@ -17,6 +17,11 @@ model User {
   last_name            String
   picture              String
   created_at           DateTime                @default(now())
+  // Grants access to the /admin stats page. Set by hand in the DB, never via the API.
+  is_admin             Boolean                 @default(false)
+  // Throttled — written by ActivityService's periodic flush, not on every request.
+  last_active_at       DateTime?
+  activity_days        UserActivityDay[]
   cars                 Car[]
   refresh_token        String?
   car_accesses         CarUserAccess[]         @relation("UserAccesses")
@@ -63,6 +68,7 @@ model Car {
   // Spending ceiling the wishlist's "budget line" is drawn at. One per car
   // (shared with co-owners), not per user — see CarWish.
   wishlist_budget           Float?
+  created_at                DateTime                @default(now())
   user_id                   Int
   user                      User                    @relation(fields: [user_id], references: [id])
   maintenanceRecords        MaintenanceRecord[]
@@ -249,6 +255,7 @@ model Document {
   exchange_rate_date   DateTime?
   /// 'BNR' when fetched automatically, 'MANUAL' when supplied by the client; null for RON.
   exchange_rate_source String?
+  created_at        DateTime  @default(now())
   car               Car       @relation(fields: [car_id], references: [id], onDelete: Cascade)
 }
 
@@ -266,6 +273,7 @@ model MaintenanceRecord {
   fuel_liters        Float?
   energy_kwh         Float?
   is_company_expense Boolean           @default(false)
+  created_at         DateTime          @default(now())
   car                Car               @relation(fields: [car_id], references: [id], onDelete: Cascade)
   parts              MaintenancePart[]
 }
@@ -708,4 +716,24 @@ model UserIdentity {
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@map("user_identities")
+}
+
+// One row per user per (Europe/Bucharest) calendar day on which they made at
+// least one authenticated API call. Source for DAU/WAU/MAU, retention cohorts
+// and platform/app-version split on the admin page. Written in batches by
+// ActivityService (buffered in memory, flushed every minute).
+model UserActivityDay {
+  user_id       Int
+  date          DateTime @db.Date
+  platform      String?
+  app_version   String?
+  request_count Int      @default(0)
+  first_seen_at DateTime @default(now())
+  last_seen_at  DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, date])
+  @@index([date])
+  @@map("user_activity_days")
 }

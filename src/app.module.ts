@@ -23,6 +23,8 @@ import { CarNoteModule } from './modules/car-note/car-note.module';
 import { CarWishModule } from './modules/car-wish/car-wish.module';
 import { NavRelayModule } from './modules/nav-relay/nav-relay.module';
 import { CockpitProfileModule } from './modules/cockpit-profile/cockpit-profile.module';
+import { ActivityModule } from './modules/activity/activity.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -51,6 +53,8 @@ import { CockpitProfileModule } from './modules/cockpit-profile/cockpit-profile.
     CarWishModule,
     NavRelayModule,
     CockpitProfileModule,
+    ActivityModule,
+    AdminModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: process.env.ENV_FILE ?? '.env',

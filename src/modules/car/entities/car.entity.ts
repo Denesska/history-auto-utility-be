@@ -28,4 +28,5 @@ export class CarEntity implements Car {
   status: CarStatus;
   sold_at: Date | null;
   wishlist_budget: number | null;
+  created_at: Date;
 }
