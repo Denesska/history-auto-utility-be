@@ -364,7 +364,8 @@ export class CarAccessService {
 
   // ── organizations (B2B) ────────────────────────────────────────────────
 
-  private async getAcceptedOrganizationIds(userId: number): Promise<number[]> {
+  /** All organization ids a user is an accepted member of — the same resolution other org-scoped modules (suppliers, cost dashboard) should reuse rather than re-querying `OrganizationMembership` themselves. */
+  async getAcceptedOrganizationIds(userId: number): Promise<number[]> {
     const memberships = await this.prisma.organizationMembership.findMany({
       where: { user_id: userId, accepted_at: { not: null } },
       select: { organization_id: true },

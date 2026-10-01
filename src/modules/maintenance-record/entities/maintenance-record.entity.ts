@@ -15,4 +15,5 @@ export class MaintenanceRecordEntity implements MaintenanceRecord {
     energy_kwh: number | null;
     is_company_expense: boolean;
     created_at: Date;
+    supplier_id: number | null;
 }

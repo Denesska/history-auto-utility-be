@@ -69,4 +69,7 @@ export class DocumentDto {
 
     @ApiPropertyOptional({ nullable: true, enum: ['BNR', 'MANUAL'], description: "'BNR' when fetched automatically, 'MANUAL' when supplied by the client; null for RON" })
     exchange_rate_source: string | null;
+
+    @ApiPropertyOptional({ nullable: true, description: 'Supplier directory entry this document was issued through' })
+    supplier_id: number | null;
 }

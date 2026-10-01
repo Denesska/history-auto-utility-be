@@ -53,14 +53,16 @@ const DATE_RO = /\d{2}[.\/-]\d{2}[.\/-]\d{4}/;
 export class RcaParser implements DocumentParser {
     canParse(text: string): boolean {
         const n = norm(text);
+        // "polita de asigurare" / "certificat de asigurare" alone also appear on a CASCO
+        // policy — only claim it here if an RCA-specific marker is present too, otherwise
+        // let it fall through to AI extraction (which knows CASCO).
+        const hasRcaMarker = n.includes('rca') || n.includes('raspundere civila')
+            || n.includes('green card') || n.includes('carte verde') || n.includes('asigurare obligatorie');
+        if (n.includes('casco') && !hasRcaMarker) return false;
         return (
-            n.includes('rca') ||
-            n.includes('raspundere civila') ||
+            hasRcaMarker ||
             n.includes('polita de asigurare') ||
-            n.includes('certificat de asigurare') ||
-            n.includes('green card') ||
-            n.includes('carte verde') ||
-            n.includes('asigurare obligatorie')
+            n.includes('certificat de asigurare')
         );
     }
 

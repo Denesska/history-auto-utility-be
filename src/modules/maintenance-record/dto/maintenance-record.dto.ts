@@ -82,4 +82,9 @@ export class MaintenanceRecordDto {
     @IsString()
     @ApiPropertyOptional({ example: 'https://r2.example.com/signed-url' })
     readonly thumbnailUrl?: string | null;
+
+    @IsOptional()
+    @IsInt()
+    @ApiPropertyOptional({ example: 1, nullable: true, description: 'Supplier directory entry (garage/workshop) that carried out this work' })
+    readonly supplier_id?: number | null;
 }

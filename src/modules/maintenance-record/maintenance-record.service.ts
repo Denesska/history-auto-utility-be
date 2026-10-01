@@ -5,6 +5,7 @@ import {CreateMaintenanceRecordDto} from "./dto/create-maintenance-record.dto";
 import {UpdateMaintenanceRecordDto} from "./dto/update-maintenance-record.dto";
 import { UploadService } from '../upload/upload.service';
 import { CarAccessService } from '../car-access/car-access.service';
+import { SupplierService } from '../supplier/supplier.service';
 
 export type MaintenanceRecordWithParts = MaintenanceRecord & { parts: MaintenancePart[] };
 export type MaintenanceRecordWithMeta = MaintenanceRecordWithParts & {
@@ -20,10 +21,12 @@ export class MaintenanceRecordService {
         private prisma: PrismaService,
         private uploadService: UploadService,
         private carAccess: CarAccessService,
+        private supplierService: SupplierService,
     ) {}
 
     async createMaintenanceRecord(data: CreateMaintenanceRecordDto, userId: number): Promise<MaintenanceRecordWithParts> {
         await this.carAccess.assertHasAccess(data.car_id, userId);
+        if (data.supplier_id != null) await this.supplierService.assertAccessible(data.supplier_id, userId);
         const record = await this.prisma.maintenanceRecord.create({
             data: {
                 car_id:           data.car_id,
@@ -38,6 +41,7 @@ export class MaintenanceRecordService {
                 fuel_liters:        data.fuel_liters,
                 energy_kwh:         data.energy_kwh,
                 is_company_expense: data.is_company_expense ?? false,
+                supplier_id:        data.supplier_id ?? null,
                 parts: data.parts?.length
                     ? { create: data.parts.map(p => ({ name: p.name, code: p.code, quantity: p.quantity, price: p.price })) }
                     : undefined,
@@ -63,6 +67,7 @@ export class MaintenanceRecordService {
         const existing = await this.prisma.maintenanceRecord.findUnique({ where: { id } });
         if (!existing) throw new NotFoundException('Maintenance record not found');
         await this.assertAccessOrNotFound(existing.car_id, userId);
+        if (data.supplier_id != null) await this.supplierService.assertAccessible(data.supplier_id, userId);
 
         // Parts have no stable client-side id to diff against, so an edit replaces
         // the whole set rather than trying to patch individual rows.
@@ -84,6 +89,7 @@ export class MaintenanceRecordService {
                 fuel_liters:        data.fuel_liters,
                 energy_kwh:         data.energy_kwh,
                 is_company_expense: data.is_company_expense,
+                supplier_id:        data.supplier_id,
                 parts: data.parts !== undefined
                     ? { create: data.parts.map(p => ({ name: p.name, code: p.code, quantity: p.quantity, price: p.price })) }
                     : undefined,

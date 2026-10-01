@@ -40,6 +40,7 @@ model User {
   organization_memberships       OrganizationMembership[] @relation("OrganizationMemberships")
   organization_invitations_sent  OrganizationMembership[] @relation("OrganizationInvitedBy")
   feature_interests               FeatureInterest[]
+  suppliers                       Supplier[]
 }
 
 model Car {
@@ -265,6 +266,11 @@ model Document {
   exchange_rate_source String?
   created_at        DateTime  @default(now())
   car               Car       @relation(fields: [car_id], references: [id], onDelete: Cascade)
+  // Optional link into the supplier directory (e.g. the broker an RCA/CASCO
+  // policy was issued through). `provider` above stays free text — this is
+  // the structured link, independent of it.
+  supplier_id       Int?
+  supplier          Supplier? @relation(fields: [supplier_id], references: [id], onDelete: SetNull)
 }
 
 model MaintenanceRecord {
@@ -284,6 +290,10 @@ model MaintenanceRecord {
   created_at         DateTime          @default(now())
   car                Car               @relation(fields: [car_id], references: [id], onDelete: Cascade)
   parts              MaintenancePart[]
+  // Which supplier (garage/workshop) carried out this work — optional, null
+  // for DIY or when the supplier directory isn't used.
+  supplier_id        Int?
+  supplier           Supplier?         @relation(fields: [supplier_id], references: [id], onDelete: SetNull)
 }
 
 model MaintenancePart {
@@ -294,6 +304,37 @@ model MaintenancePart {
   quantity              Float?
   price                 Float?
   maintenanceRecord     MaintenanceRecord @relation(fields: [maintenance_record_id], references: [id], onDelete: Cascade)
+}
+
+enum SupplierType {
+  SERVICE   // garaj / service auto
+  PARTS     // furnizor piese
+  INSURANCE // broker / asigurator
+  FUEL      // furnizor carburant
+  OTHER
+}
+
+// Directory of external parties a car is serviced/insured/supplied through.
+// Personal (user_id only) or shared across an organization's fleet
+// (organization_id set) — same ownership split as Car.
+model Supplier {
+  id               Int                 @id @default(autoincrement())
+  name             String
+  type             SupplierType        @default(OTHER)
+  contact_name     String?
+  phone            String?
+  email            String?
+  address          String?
+  notes            String?
+  is_active        Boolean             @default(true)
+  created_at       DateTime            @default(now())
+  user_id          Int
+  user             User                @relation(fields: [user_id], references: [id])
+  // Null = personal supplier, visible only to its creator (same convention as Car.organization_id).
+  organization_id  Int?
+  organization     Organization?       @relation(fields: [organization_id], references: [id])
+  documents        Document[]
+  maintenance_records MaintenanceRecord[]
 }
 
 enum CarStatus {
@@ -765,6 +806,7 @@ model Organization {
   members           OrganizationMembership[]
   cars              Car[]
   feature_interests FeatureInterest[]
+  suppliers         Supplier[]
 }
 
 model OrganizationMembership {

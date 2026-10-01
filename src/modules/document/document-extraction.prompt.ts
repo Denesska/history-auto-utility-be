@@ -3,12 +3,13 @@
  * document-type list and instructions can't drift between providers.
  */
 
-export const KNOWN_DOCUMENT_TYPES = new Set(['RCA', 'ITP', 'ROV', 'REGISTRATION', 'ROAD_TAX', 'FUEL_RECEIPT', 'CHARGING_RECEIPT', 'ODOMETER']);
+export const KNOWN_DOCUMENT_TYPES = new Set(['RCA', 'CASCO', 'ITP', 'ROV', 'REGISTRATION', 'ROAD_TAX', 'FUEL_RECEIPT', 'CHARGING_RECEIPT', 'ODOMETER']);
 
 export const DOCUMENT_TYPE_VALUES = [...KNOWN_DOCUMENT_TYPES];
 
 export const DOCUMENT_EXTRACTION_PROMPT = `You are analysing a photo or scan of a Romanian vehicle-related document. Identify which of these document types it is:
 - RCA: mandatory third-party liability insurance policy/certificate ("poliță RCA", "certificat de asigurare", "carte verde")
+- CASCO: optional comprehensive/own-damage insurance policy ("poliță CASCO", covers theft/collision/own-vehicle damage, not just third-party liability) — distinguish from RCA by the word "CASCO" on the document and the absence of a bonus-malus class, which is an RCA-only concept
 - ITP: periodic technical inspection certificate/sticker ("inspecție tehnică periodică", "ITP")
 - ROV: road vignette/toll receipt — the Romanian "rovinietă", or a vignette/e-vignette for another country (e.g. Hungarian "e-matrica"/"autópálya-matrica", Austrian "Vignette"/"Digitale Vignette", Bulgarian "е-винетка", Czech "dálniční známka", Slovak "diaľničná známka", Slovenian "e-vinjeta", Swiss "Vignette", Moldovan "rovinietă"/"vinietă")
 - REGISTRATION: vehicle registration certificate ("certificat de înmatriculare", "talon")
@@ -30,6 +31,10 @@ For REGISTRATION (vehicle registration certificate / "certificat de înmatricula
 - "color" ("culoare") should be a plain color name in Romanian (e.g. "Alb", "Negru", "Gri", "Roșu", "Albastru").
 - "manufacture_year" is the 4-digit year of manufacture ("an fabricație"), not the first-registration date.
 - "civ_number" is the series AND number of the vehicle identity card ("seria și numărul cărții de identitate a vehiculului", also printed as "C.I.V."), combined into one string exactly as printed (series letters immediately followed by the number, e.g. "K123456") — this is a field on the registration certificate itself, distinct from the plate number and the VIN.
+
+For CASCO documents specifically:
+- Extract "policy_series", "policy_number", "insurer_name", "policyholder_name", "owner_cnp", "premium", "currency", "issue_date"/"valid_from" and "valid_until" the same way as for RCA.
+- Never set "bonus_malus_class" — CASCO policies don't have one, even if an RCA-related field is visible elsewhere on a combined document.
 
 For ROV (vignette) documents specifically:
 - "vignette_country" is the ISO 3166-1 alpha-2 code of the country whose roads the vignette is valid on (RO, HU, AT, BG, CZ, SK, SI, CH, MD, ...) — NOT the country the vehicle is registered in. A Romanian "rovinietă" is RO.
@@ -70,5 +75,5 @@ export const DOCUMENT_JSON_CONTRACT_HINT = `
 OUTPUT
 
 Reply with a single JSON object and nothing else — no explanation before it, no markdown code fence around it:
-{"detected": true|false, "document_type": "RCA"|"ITP"|"ROV"|"REGISTRATION"|"ROAD_TAX"|"FUEL_RECEIPT"|"CHARGING_RECEIPT"|"ODOMETER"|null, "confidence": "high"|"medium"|"low", "fields": {"policy_series": "...", "policy_number": "...", "insurer_name": "...", "broker_name": "...", "policyholder_name": "...", "owner_name": "...", "owner_cnp": "...", "plate_number": "...", "vin": "...", "vehicle_make": "...", "vehicle_model": "...", "vehicle_category": "...", "engine_capacity": "...", "power": "...", "seats": "...", "max_weight": "...", "valid_from": "YYYY-MM-DD", "valid_until": "YYYY-MM-DD", "issue_date": "YYYY-MM-DD", "premium": "...", "currency": "...", "bonus_malus_class": "...", "direct_settlement": true|false, "direct_settlement_price": "...", "payment_installments": "...", "damage_limits": "...", "color": "...", "fuel_type": "PETROL"|"DIESEL"|"HYBRID"|"PLUGIN_HYBRID"|"ELECTRIC"|"LPG", "manufacture_year": "...", "civ_number": "...", "fuel_liters": "...", "fuel_price_per_liter": "...", "fuel_total_amount": "...", "receipt_total_amount": "...", "fuel_station_name": "...", "energy_kwh": "...", "energy_price_per_kwh": "...", "energy_total_amount": "...", "charging_station_name": "...", "odometer_km": "...", "vignette_country": "..."}, "warnings": ["..."]}
+{"detected": true|false, "document_type": "RCA"|"CASCO"|"ITP"|"ROV"|"REGISTRATION"|"ROAD_TAX"|"FUEL_RECEIPT"|"CHARGING_RECEIPT"|"ODOMETER"|null, "confidence": "high"|"medium"|"low", "fields": {"policy_series": "...", "policy_number": "...", "insurer_name": "...", "broker_name": "...", "policyholder_name": "...", "owner_name": "...", "owner_cnp": "...", "plate_number": "...", "vin": "...", "vehicle_make": "...", "vehicle_model": "...", "vehicle_category": "...", "engine_capacity": "...", "power": "...", "seats": "...", "max_weight": "...", "valid_from": "YYYY-MM-DD", "valid_until": "YYYY-MM-DD", "issue_date": "YYYY-MM-DD", "premium": "...", "currency": "...", "bonus_malus_class": "...", "direct_settlement": true|false, "direct_settlement_price": "...", "payment_installments": "...", "damage_limits": "...", "color": "...", "fuel_type": "PETROL"|"DIESEL"|"HYBRID"|"PLUGIN_HYBRID"|"ELECTRIC"|"LPG", "manufacture_year": "...", "civ_number": "...", "fuel_liters": "...", "fuel_price_per_liter": "...", "fuel_total_amount": "...", "receipt_total_amount": "...", "fuel_station_name": "...", "energy_kwh": "...", "energy_price_per_kwh": "...", "energy_total_amount": "...", "charging_station_name": "...", "odometer_km": "...", "vignette_country": "..."}, "warnings": ["..."]}
 Omit any key you cannot fill. Use no other keys.`;

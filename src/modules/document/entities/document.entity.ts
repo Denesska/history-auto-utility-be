@@ -25,4 +25,5 @@ export class DocumentEntity implements Document {
     exchange_rate_date: Date | null;
     exchange_rate_source: string | null;
     created_at: Date;
+    supplier_id: number | null;
 }

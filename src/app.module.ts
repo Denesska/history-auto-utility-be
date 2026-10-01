@@ -26,6 +26,7 @@ import { CockpitProfileModule } from './modules/cockpit-profile/cockpit-profile.
 import { ActivityModule } from './modules/activity/activity.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { OrganizationModule } from './modules/organization/organization.module';
+import { SupplierModule } from './modules/supplier/supplier.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { OrganizationModule } from './modules/organization/organization.module';
     ActivityModule,
     AdminModule,
     OrganizationModule,
+    SupplierModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: process.env.ENV_FILE ?? '.env',

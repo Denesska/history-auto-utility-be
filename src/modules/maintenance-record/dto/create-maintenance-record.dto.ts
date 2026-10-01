@@ -67,4 +67,9 @@ export class CreateMaintenanceRecordDto {
     @Type(() => MaintenancePartInputDto)
     @ApiPropertyOptional({ type: [MaintenancePartInputDto] })
     readonly parts?: MaintenancePartInputDto[];
+
+    @IsOptional()
+    @IsInt()
+    @ApiPropertyOptional({ example: 1, nullable: true, description: 'Supplier directory entry (garage/workshop) that carried out this work. Must be a supplier the caller can see.' })
+    readonly supplier_id?: number | null;
 }

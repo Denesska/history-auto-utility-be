@@ -1143,6 +1143,108 @@ paths:
         - "upload"
       security:
         - bearer: []
+  /api/supplier:
+    get:
+      operationId: "SupplierController_getAll"
+      summary: "Get every supplier the user can see (own + shared via an organization)"
+      parameters: []
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/SupplierDto"
+      tags:
+        - "supplier"
+    post:
+      operationId: "SupplierController_create"
+      summary: "Create a new supplier"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSupplierDto"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierDto"
+      tags:
+        - "supplier"
+  /api/supplier/{id}:
+    get:
+      operationId: "SupplierController_getOne"
+      summary: "Get a supplier by id"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierDto"
+        404:
+          description: "Supplier not found."
+      tags:
+        - "supplier"
+    put:
+      operationId: "SupplierController_update"
+      summary: "Update a supplier"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSupplierDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierDto"
+        404:
+          description: "Supplier not found."
+      tags:
+        - "supplier"
+    delete:
+      operationId: "SupplierController_remove"
+      summary: "Delete a supplier"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierDto"
+        404:
+          description: "Supplier not found."
+      tags:
+        - "supplier"
   /api/document/all:
     get:
       operationId: "DocumentController_getAllDocuments"
@@ -3166,6 +3268,11 @@ components:
         thumbnailUrl:
           type: "string"
           example: "https://r2.example.com/signed-url"
+        supplier_id:
+          type: "number"
+          example: 1
+          nullable: true
+          description: "Supplier directory entry (garage/workshop) that carried out this work"
       required:
         - "id"
         - "car_id"
@@ -3262,6 +3369,11 @@ components:
           type: "array"
           items:
             $ref: "#/components/schemas/MaintenancePartInputDto"
+        supplier_id:
+          type: "number"
+          example: 1
+          nullable: true
+          description: "Supplier directory entry (garage/workshop) that carried out this work. Must be a supplier the caller can see."
       required:
         - "car_id"
         - "service_date"
@@ -3361,6 +3473,92 @@ components:
         - "fileName"
         - "mimeType"
         - "size"
+    SupplierDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+          example: 1
+        name:
+          type: "string"
+          example: "Service Auto Plus"
+        type:
+          type: "string"
+          enum:
+            - "SERVICE"
+            - "PARTS"
+            - "INSURANCE"
+            - "FUEL"
+            - "OTHER"
+          example: "SERVICE"
+        contact_name:
+          type: "string"
+          nullable: true
+        phone:
+          type: "string"
+          nullable: true
+        email:
+          type: "string"
+          nullable: true
+        address:
+          type: "string"
+          nullable: true
+        notes:
+          type: "string"
+          nullable: true
+        is_active:
+          type: "boolean"
+          example: true
+        organization_id:
+          type: "number"
+          nullable: true
+          description: "Null = personal supplier, visible only to its creator"
+      required:
+        - "id"
+        - "name"
+        - "type"
+        - "is_active"
+    CreateSupplierDto:
+      type: "object"
+      properties:
+        name:
+          type: "string"
+          example: "Service Auto Plus"
+        type:
+          type: "string"
+          enum:
+            - "SERVICE"
+            - "PARTS"
+            - "INSURANCE"
+            - "FUEL"
+            - "OTHER"
+          example: "SERVICE"
+        contact_name:
+          type: "string"
+          example: "Ion Popescu"
+        phone:
+          type: "string"
+          example: "+40 721 234 567"
+        email:
+          type: "string"
+          example: "contact@serviceauto.ro"
+        address:
+          type: "string"
+          example: "Str. Mecanicilor nr. 10, București"
+        notes:
+          type: "string"
+        organization_id:
+          type: "number"
+          example: 1
+          description: "Share this supplier with a fleet organization instead of keeping it personal. Must be an organization the caller is an accepted member of."
+      required:
+        - "name"
+    UpdateSupplierDto:
+      type: "object"
+      properties:
+        is_active:
+          type: "boolean"
+          description: "Deactivate instead of deleting, to keep past records linked to it intact."
     DocumentDto:
       type: "object"
       properties:
@@ -3451,6 +3649,10 @@ components:
             - "BNR"
             - "MANUAL"
           description: "'BNR' when fetched automatically, 'MANUAL' when supplied by the client; null for RON"
+        supplier_id:
+          type: "number"
+          nullable: true
+          description: "Supplier directory entry this document was issued through"
       required:
         - "id"
         - "document_type"
@@ -3513,6 +3715,11 @@ components:
           example: 5
           nullable: true
           description: "Manual override: RON per 1 unit of currency. When omitted the backend uses the latest BNR rate. premium_ron / exchange_rate_date / exchange_rate_source are always computed server-side."
+        supplier_id:
+          type: "number"
+          example: 1
+          nullable: true
+          description: "Supplier directory entry this document was issued through (e.g. the broker for a policy). Must be a supplier the caller can see."
       required:
         - "document_type"
         - "car_id"
