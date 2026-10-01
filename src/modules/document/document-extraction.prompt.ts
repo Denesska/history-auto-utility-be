@@ -23,6 +23,7 @@ Extract every field you can clearly read into "fields" — leave a field out ent
 - Dates must be ISO 8601 (YYYY-MM-DD).
 - Amounts must be plain numeric strings using "." as the decimal separator, no thousands separators.
 - Currency must be an ISO code (RON, EUR, USD).
+- "vin" (VIN / chassis number / "serie șasiu") is always exactly 17 uppercase letters/digits and NEVER contains the letters I, O, or Q (they're excluded from the VIN alphabet by design). If your reading contains I, O or Q, or is not exactly 17 characters, re-examine the image carefully before setting the field — a mis-scanned "0" is often misread as "O" and a mis-scanned "1" as "I". If you cannot resolve it to a confident 17-character value, leave "vin" out and add a warning instead of guessing.
 
 For REGISTRATION (vehicle registration certificate / "certificat de înmatriculare" / "talon") documents specifically:
 - "fuel_type" must be one of these exact codes: PETROL, DIESEL, HYBRID, PLUGIN_HYBRID, ELECTRIC, LPG — map "benzină"→PETROL, "motorină"/"diesel"→DIESEL, "hibrid"→HYBRID, "hibrid plug-in"→PLUGIN_HYBRID, "electric"→ELECTRIC, "GPL"→LPG.

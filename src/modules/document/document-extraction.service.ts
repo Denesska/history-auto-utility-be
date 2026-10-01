@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, Logger, ServiceUnavailableException, UnsupportedMediaTypeException } from '@nestjs/common';
-import { ExtractionResultDto } from './dto/extraction-result.dto';
+import { ExtractedFieldsDto, ExtractionResultDto } from './dto/extraction-result.dto';
 import { DocumentParser } from './parsers/document-parser.interface';
 import { RcaParser } from './parsers/rca.parser';
 import { GeminiExtractionService, GeminiServiceUnavailableError } from './gemini-extraction.service';
@@ -7,6 +7,34 @@ import { CloudflareExtractionService, CloudflareExtractionUnavailableError } fro
 
 const SUPPORTED_MIME_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']);
 const MAX_RAW_TEXT_CHARS = 3000;
+const VIN_PATTERN = /^[A-HJ-NPR-Z0-9]{17}$/;
+
+// The VIN alphabet excludes I, O and Q entirely, so any occurrence in a raw
+// extracted value is guaranteed to be an OCR/AI misread of 1/0/0 — safe to
+// always correct rather than just flag. Runs on every extraction path (the
+// RCA regex parser already can't capture these, but the AI paths have no
+// charset/length constraint on their output, which is how a malformed VIN
+// like an 18-character misread reaches the frontend unfiltered).
+function sanitizeVin(fields: Partial<ExtractedFieldsDto>, warnings: string[]): void {
+    const raw = fields.vin;
+    if (typeof raw !== 'string' || !raw.trim()) return;
+
+    const cleaned = raw
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .replace(/O/g, '0')
+        .replace(/I/g, '1')
+        .replace(/Q/g, '0');
+
+    if (VIN_PATTERN.test(cleaned)) {
+        fields.vin = cleaned;
+    } else {
+        delete fields.vin;
+        warnings.push(
+            `VIN/chassis number could not be reliably extracted (found "${raw}", expected exactly 17 characters). Please verify manually.`,
+        );
+    }
+}
 
 @Injectable()
 export class DocumentExtractionService {
@@ -44,6 +72,7 @@ export class DocumentExtractionService {
                 for (const parser of this.parsers) {
                     if (parser.canParse(rawText)) {
                         const result = parser.parse(rawText);
+                        sanitizeVin(result.fields, result.warnings);
                         return {
                             detected: result.detected,
                             document_type: result.document_type,
@@ -82,6 +111,7 @@ export class DocumentExtractionService {
             }
         }
         if (aiResult) {
+            sanitizeVin(aiResult.fields, aiResult.warnings);
             return {
                 detected: aiResult.detected,
                 document_type: aiResult.document_type,
