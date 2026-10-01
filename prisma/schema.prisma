@@ -41,6 +41,8 @@ model User {
   organization_invitations_sent  OrganizationMembership[] @relation("OrganizationInvitedBy")
   feature_interests               FeatureInterest[]
   suppliers                       Supplier[]
+  driver_assignments               CarDriverAssignment[] @relation("DriverAssignments")
+  driver_assignments_made          CarDriverAssignment[] @relation("DriverAssignmentsMadeBy")
 }
 
 model Car {
@@ -91,6 +93,7 @@ model Car {
   maintenance_profiles      MaintenanceProfile[]
   sale_contracts            SaleContract[]
   wishes                    CarWish[]
+  driver_assignments        CarDriverAssignment[]
 }
 
 model CarNote {
@@ -335,6 +338,28 @@ model Supplier {
   organization     Organization?       @relation(fields: [organization_id], references: [id])
   documents        Document[]
   maintenance_records MaintenanceRecord[]
+}
+
+/// Who drove an organization-owned car, and when. One row per assignment
+/// period: `ended_at: null` means it's the car's current driver; assigning a
+/// new driver closes the previous row instead of overwriting it, so the full
+/// history survives. Only meaningful for `Car.organization_id != null` — a
+/// personal B2C car has no concept of a driver distinct from its owner.
+model CarDriverAssignment {
+  id                  Int       @id @default(autoincrement())
+  car_id              Int
+  driver_user_id      Int
+  assigned_by_user_id Int
+  started_at          DateTime  @default(now())
+  ended_at            DateTime?
+  notes               String?
+
+  car         Car  @relation(fields: [car_id], references: [id], onDelete: Cascade)
+  driver      User @relation("DriverAssignments", fields: [driver_user_id], references: [id])
+  assigned_by User @relation("DriverAssignmentsMadeBy", fields: [assigned_by_user_id], references: [id])
+
+  @@index([car_id, ended_at])
+  @@index([driver_user_id])
 }
 
 enum CarStatus {

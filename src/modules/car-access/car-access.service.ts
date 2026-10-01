@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Car, CarAccessRole, NotificationType, User } from '@prisma/client';
+import { Car, CarAccessRole, NotificationType, OrganizationRole, User } from '@prisma/client';
 import { ROLE_RANK } from '../../common/guards/car-access/car-access.guard';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
@@ -274,14 +274,21 @@ export class CarAccessService {
     if (access?.accepted_at) return access.role;
 
     // Org-owned car: any accepted member of that organization gets FULL-equivalent
-    // car access for now. Restricting a DRIVER to only their assigned car is Faza 1
-    // scope (needs the car↔driver assignment model, which doesn't exist yet) — see
-    // B2B-STRATEGY.md. This only governs car-level CRUD, not organization management.
+    // car access, *except* a DRIVER — they're scoped to only the car(s) they're
+    // currently assigned to (CarDriverAssignment, ended_at: null), mapped to
+    // MAINTENANCE (their comment in the OrganizationRole enum: "log fuel/mileage,
+    // flag issues"). This only governs car-level CRUD, not organization management.
     if (car.organization_id != null) {
       const membership = await this.prisma.organizationMembership.findUnique({
         where: { organization_id_user_id: { organization_id: car.organization_id, user_id: userId } },
       });
-      if (membership?.accepted_at) return CarAccessRole.FULL;
+      if (membership?.accepted_at) {
+        if (membership.role !== OrganizationRole.DRIVER) return CarAccessRole.FULL;
+        const assignment = await this.prisma.carDriverAssignment.findFirst({
+          where: { car_id: carId, driver_user_id: userId, ended_at: null },
+        });
+        if (assignment) return CarAccessRole.MAINTENANCE;
+      }
     }
 
     throw new ForbiddenException('No access to this car');
@@ -306,13 +313,29 @@ export class CarAccessService {
    * must use this instead of re-deriving the same OR-clause locally.
    */
   async getAccessibleCarIds(userId: number): Promise<number[]> {
-    const orgIds = await this.getAcceptedOrganizationIds(userId);
+    const memberships = await this.prisma.organizationMembership.findMany({
+      where: { user_id: userId, accepted_at: { not: null } },
+      select: { organization_id: true, role: true },
+    });
+    const fullAccessOrgIds = memberships.filter(m => m.role !== OrganizationRole.DRIVER).map(m => m.organization_id);
+    const driverOrgIds = memberships.filter(m => m.role === OrganizationRole.DRIVER).map(m => m.organization_id);
+
+    // A DRIVER only sees the car(s) they're currently assigned to, not every
+    // car in the organization — see `resolveUserRoleById`.
+    const assignedCarIds = driverOrgIds.length
+      ? (await this.prisma.carDriverAssignment.findMany({
+          where: { driver_user_id: userId, ended_at: null, car: { organization_id: { in: driverOrgIds } } },
+          select: { car_id: true },
+        })).map(a => a.car_id)
+      : [];
+
     const cars = await this.prisma.car.findMany({
       where: {
         OR: [
           { user_id: userId },
           { access_entries: { some: { user_id: userId, accepted_at: { not: null } } } },
-          ...(orgIds.length ? [{ organization_id: { in: orgIds } }] : []),
+          ...(fullAccessOrgIds.length ? [{ organization_id: { in: fullAccessOrgIds } }] : []),
+          ...(assignedCarIds.length ? [{ id: { in: assignedCarIds } }] : []),
         ],
       },
       select: { id: true },

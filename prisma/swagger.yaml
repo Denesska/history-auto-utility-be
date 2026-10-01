@@ -2493,6 +2493,84 @@ paths:
         - "organization"
       security:
         - bearer: []
+  /api/car/{carId}/driver-assignment:
+    get:
+      operationId: "DriverAssignmentController_getCurrent"
+      summary: "Get a car's current driver, or null if unassigned"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriverAssignmentDto"
+      tags:
+        - "driver-assignment"
+    post:
+      operationId: "DriverAssignmentController_assign"
+      summary: "Assign a driver to a car, closing any current assignment"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignDriverDto"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriverAssignmentDto"
+      tags:
+        - "driver-assignment"
+    delete:
+      operationId: "DriverAssignmentController_unassign"
+      summary: "End a car's current driver assignment"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+      tags:
+        - "driver-assignment"
+  /api/car/{carId}/driver-assignment/history:
+    get:
+      operationId: "DriverAssignmentController_getHistory"
+      summary: "Get a car's full driver assignment history, newest first"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/DriverAssignmentDto"
+      tags:
+        - "driver-assignment"
 info:
   title: "History Auto Utility API"
   description: "API documentation for History Auto Utility"
@@ -5240,3 +5318,69 @@ components:
           example: "FLEET_ADMIN"
       required:
         - "role"
+    AssignmentUserDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+          example: 1
+        email:
+          type: "string"
+          example: "driver@example.com"
+        first_name:
+          type: "string"
+          example: "Ion"
+        last_name:
+          type: "string"
+          example: "Popescu"
+        picture:
+          type: "string"
+          example: "https://..."
+      required:
+        - "id"
+        - "email"
+        - "first_name"
+        - "last_name"
+        - "picture"
+    DriverAssignmentDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+          example: 1
+        car_id:
+          type: "number"
+          example: 148
+        driver:
+          $ref: "#/components/schemas/AssignmentUserDto"
+        assigned_by:
+          $ref: "#/components/schemas/AssignmentUserDto"
+        started_at:
+          format: "date-time"
+          type: "string"
+        ended_at:
+          format: "date-time"
+          type: "string"
+          nullable: true
+          description: "Null = this is the car's current driver."
+        notes:
+          type: "string"
+          nullable: true
+      required:
+        - "id"
+        - "car_id"
+        - "driver"
+        - "assigned_by"
+        - "started_at"
+    AssignDriverDto:
+      type: "object"
+      properties:
+        driver_user_id:
+          type: "number"
+          example: 42
+          description: "User id of the driver — must be an accepted member of the car's organization."
+        notes:
+          type: "string"
+          example: "Starts Monday, covering the Cluj route"
+      required:
+        - "driver_user_id"

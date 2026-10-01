@@ -27,6 +27,7 @@ import { ActivityModule } from './modules/activity/activity.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { OrganizationModule } from './modules/organization/organization.module';
 import { SupplierModule } from './modules/supplier/supplier.module';
+import { DriverAssignmentModule } from './modules/driver-assignment/driver-assignment.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { SupplierModule } from './modules/supplier/supplier.module';
     AdminModule,
     OrganizationModule,
     SupplierModule,
+    DriverAssignmentModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: process.env.ENV_FILE ?? '.env',
