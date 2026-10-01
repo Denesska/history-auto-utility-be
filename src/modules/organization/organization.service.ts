@@ -4,8 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { OrganizationRole } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
+import { NotificationType, OrganizationRole } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
+import { MailLang } from '../mail/templates/base-email.template';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { InviteMemberDto } from './dto/invite-member.dto';
 import { ChangeMemberRoleDto } from './dto/change-member-role.dto';
@@ -18,7 +22,12 @@ const memberInclude = {
 
 @Injectable()
 export class OrganizationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
+    private readonly notificationsService: NotificationsService,
+    private readonly configService: ConfigService,
+  ) {}
 
   private toMembershipDto(entry: any): OrganizationMembershipDto {
     return {
@@ -77,7 +86,10 @@ export class OrganizationService {
 
   async inviteMember(organizationId: number, inviterUserId: number, dto: InviteMemberDto): Promise<OrganizationMembershipDto> {
     const email = dto.email.trim().toLowerCase();
-    const target = await this.prisma.user.findUnique({ where: { email } });
+    // Only an already-registered user can be invited today — inviting an email
+    // with no HAU App account yet (and explaining what to do / where to get
+    // the app) needs its own invite-by-email model. Tracked in B2B-STRATEGY.md.
+    const target = await this.prisma.user.findUnique({ where: { email }, include: { settings: true } });
     if (!target) throw new NotFoundException(`No registered user with email ${email}`);
 
     const existing = await this.prisma.organizationMembership.findUnique({
@@ -85,14 +97,26 @@ export class OrganizationService {
     });
     if (existing) throw new BadRequestException('User already has a membership or a pending invitation');
 
-    const entry = await this.prisma.organizationMembership.create({
-      data: {
-        organization_id: organizationId,
-        user_id: target.id,
-        role: dto.role,
-        invited_by_user_id: inviterUserId,
-      },
-      include: memberInclude,
+    const [entry, organization, inviter] = await Promise.all([
+      this.prisma.organizationMembership.create({
+        data: {
+          organization_id: organizationId,
+          user_id: target.id,
+          role: dto.role,
+          invited_by_user_id: inviterUserId,
+        },
+        include: memberInclude,
+      }),
+      this.prisma.organization.findUniqueOrThrow({ where: { id: organizationId } }),
+      this.prisma.user.findUniqueOrThrow({ where: { id: inviterUserId } }),
+    ]);
+
+    const lang: MailLang = target.settings?.language === 'en' ? 'en' : 'ro';
+    await this.mailService.sendOrganizationInvitation(target.email, lang, {
+      inviterName: `${inviter.first_name} ${inviter.last_name}`.trim(),
+      organizationName: organization.name,
+      role: dto.role,
+      appUrl: this.configService.get<string>('FE_BASE_URL', 'http://localhost:4200'),
     });
 
     return this.toMembershipDto(entry);
@@ -105,11 +129,25 @@ export class OrganizationService {
     if (!entry) throw new NotFoundException('No invitation found for this organization');
     if (entry.accepted_at) throw new BadRequestException('Invitation already accepted');
 
-    const updated = await this.prisma.organizationMembership.update({
-      where: { organization_id_user_id: { organization_id: organizationId, user_id: userId } },
-      data: { accepted_at: new Date() },
-      include: memberInclude,
+    const [updated, organization, acceptedBy] = await Promise.all([
+      this.prisma.organizationMembership.update({
+        where: { organization_id_user_id: { organization_id: organizationId, user_id: userId } },
+        data: { accepted_at: new Date() },
+        include: memberInclude,
+      }),
+      this.prisma.organization.findUniqueOrThrow({ where: { id: organizationId } }),
+      this.prisma.user.findUniqueOrThrow({ where: { id: userId } }),
+    ]);
+
+    // Live update for the inviter — same WebSocket/push path as a car-share
+    // acceptance, so they see it without refreshing and the unread badge ticks up.
+    await this.notificationsService.create(entry.invited_by_user_id, NotificationType.ORG_INVITE_ACCEPTED, {
+      organizationId,
+      organizationName: organization.name,
+      role: updated.role,
+      acceptedByName: `${acceptedBy.first_name} ${acceptedBy.last_name}`.trim(),
     });
+
     return this.toMembershipDto(updated);
   }
 

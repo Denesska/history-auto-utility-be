@@ -184,6 +184,7 @@ enum NotificationType {
   DOCUMENT_EXPIRING
   VIN_CONFLICT
   LICENSE_PLATE_CONFLICT
+  ORG_INVITE_ACCEPTED
 }
 
 enum DocumentExpiryType {

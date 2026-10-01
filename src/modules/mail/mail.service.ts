@@ -4,6 +4,7 @@ import * as nodemailer from 'nodemailer';
 import { MailLang } from './templates/base-email.template';
 import { CarShareInvitationData, carShareInvitationEmail } from './templates/car-share-invitation.template';
 import { DocumentExpiringData, documentExpiringEmail } from './templates/document-expiring.template';
+import { OrganizationInvitationData, organizationInvitationExistingUserEmail } from './templates/organization-invitation.template';
 
 @Injectable()
 export class MailService {
@@ -39,6 +40,18 @@ export class MailService {
 
   async sendDocumentExpiring(to: string, lang: MailLang, data: DocumentExpiringData): Promise<void> {
     const { subject, html } = documentExpiringEmail(lang, data);
+    await this.sendMail(to, subject, html);
+  }
+
+  /**
+   * Only the "you already have an account" variant exists so far — inviting an
+   * email with no HAU App account yet isn't supported by OrganizationService
+   * (it requires a registered user to invite), so there's no "here's what's
+   * happening and where to get the app" variant to send yet. Tracked in
+   * B2B-STRATEGY.md.
+   */
+  async sendOrganizationInvitation(to: string, lang: MailLang, data: OrganizationInvitationData): Promise<void> {
+    const { subject, html } = organizationInvitationExistingUserEmail(lang, data);
     await this.sendMail(to, subject, html);
   }
 }
