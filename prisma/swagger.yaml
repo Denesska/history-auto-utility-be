@@ -2174,6 +2174,42 @@ paths:
           description: "The stored profile has a higher revision"
       tags:
         - "cockpit-profile"
+  /api/admin/me:
+    get:
+      operationId: "AdminController_me"
+      summary: "Whether the current user can open the admin page"
+      parameters: []
+      responses:
+        200:
+          description: ""
+      tags:
+        - "admin"
+      security:
+        - cookie: []
+  /api/admin/stats:
+    get:
+      operationId: "AdminController_stats"
+      summary: "Aggregated usage stats for the admin page"
+      parameters: []
+      responses:
+        200:
+          description: ""
+      tags:
+        - "admin"
+      security:
+        - cookie: []
+  /api/admin/users:
+    get:
+      operationId: "AdminController_users"
+      summary: "Per-user usage counts for the admin page (no user content)"
+      parameters: []
+      responses:
+        200:
+          description: ""
+      tags:
+        - "admin"
+      security:
+        - cookie: []
 info:
   title: "History Auto Utility API"
   description: "API documentation for History Auto Utility"
