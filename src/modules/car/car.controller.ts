@@ -93,8 +93,8 @@ export class CarController {
   @ApiOperation({ summary: 'Get car by ID' })
   @ApiResponse({ status: 200, description: 'Return car details.', type: CarDto })
   @ApiResponse({ status: 404, description: 'Car not found.' })
-  async getCar(@Param('id') id: string): Promise<CarDto | null> {
-    return this.carService.getCar(Number(id));
+  async getCar(@Req() req: RequestWithUser, @Param('id') id: string): Promise<CarDto | null> {
+    return this.carService.getCar(Number(id), req.user.id);
   }
 
   @Put()

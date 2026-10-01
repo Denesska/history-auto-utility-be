@@ -121,12 +121,18 @@ export class CarService {
     return this.toCarDto(car);
   }
 
-  async getCar(id: number): Promise<CarDto | null> {
+  async getCar(id: number, userId: number): Promise<CarDto | null> {
     const car = await this.prisma.car.findUnique({
       where: { id },
       include: { photos: true },
     });
-    return car ? await this.toCarDto(car as CarWithPhotos) : null;
+    if (!car) return null;
+    try {
+      await this.carAccessService.assertHasAccess(id, userId);
+    } catch {
+      return null;
+    }
+    return await this.toCarDto(car as CarWithPhotos);
   }
 
   async updateCar(

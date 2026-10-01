@@ -255,15 +255,54 @@ export class CarAccessService {
 
   async resolveUserRole(carId: number, googleId: string): Promise<CarAccessRole> {
     const user = await this.resolveUser(googleId);
+    return this.resolveUserRoleById(carId, user.id);
+  }
+
+  /**
+   * Same resolution as `resolveUserRole`, keyed by the already-resolved numeric
+   * user id (every `RequestWithUser` carries one) rather than `google_id` — avoids
+   * a redundant user lookup for callers that already have it from the JWT.
+   */
+  async resolveUserRoleById(carId: number, userId: number): Promise<CarAccessRole> {
     const car = await this.prisma.car.findUnique({ where: { id: carId } });
     if (!car) throw new NotFoundException('Car not found');
-    if (car.user_id === user.id) return CarAccessRole.OWNER;
+    if (car.user_id === userId) return CarAccessRole.OWNER;
 
     const access = await this.prisma.carUserAccess.findUnique({
-      where: { car_id_user_id: { car_id: carId, user_id: user.id } },
+      where: { car_id_user_id: { car_id: carId, user_id: userId } },
     });
     if (!access || !access.accepted_at) throw new ForbiddenException('No access to this car');
     return access.role;
+  }
+
+  /**
+   * Throws unless the user owns the car or has an accepted `CarUserAccess` row
+   * of any role — the single check that closes the "any authenticated user can
+   * touch any car-scoped record by guessing its id" gap. No role ranking here:
+   * today every role can read/write a car's notes/wishes/maintenance/documents
+   * once they have *any* accepted access, same as before this check existed —
+   * this only blocks someone with no relationship to the car at all.
+   */
+  async assertHasAccess(carId: number, userId: number): Promise<void> {
+    await this.resolveUserRoleById(carId, userId);
+  }
+
+  /**
+   * All car ids a user can see: their own, plus any car shared with them via an
+   * accepted `CarUserAccess` row. The single place this union is computed —
+   * callers must use this instead of re-deriving the same OR-clause locally.
+   */
+  async getAccessibleCarIds(userId: number): Promise<number[]> {
+    const cars = await this.prisma.car.findMany({
+      where: {
+        OR: [
+          { user_id: userId },
+          { access_entries: { some: { user_id: userId, accepted_at: { not: null } } } },
+        ],
+      },
+      select: { id: true },
+    });
+    return cars.map(c => c.id);
   }
 
   // ── leave (shared user removes themselves) ─────────────────────────────

@@ -37,6 +37,9 @@ model User {
   maintenance_profiles MaintenanceProfile[]
   sale_contracts       SaleContract[]
   identity             UserIdentity?
+  organization_memberships       OrganizationMembership[] @relation("OrganizationMemberships")
+  organization_invitations_sent  OrganizationMembership[] @relation("OrganizationInvitedBy")
+  feature_interests               FeatureInterest[]
 }
 
 model Car {
@@ -71,6 +74,10 @@ model Car {
   created_at                DateTime                @default(now())
   user_id                   Int
   user                      User                    @relation(fields: [user_id], references: [id])
+  // Null = personal B2C car (the default, unchanged behavior). Set only for
+  // a car that belongs to a company tenant — see Organization.
+  organization_id           Int?
+  organization              Organization?           @relation(fields: [organization_id], references: [id])
   maintenanceRecords        MaintenanceRecord[]
   documents                 Document[]
   photos                    CarPhoto[]
@@ -716,6 +723,83 @@ model UserIdentity {
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@map("user_identities")
+}
+
+// ---------------------------------------------------------------------------
+// B2B multi-tenant foundation (Organization). Additive only — every car's
+// `organization_id` stays null for personal accounts, so none of this
+// changes behavior for existing B2C users. See /var/www/hau_app/B2B-STRATEGY.md.
+// ---------------------------------------------------------------------------
+
+enum OrganizationRole {
+  /// Director-level: reports/charts across the whole fleet, grants or
+  /// restricts other members' roles, toggles feature flags for this org.
+  SUPER_ADMIN
+  /// Day-to-day fleet operator: cars, maintenance, documents, suppliers,
+  /// driver assignment — the role matching the fleet-admin job description.
+  FLEET_ADMIN
+  /// Approves expenses above a threshold (planned, not yet enforced anywhere).
+  MANAGER
+  /// Restricted to their assigned car(s): can log fuel/mileage, flag issues.
+  DRIVER
+  /// Costs/reports only, read/export, no operational access.
+  FINANCE
+}
+
+/// A company-level tenant for B2B fleet customers.
+model Organization {
+  id         Int      @id @default(autoincrement())
+  name       String
+  created_at DateTime @default(now())
+  /// e.g. "starter" | "fleet" | "enterprise" — drives billing & feature gating.
+  plan          String?
+  /// Per-organization feature toggles (e.g. { "sale_contract": false }).
+  /// Reserved now, not yet read anywhere — see B2B-STRATEGY.md section 4.
+  feature_flags Json?
+  /// White-label overrides (logo_url, primary_color, app_name) reserved for a
+  /// future dedicated/branded deployment — see B2B-STRATEGY.md section 3.
+  /// Not yet read anywhere.
+  branding      Json?
+
+  members           OrganizationMembership[]
+  cars              Car[]
+  feature_interests FeatureInterest[]
+}
+
+model OrganizationMembership {
+  id                 Int              @id @default(autoincrement())
+  organization_id    Int
+  user_id            Int
+  role               OrganizationRole
+  invited_by_user_id Int
+  accepted_at        DateTime?
+  created_at         DateTime         @default(now())
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  user         User         @relation("OrganizationMemberships", fields: [user_id], references: [id])
+  invited_by   User         @relation("OrganizationInvitedBy", fields: [invited_by_user_id], references: [id])
+
+  @@unique([organization_id, user_id])
+  @@index([user_id])
+  @@index([organization_id])
+}
+
+/// A click of interest on a not-yet-built feature, registered from the
+/// "coming soon" panel. `feature_key` matches the keys used in
+/// Organization.feature_flags, so recorded interest can become an enabled
+/// flag later without re-architecting. One row per (org, user, feature) —
+/// a repeat click is an idempotent no-op, not a new row.
+model FeatureInterest {
+  id              Int      @id @default(autoincrement())
+  organization_id Int
+  user_id         Int
+  feature_key     String
+  created_at      DateTime @default(now())
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([organization_id, user_id, feature_key])
 }
 
 // One row per user per (Europe/Bucharest) calendar day on which they made at

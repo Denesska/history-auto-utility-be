@@ -38,14 +38,16 @@ export class BootstrapService {
     const pendingInvites = sharedInvitations.filter(s => s.accepted_at === null);
 
     const [sharedCarEntries, allDocuments, allMaintenance, carMaintenanceSettings, maintenanceProfiles] = await Promise.all([
-      Promise.all(
-        accepted.map(async s => {
-          const car = await this.carService.getCar(s.id);
-          return car ? { car, role: s.shared_role } : null;
-        }),
-      ),
-      this.documentService.getAllDocumentsByUser(googleId),
-      this.maintenanceRecordService.getAllByUser(googleId),
+      me
+        ? Promise.all(
+            accepted.map(async s => {
+              const car = await this.carService.getCar(s.id, me.id);
+              return car ? { car, role: s.shared_role } : null;
+            }),
+          )
+        : Promise.resolve([]),
+      me ? this.documentService.getAllDocumentsByUser(me.id) : Promise.resolve([]),
+      me ? this.maintenanceRecordService.getAllByUser(me.id) : Promise.resolve([]),
       me ? this.carMaintenanceSettingsService.getAllByUser(me.id) : Promise.resolve({}),
       me ? this.carMaintenanceProfilesService.getAllByUser(me.id) : Promise.resolve({}),
     ]);

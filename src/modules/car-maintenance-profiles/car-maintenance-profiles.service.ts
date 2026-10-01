@@ -2,10 +2,11 @@ import { ConflictException, ForbiddenException, Injectable, NotFoundException } 
 import { MaintenanceProfile } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MaintenanceProfileDto } from './dto/maintenance-profile.dto';
+import { CarAccessService } from '../car-access/car-access.service';
 
 @Injectable()
 export class CarMaintenanceProfilesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly carAccess: CarAccessService) {}
 
   async getProfiles(carId: number, userId: number): Promise<MaintenanceProfileDto[]> {
     await this.assertCanSeeCar(carId, userId);
@@ -50,14 +51,9 @@ export class CarMaintenanceProfilesService {
 
   /** Every profile the user has across every car they own or have accepted access to. Used by bootstrap. */
   async getAllByUser(userId: number): Promise<Record<number, MaintenanceProfileDto[]>> {
+    const carIds = await this.carAccess.getAccessibleCarIds(userId);
     const rows = await this.prisma.maintenanceProfile.findMany({
-      where: {
-        user_id: userId,
-        OR: [
-          { car: { user_id: userId } },
-          { car: { access_entries: { some: { user_id: userId, accepted_at: { not: null } } } } },
-        ],
-      },
+      where: { user_id: userId, car_id: { in: carIds } },
       orderBy: { created_at: 'asc' },
     });
 

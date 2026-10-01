@@ -1,16 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CarNote, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCarNoteDto } from './dto/create-car-note.dto';
 import { UpdateCarNoteDto } from './dto/update-car-note.dto';
 import { CarNoteDto } from './dto/car-note.dto';
 import { CarNoteChecklistItemDto } from './dto/car-note-checklist-item.dto';
+import { CarAccessService } from '../car-access/car-access.service';
 
 @Injectable()
 export class CarNoteService {
-    constructor(private prisma: PrismaService) {}
+    constructor(private prisma: PrismaService, private carAccess: CarAccessService) {}
 
-    async createCarNote(data: CreateCarNoteDto): Promise<CarNoteDto> {
+    async createCarNote(data: CreateCarNoteDto, userId: number): Promise<CarNoteDto> {
+        await this.carAccess.assertHasAccess(data.car_id, userId);
         const legacyGroup = data.group_name?.trim() || null;
         // No `labels` but a legacy `group_name` → store it as the single label.
         const labels = data.labels !== undefined
@@ -33,12 +35,18 @@ export class CarNoteService {
         return this.toDto(note);
     }
 
-    async getCarNote(id: number): Promise<CarNoteDto | null> {
+    async getCarNote(id: number, userId: number): Promise<CarNoteDto | null> {
         const note = await this.prisma.carNote.findUnique({ where: { id } });
-        return note ? this.toDto(note) : null;
+        if (!note) return null;
+        await this.assertAccessOrNotFound(note.car_id, userId);
+        return this.toDto(note);
     }
 
-    async updateCarNote(id: number, data: UpdateCarNoteDto): Promise<CarNoteDto> {
+    async updateCarNote(id: number, data: UpdateCarNoteDto, userId: number): Promise<CarNoteDto> {
+        const existing = await this.prisma.carNote.findUnique({ where: { id } });
+        if (!existing) throw new NotFoundException('Car note not found');
+        await this.assertAccessOrNotFound(existing.car_id, userId);
+
         const note = await this.prisma.carNote.update({
             where: { id },
             data: {
@@ -56,16 +64,31 @@ export class CarNoteService {
         return this.toDto(note);
     }
 
-    async deleteCarNote(id: number): Promise<CarNoteDto> {
+    async deleteCarNote(id: number, userId: number): Promise<CarNoteDto> {
+        const existing = await this.prisma.carNote.findUnique({ where: { id } });
+        if (!existing) throw new NotFoundException('Car note not found');
+        await this.assertAccessOrNotFound(existing.car_id, userId);
+
         return this.toDto(await this.prisma.carNote.delete({ where: { id } }));
     }
 
-    async getCarNotesByCarId(carId: number): Promise<CarNoteDto[]> {
+    async getCarNotesByCarId(carId: number, userId: number): Promise<CarNoteDto[]> {
+        await this.carAccess.assertHasAccess(carId, userId);
         const notes = await this.prisma.carNote.findMany({
             where: { car_id: carId },
             orderBy: { created_at: 'asc' },
         });
         return notes.map(n => this.toDto(n));
+    }
+
+    /** Same access rule as the rest of this service, but Not Found instead of Forbidden — a
+     * note's existence shouldn't be distinguishable from "no access" to someone probing ids. */
+    private async assertAccessOrNotFound(carId: number, userId: number): Promise<void> {
+        try {
+            await this.carAccess.assertHasAccess(carId, userId);
+        } catch {
+            throw new NotFoundException('Car note not found');
+        }
     }
 
     /** Trim, drop empties, strip commas (the UI's separator), dedupe case-insensitively keeping the first spelling. */

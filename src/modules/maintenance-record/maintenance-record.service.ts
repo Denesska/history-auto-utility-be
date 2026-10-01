@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { MaintenanceRecord, MaintenancePart, ServiceCategory } from '@prisma/client';
 import {PrismaService} from "../../prisma/prisma.service";
 import {CreateMaintenanceRecordDto} from "./dto/create-maintenance-record.dto";
 import {UpdateMaintenanceRecordDto} from "./dto/update-maintenance-record.dto";
 import { UploadService } from '../upload/upload.service';
+import { CarAccessService } from '../car-access/car-access.service';
 
 export type MaintenanceRecordWithParts = MaintenanceRecord & { parts: MaintenancePart[] };
 export type MaintenanceRecordWithMeta = MaintenanceRecordWithParts & {
@@ -18,9 +19,11 @@ export class MaintenanceRecordService {
     constructor(
         private prisma: PrismaService,
         private uploadService: UploadService,
+        private carAccess: CarAccessService,
     ) {}
 
-    async createMaintenanceRecord(data: CreateMaintenanceRecordDto): Promise<MaintenanceRecordWithParts> {
+    async createMaintenanceRecord(data: CreateMaintenanceRecordDto, userId: number): Promise<MaintenanceRecordWithParts> {
+        await this.carAccess.assertHasAccess(data.car_id, userId);
         const record = await this.prisma.maintenanceRecord.create({
             data: {
                 car_id:           data.car_id,
@@ -46,14 +49,21 @@ export class MaintenanceRecordService {
         return this._attachConsumptionSingle(record);
     }
 
-    async getMaintenanceRecord(id: number): Promise<MaintenanceRecordWithParts | null> {
-        return this.prisma.maintenanceRecord.findUnique({
+    async getMaintenanceRecord(id: number, userId: number): Promise<MaintenanceRecordWithParts | null> {
+        const record = await this.prisma.maintenanceRecord.findUnique({
             where: { id },
             include: { parts: true },
         });
+        if (!record) return null;
+        await this.assertAccessOrNotFound(record.car_id, userId);
+        return record;
     }
 
-    async updateMaintenanceRecord(id: number, data: UpdateMaintenanceRecordDto): Promise<MaintenanceRecordWithParts> {
+    async updateMaintenanceRecord(id: number, data: UpdateMaintenanceRecordDto, userId: number): Promise<MaintenanceRecordWithParts> {
+        const existing = await this.prisma.maintenanceRecord.findUnique({ where: { id } });
+        if (!existing) throw new NotFoundException('Maintenance record not found');
+        await this.assertAccessOrNotFound(existing.car_id, userId);
+
         // Parts have no stable client-side id to diff against, so an edit replaces
         // the whole set rather than trying to patch individual rows.
         if (data.parts !== undefined) {
@@ -85,12 +95,27 @@ export class MaintenanceRecordService {
         return this._attachConsumptionSingle(record);
     }
 
-    async deleteMaintenanceRecord(id: number): Promise<MaintenanceRecord> {
+    async deleteMaintenanceRecord(id: number, userId: number): Promise<MaintenanceRecord> {
+        const existing = await this.prisma.maintenanceRecord.findUnique({ where: { id } });
+        if (!existing) throw new NotFoundException('Maintenance record not found');
+        await this.assertAccessOrNotFound(existing.car_id, userId);
+
         const record = await this.prisma.maintenanceRecord.delete({
             where: { id },
         });
         await this._syncLastOilService(record.car_id);
         return record;
+    }
+
+    /** Same access rule as the rest of this service, but Not Found instead of Forbidden — a
+     * maintenance record's existence shouldn't be distinguishable from "no access" to someone
+     * probing ids. */
+    private async assertAccessOrNotFound(carId: number, userId: number): Promise<void> {
+        try {
+            await this.carAccess.assertHasAccess(carId, userId);
+        } catch {
+            throw new NotFoundException('Maintenance record not found');
+        }
     }
 
     // Keeps Car.last_oil_service_mileage/date in sync with the highest-mileage
@@ -147,7 +172,8 @@ export class MaintenanceRecordService {
         };
     }
 
-    async getMaintenanceRecordsByCarId(carId: number): Promise<MaintenanceRecordWithMeta[]> {
+    async getMaintenanceRecordsByCarId(carId: number, userId: number): Promise<MaintenanceRecordWithMeta[]> {
+        await this.carAccess.assertHasAccess(carId, userId);
         const records = await this.prisma.maintenanceRecord.findMany({
             where: { car_id: carId },
             include: { parts: true },
@@ -155,14 +181,10 @@ export class MaintenanceRecordService {
         return this._withAttachmentMeta(records);
     }
 
-    async getAllByUser(googleId: string): Promise<MaintenanceRecordWithMeta[]> {
+    async getAllByUser(userId: number): Promise<MaintenanceRecordWithMeta[]> {
+        const carIds = await this.carAccess.getAccessibleCarIds(userId);
         const records = await this.prisma.maintenanceRecord.findMany({
-            where: {
-                OR: [
-                    { car: { user: { google_id: googleId } } },
-                    { car: { access_entries: { some: { user: { google_id: googleId }, accepted_at: { not: null } } } } },
-                ],
-            },
+            where: { car_id: { in: carIds } },
             include: { parts: true },
         });
         return this._withAttachmentMeta(records);
