@@ -2210,6 +2210,187 @@ paths:
         - "admin"
       security:
         - cookie: []
+  /api/organization:
+    post:
+      operationId: "OrganizationController_createOrganization"
+      summary: "Create a new organization; the creator becomes its SUPER_ADMIN"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrganizationDto"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyOrganizationDto"
+      tags:
+        - "organization"
+      security:
+        - bearer: []
+    get:
+      operationId: "OrganizationController_getMyOrganizations"
+      summary: "List every organization the current user belongs to (pending invites included)"
+      parameters: []
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/MyOrganizationDto"
+      tags:
+        - "organization"
+      security:
+        - bearer: []
+  /api/organization/{organizationId}/members:
+    get:
+      operationId: "OrganizationController_getMembers"
+      summary: "List every member of an organization"
+      parameters:
+        - name: "organizationId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/OrganizationMembershipDto"
+      tags:
+        - "organization"
+      security:
+        - bearer: []
+  /api/organization/{organizationId}/members/invite:
+    post:
+      operationId: "OrganizationController_inviteMember"
+      summary: "Invite a registered user to the organization with a role"
+      parameters:
+        - name: "organizationId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteMemberDto"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationMembershipDto"
+      tags:
+        - "organization"
+      security:
+        - bearer: []
+  /api/organization/{organizationId}/members/accept:
+    post:
+      operationId: "OrganizationController_acceptInvitation"
+      summary: "Accept a pending invitation to an organization"
+      parameters:
+        - name: "organizationId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationMembershipDto"
+      tags:
+        - "organization"
+      security:
+        - bearer: []
+  /api/organization/{organizationId}/members/{targetUserId}/role:
+    patch:
+      operationId: "OrganizationController_changeRole"
+      summary: "Change the role of a member"
+      parameters:
+        - name: "organizationId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+        - name: "targetUserId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeMemberRoleDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationMembershipDto"
+      tags:
+        - "organization"
+      security:
+        - bearer: []
+  /api/organization/{organizationId}/members/leave:
+    delete:
+      operationId: "OrganizationController_leaveOrganization"
+      summary: "Leave (remove yourself from) an organization"
+      parameters:
+        - name: "organizationId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        204:
+          description: "Membership removed"
+      tags:
+        - "organization"
+      security:
+        - bearer: []
+  /api/organization/{organizationId}/members/{targetUserId}:
+    delete:
+      operationId: "OrganizationController_removeMember"
+      summary: "Remove a member from the organization"
+      parameters:
+        - name: "organizationId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+        - name: "targetUserId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        204:
+          description: "Membership removed"
+      tags:
+        - "organization"
+      security:
+        - bearer: []
 info:
   title: "History Auto Utility API"
   description: "API documentation for History Auto Utility"
@@ -4739,3 +4920,115 @@ components:
         - "revision"
         - "prefs"
         - "files"
+    CreateOrganizationDto:
+      type: "object"
+      properties:
+        name:
+          type: "string"
+          example: "Acme Fleet SRL"
+      required:
+        - "name"
+    MyOrganizationDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+        name:
+          type: "string"
+        role:
+          type: "string"
+          enum:
+            - "SUPER_ADMIN"
+            - "FLEET_ADMIN"
+            - "MANAGER"
+            - "DRIVER"
+            - "FINANCE"
+        accepted_at:
+          format: "date-time"
+          type: "string"
+      required:
+        - "id"
+        - "name"
+        - "role"
+    OrganizationMemberUserDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+        email:
+          type: "string"
+        first_name:
+          type: "string"
+        last_name:
+          type: "string"
+        picture:
+          type: "string"
+      required:
+        - "id"
+        - "email"
+        - "first_name"
+        - "last_name"
+    OrganizationMembershipDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+        organization_id:
+          type: "number"
+        role:
+          type: "string"
+          enum:
+            - "SUPER_ADMIN"
+            - "FLEET_ADMIN"
+            - "MANAGER"
+            - "DRIVER"
+            - "FINANCE"
+        user:
+          $ref: "#/components/schemas/OrganizationMemberUserDto"
+        invited_by:
+          $ref: "#/components/schemas/OrganizationMemberUserDto"
+        accepted_at:
+          format: "date-time"
+          type: "string"
+        created_at:
+          format: "date-time"
+          type: "string"
+      required:
+        - "id"
+        - "organization_id"
+        - "role"
+        - "user"
+        - "invited_by"
+        - "created_at"
+    InviteMemberDto:
+      type: "object"
+      properties:
+        email:
+          type: "string"
+          example: "driver@example.com"
+        role:
+          type: "string"
+          enum:
+            - "SUPER_ADMIN"
+            - "FLEET_ADMIN"
+            - "MANAGER"
+            - "DRIVER"
+            - "FINANCE"
+          example: "DRIVER"
+      required:
+        - "email"
+        - "role"
+    ChangeMemberRoleDto:
+      type: "object"
+      properties:
+        role:
+          type: "string"
+          enum:
+            - "SUPER_ADMIN"
+            - "FLEET_ADMIN"
+            - "MANAGER"
+            - "DRIVER"
+            - "FINANCE"
+          example: "FLEET_ADMIN"
+      required:
+        - "role"

@@ -271,8 +271,20 @@ export class CarAccessService {
     const access = await this.prisma.carUserAccess.findUnique({
       where: { car_id_user_id: { car_id: carId, user_id: userId } },
     });
-    if (!access || !access.accepted_at) throw new ForbiddenException('No access to this car');
-    return access.role;
+    if (access?.accepted_at) return access.role;
+
+    // Org-owned car: any accepted member of that organization gets FULL-equivalent
+    // car access for now. Restricting a DRIVER to only their assigned car is Faza 1
+    // scope (needs the car↔driver assignment model, which doesn't exist yet) — see
+    // B2B-STRATEGY.md. This only governs car-level CRUD, not organization management.
+    if (car.organization_id != null) {
+      const membership = await this.prisma.organizationMembership.findUnique({
+        where: { organization_id_user_id: { organization_id: car.organization_id, user_id: userId } },
+      });
+      if (membership?.accepted_at) return CarAccessRole.FULL;
+    }
+
+    throw new ForbiddenException('No access to this car');
   }
 
   /**
@@ -289,15 +301,18 @@ export class CarAccessService {
 
   /**
    * All car ids a user can see: their own, plus any car shared with them via an
-   * accepted `CarUserAccess` row. The single place this union is computed —
-   * callers must use this instead of re-deriving the same OR-clause locally.
+   * accepted `CarUserAccess` row, plus any car owned by an organization they're
+   * an accepted member of. The single place this union is computed — callers
+   * must use this instead of re-deriving the same OR-clause locally.
    */
   async getAccessibleCarIds(userId: number): Promise<number[]> {
+    const orgIds = await this.getAcceptedOrganizationIds(userId);
     const cars = await this.prisma.car.findMany({
       where: {
         OR: [
           { user_id: userId },
           { access_entries: { some: { user_id: userId, accepted_at: { not: null } } } },
+          ...(orgIds.length ? [{ organization_id: { in: orgIds } }] : []),
         ],
       },
       select: { id: true },
@@ -345,5 +360,15 @@ export class CarAccessService {
       shared_role: e.role,
       accepted_at: e.accepted_at,
     }));
+  }
+
+  // ── organizations (B2B) ────────────────────────────────────────────────
+
+  private async getAcceptedOrganizationIds(userId: number): Promise<number[]> {
+    const memberships = await this.prisma.organizationMembership.findMany({
+      where: { user_id: userId, accepted_at: { not: null } },
+      select: { organization_id: true },
+    });
+    return memberships.map(m => m.organization_id);
   }
 }

@@ -25,6 +25,7 @@ import { NavRelayModule } from './modules/nav-relay/nav-relay.module';
 import { CockpitProfileModule } from './modules/cockpit-profile/cockpit-profile.module';
 import { ActivityModule } from './modules/activity/activity.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { OrganizationModule } from './modules/organization/organization.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { AdminModule } from './modules/admin/admin.module';
     CockpitProfileModule,
     ActivityModule,
     AdminModule,
+    OrganizationModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: process.env.ENV_FILE ?? '.env',
