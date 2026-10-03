@@ -32,6 +32,7 @@ import { SupplierModule } from './modules/supplier/supplier.module';
 import { DriverAssignmentModule } from './modules/driver-assignment/driver-assignment.module';
 import { FleetCostModule } from './modules/fleet-cost/fleet-cost.module';
 import { ContextEnforcementInterceptor, RequestContextMiddleware } from './common/context';
+import { FeatureEnforcementInterceptor, FeaturesModule } from './common/features';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { ContextEnforcementInterceptor, RequestContextMiddleware } from './commo
     AdminModule,
     VehicleSilhouetteModule,
     OrganizationModule,
+    FeaturesModule,
     SupplierModule,
     DriverAssignmentModule,
     FleetCostModule,
@@ -81,6 +83,8 @@ import { ContextEnforcementInterceptor, RequestContextMiddleware } from './commo
     // APP_GUARD: global guards run before the per-controller JwtAuthGuard, so
     // req.user would not exist yet. See ContextEnforcementInterceptor.
     { provide: APP_INTERCEPTOR, useClass: ContextEnforcementInterceptor },
+    // Must stay AFTER the context interceptor: enforces @Feature(...) on the verified context.
+    { provide: APP_INTERCEPTOR, useClass: FeatureEnforcementInterceptor },
   ],
   exports: [Logger],
 })

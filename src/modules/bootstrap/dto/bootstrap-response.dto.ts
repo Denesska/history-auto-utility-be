@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { CarAccessRole } from '@prisma/client';
 import { CarDto } from '../../car/dto/car.dto';
 import { DocumentDto } from '../../document/dto/document.dto';
@@ -25,4 +26,6 @@ export class BootstrapResponseDto {
   maintenanceIntervals: MaintenanceIntervalDto[];
   carMaintenanceSettings: Record<number, MaintenanceSettingDto[]>;
   maintenanceProfiles: Record<number, MaintenanceProfileDto[]>;
+  @ApiProperty({ type: [String], description: "Feature keys switched on for the session's context (all of them in personal sessions)", example: ['supplier', 'fleet_cost', 'sale_contract'] })
+  enabled_features: string[];
 }

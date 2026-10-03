@@ -1,3 +1,4 @@
+import { Feature } from '../../common/features/feature.decorator';
 import { Scope } from '../../common/context/scope.decorator';
 import { BadRequestException, Controller, Get, Param, ParseIntPipe, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -11,6 +12,7 @@ import { FLEET_COST_RANGES, FleetCostDashboardDto, FleetCostRange } from './dto/
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, OrganizationGuard)
 @Scope('business')
+@Feature('fleet_cost')
 @Controller('organization/:organizationId/cost-dashboard')
 export class FleetCostController {
   constructor(private readonly fleetCostService: FleetCostService) {}

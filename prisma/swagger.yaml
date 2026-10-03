@@ -5241,7 +5241,18 @@ components:
               - 30
     BootstrapResponseDto:
       type: "object"
-      properties: {}
+      properties:
+        enabled_features:
+          description: "Feature keys switched on for the session's context (all of them in personal sessions)"
+          example:
+            - "supplier"
+            - "fleet_cost"
+            - "sale_contract"
+          type: "array"
+          items:
+            type: "string"
+      required:
+        - "enabled_features"
     CarNoteChecklistItemDto:
       type: "object"
       properties:

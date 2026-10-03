@@ -8,6 +8,8 @@ import { MaintenanceRecordService, MaintenanceRecordWithMeta } from '../maintena
 import { DEFAULT_MAINTENANCE_INTERVALS } from '../maintenance-record/maintenance-interval.defaults';
 import { CarMaintenanceSettingsService } from '../car-maintenance-settings/car-maintenance-settings.service';
 import { CarMaintenanceProfilesService } from '../car-maintenance-profiles/car-maintenance-profiles.service';
+import { FeatureAccessService } from '../../common/features/feature-access.service';
+import { parseSessionContext, SessionContext } from '../../common/context/session-context';
 import { BootstrapResponseDto, SharedCarEntry } from './dto/bootstrap-response.dto';
 import { DocumentDto } from '../document/dto/document.dto';
 import { MaintenanceIntervalDto } from '../maintenance-record/dto/maintenance-interval.dto';
@@ -22,9 +24,10 @@ export class BootstrapService {
     private readonly maintenanceRecordService: MaintenanceRecordService,
     private readonly carMaintenanceSettingsService: CarMaintenanceSettingsService,
     private readonly carMaintenanceProfilesService: CarMaintenanceProfilesService,
+    private readonly featureAccess: FeatureAccessService,
   ) {}
 
-  async getInitialData(googleId: string): Promise<BootstrapResponseDto> {
+  async getInitialData(googleId: string, ctx?: SessionContext): Promise<BootstrapResponseDto> {
     const [me, ownedCars, sharedInvitations] = await Promise.all([
       this.prisma.user.findUnique({
         where: { google_id: googleId },
@@ -82,6 +85,7 @@ export class BootstrapService {
       maintenanceIntervals,
       carMaintenanceSettings,
       maintenanceProfiles,
+      enabled_features: await this.featureAccess.enabledFeatures(parseSessionContext(ctx)),
     };
   }
 }

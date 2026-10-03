@@ -1,3 +1,4 @@
+import { Feature } from '../../common/features/feature.decorator';
 import { Scope } from '../../common/context/scope.decorator';
 import { Controller, Get, Post, Put, Delete, Body, Param, Req, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
@@ -11,6 +12,7 @@ import { SupplierDto } from './dto/supplier.dto';
 @ApiTags('supplier')
 @UseGuards(JwtAuthGuard)
 @Scope('business')
+@Feature('supplier')
 @Controller('supplier')
 export class SupplierController {
   constructor(private readonly supplierService: SupplierService) {}

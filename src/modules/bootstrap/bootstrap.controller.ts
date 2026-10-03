@@ -18,6 +18,6 @@ export class BootstrapController {
   @ApiOperation({ summary: 'Fetch all initial data needed on app load in a single request' })
   @ApiOkResponse({ type: BootstrapResponseDto })
   getInitialData(@Req() req: RequestWithUser): Promise<BootstrapResponseDto> {
-    return this.bootstrapService.getInitialData(req.user.google_id);
+    return this.bootstrapService.getInitialData(req.user.google_id, (req.user as any).ctx);
   }
 }

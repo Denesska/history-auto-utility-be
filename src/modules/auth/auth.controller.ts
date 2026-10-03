@@ -12,6 +12,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { FeatureAccessService } from '../../common/features/feature-access.service';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { Response } from 'express';
@@ -41,6 +42,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
+    private readonly featureAccess: FeatureAccessService,
   ) {
     this.cookieConfig = {
       httpOnly: true,
@@ -147,7 +149,7 @@ export class AuthController {
   async localLogin(
     @Body() dto: LocalLoginDto,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<{ accessToken: string; mustChangePassword: boolean; ctx: SessionContext }> {
+  ): Promise<{ accessToken: string; mustChangePassword: boolean; ctx: SessionContext; enabled_features: string[] }> {
     if (dto.context === 'personal') {
       throw new ForbiddenException({
         statusCode: 403,
@@ -165,7 +167,7 @@ export class AuthController {
     await this.authService.saveRefreshToken(user.google_id, refreshToken);
     res.cookie('access_token', accessToken, this.cookieConfig);
 
-    return { accessToken, mustChangePassword: user.must_change_password, ctx };
+    return { accessToken, mustChangePassword: user.must_change_password, ctx, enabled_features: await this.featureAccess.enabledFeatures(ctx) };
   }
 
   // Picks/switches the active organization of a BUSINESS session. Allowed
@@ -181,7 +183,7 @@ export class AuthController {
     @Req() req: RequestWithUser,
     @Body() dto: SwitchContextDto,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<{ accessToken: string; ctx: SessionContext }> {
+  ): Promise<{ accessToken: string; ctx: SessionContext; enabled_features: string[] }> {
     // Policy check — see ALLOW_PERSONAL_BUSINESS_SWITCH and ACCOUNT-CONTEXT.md "Future: merge".
     const currentCtx = (req.user as any).ctx as SessionContext | undefined;
     if (currentCtx?.type !== 'business' && !ALLOW_PERSONAL_BUSINESS_SWITCH) {
@@ -199,7 +201,7 @@ export class AuthController {
     await this.authService.saveRefreshToken(user.google_id, refreshToken);
     res.cookie('access_token', accessToken, this.cookieConfig);
 
-    return { accessToken, ctx };
+    return { accessToken, ctx, enabled_features: await this.featureAccess.enabledFeatures(ctx) };
   }
 
   @Post('change-password')
@@ -291,7 +293,8 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'User profile returned.' })
   @ApiResponse({ status: 401, description: 'Invalid or missing access token.' })
   async getProfile(@Req() req): Promise<any> {
-    return { ...req.user, ctx: await this.authService.enrichContext(req.user.ctx ?? { type: 'personal' }) };
+    const ctx: SessionContext = req.user.ctx ?? { type: 'personal' };
+    return { ...req.user, ctx: await this.authService.enrichContext(ctx), enabled_features: await this.featureAccess.enabledFeatures(ctx) };
   }
 
   @Post('logout')
