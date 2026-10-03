@@ -1,4 +1,5 @@
 import { Scope } from '../../common/context/scope.decorator';
+import { Feature } from '../../common/features/feature.decorator';
 import { Controller, Get, Post, Put, Delete, Body, Param, Req, UseGuards } from '@nestjs/common';
 import { CarNoteService } from './car-note.service';
 import { CreateCarNoteDto } from './dto/create-car-note.dto';
@@ -11,6 +12,7 @@ import { RequestWithUser } from '../auth/express-request.interface';
 @ApiTags('car-note')
 @UseGuards(JwtAuthGuard)
 @Scope('personal', 'business')
+@Feature('car_notes')
 @Controller('car-note')
 export class CarNoteController {
   constructor(private readonly carNoteService: CarNoteService) {}

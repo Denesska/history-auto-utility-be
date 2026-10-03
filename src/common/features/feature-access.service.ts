@@ -31,6 +31,23 @@ export class FeatureAccessService {
     this.cache.delete(orgId);
   }
 
+  /**
+   * Organization ids with `key` explicitly disabled — for batch jobs (e.g. cron reminders)
+   * that need to skip many rows up front instead of calling `isEnabled` per row. One query
+   * for the whole run; independent of the per-session cache above.
+   */
+  async disabledOrgIds(key: FeatureKey): Promise<Set<number>> {
+    const orgs = await this.prisma.organization.findMany({ select: { id: true, feature_flags: true } });
+    const disabled = new Set<number>();
+    for (const org of orgs) {
+      const flags = org.feature_flags;
+      if (flags && typeof flags === 'object' && !Array.isArray(flags) && (flags as Record<string, unknown>)[key] === false) {
+        disabled.add(org.id);
+      }
+    }
+    return disabled;
+  }
+
   private async disabledFor(orgId: number): Promise<Set<FeatureKey>> {
     const hit = this.cache.get(orgId);
     if (hit && hit.expires > Date.now()) return hit.disabled;

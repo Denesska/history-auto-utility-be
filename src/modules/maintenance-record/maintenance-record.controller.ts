@@ -1,4 +1,5 @@
 import { Scope } from '../../common/context/scope.decorator';
+import { Feature } from '../../common/features/feature.decorator';
 import {
   Body,
   Controller,
@@ -34,6 +35,7 @@ import {
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Scope('personal', 'business')
+@Feature('maintenance')
 @Controller('maintenance-record')
 export class MaintenanceRecordController {
   constructor(

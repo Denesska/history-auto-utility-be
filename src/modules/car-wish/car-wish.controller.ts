@@ -1,4 +1,5 @@
 import { Scope } from '../../common/context/scope.decorator';
+import { Feature } from '../../common/features/feature.decorator';
 import { Controller, Get, Post, Put, Delete, Body, Param, Req, UseGuards } from '@nestjs/common';
 import { CarWishService } from './car-wish.service';
 import { CreateCarWishDto } from './dto/create-car-wish.dto';
@@ -14,6 +15,7 @@ import { RequestWithUser } from '../auth/express-request.interface';
 @ApiTags('car-wish')
 @UseGuards(JwtAuthGuard)
 @Scope('personal', 'business')
+@Feature('car_wishlist')
 @Controller('car-wish')
 export class CarWishController {
     constructor(private readonly carWishService: CarWishService) {}

@@ -1,4 +1,5 @@
 import { Scope } from '../../common/context/scope.decorator';
+import { Feature, NoFeature } from '../../common/features/feature.decorator';
 import {
   BadRequestException,
   Controller,
@@ -47,6 +48,7 @@ const uploadStorage = diskStorage({
 @ApiTags('document')
 @UseGuards(JwtAuthGuard)
 @Scope('personal', 'business')
+@Feature('documents')
 @Controller('document')
 export class DocumentController {
   constructor(
@@ -122,6 +124,7 @@ export class DocumentController {
   }
 
   @Post('extract')
+  @NoFeature() // shared by documents, car registration (talon scan), sale-contract (ID scan) and photo-scan flows (fuel/charging/odometer) — not gated behind 'documents'
   @ApiOperation({
     summary: 'Extract fields from an uploaded document file (returns suggestions only — does not save)',
     description:

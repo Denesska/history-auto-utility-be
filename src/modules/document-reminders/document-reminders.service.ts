@@ -6,6 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { MailLang } from '../mail/templates/base-email.template';
 import { MailService } from '../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { FeatureAccessService } from '../../common/features/feature-access.service';
 
 type UserWithSettings = User & { settings: UserSettings | null };
 
@@ -37,11 +38,15 @@ export class DocumentRemindersService {
     private readonly notificationsService: NotificationsService,
     private readonly mailService: MailService,
     private readonly configService: ConfigService,
+    private readonly featureAccess: FeatureAccessService,
   ) {}
 
   @Cron('0 8 * * *')
   async checkExpiringDocuments(): Promise<void> {
-    const cars = (await this.prisma.car.findMany({
+    // Loaded once for the whole run, not per car — orgs with 'documents' off don't get reminded.
+    const disabledOrgIds = await this.featureAccess.disabledOrgIds('documents');
+
+    const allCars = (await this.prisma.car.findMany({
       where: {
         status: CarStatus.ACTIVE,
         OR: [
@@ -58,6 +63,9 @@ export class DocumentRemindersService {
         },
       },
     })) as CarWithRecipients[];
+
+    // Personal cars (organization_id null) are never skipped.
+    const cars = allCars.filter(car => car.organization_id == null || !disabledOrgIds.has(car.organization_id));
 
     const today = startOfDay(new Date());
 

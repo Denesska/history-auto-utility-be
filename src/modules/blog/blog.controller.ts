@@ -1,4 +1,5 @@
 import { Scope } from '../../common/context/scope.decorator';
+import { Feature } from '../../common/features/feature.decorator';
 import {
   BadRequestException,
   Body, Controller, Delete, Get, Param, Patch, Post, Put,
@@ -33,6 +34,7 @@ const blogImageFilter = (_req: any, file: Express.Multer.File, cb: any) => {
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Scope('any')
+@Feature('journal')
 @Controller('blog')
 export class BlogController {
   constructor(private readonly blogService: BlogService) {}

@@ -28,7 +28,9 @@ export class BootstrapService {
   ) {}
 
   async getInitialData(googleId: string, ctx?: SessionContext): Promise<BootstrapResponseDto> {
-    const [me, ownedCars, sharedInvitations] = await Promise.all([
+    const sessionCtx = parseSessionContext(ctx);
+    const [enabledFeatures, me, ownedCars, sharedInvitations] = await Promise.all([
+      this.featureAccess.enabledFeatures(sessionCtx),
       this.prisma.user.findUnique({
         where: { google_id: googleId },
         select: { id: true, email: true, first_name: true, last_name: true, picture: true },
@@ -36,6 +38,10 @@ export class BootstrapService {
       this.carService.getAllCars(googleId),
       this.carAccessService.getSharedCars(googleId),
     ]);
+
+    // Disabled for this session's organization: don't query the data at all, just return it empty.
+    const documentsEnabled = enabledFeatures.includes('documents');
+    const maintenanceEnabled = enabledFeatures.includes('maintenance');
 
     const accepted = sharedInvitations.filter(s => s.accepted_at !== null);
     const pendingInvites = sharedInvitations.filter(s => s.accepted_at === null);
@@ -49,10 +55,10 @@ export class BootstrapService {
             }),
           )
         : Promise.resolve([]),
-      me ? this.documentService.getAllDocumentsByUser(me.id) : Promise.resolve([]),
-      me ? this.maintenanceRecordService.getAllByUser(me.id) : Promise.resolve([]),
-      me ? this.carMaintenanceSettingsService.getAllByUser(me.id) : Promise.resolve({}),
-      me ? this.carMaintenanceProfilesService.getAllByUser(me.id) : Promise.resolve({}),
+      me && documentsEnabled ? this.documentService.getAllDocumentsByUser(me.id) : Promise.resolve([]),
+      me && maintenanceEnabled ? this.maintenanceRecordService.getAllByUser(me.id) : Promise.resolve([]),
+      me && maintenanceEnabled ? this.carMaintenanceSettingsService.getAllByUser(me.id) : Promise.resolve({}),
+      me && maintenanceEnabled ? this.carMaintenanceProfilesService.getAllByUser(me.id) : Promise.resolve({}),
     ]);
 
     const validSharedCars: SharedCarEntry[] = (sharedCarEntries as (SharedCarEntry | null)[]).filter(
@@ -85,7 +91,7 @@ export class BootstrapService {
       maintenanceIntervals,
       carMaintenanceSettings,
       maintenanceProfiles,
-      enabled_features: await this.featureAccess.enabledFeatures(parseSessionContext(ctx)),
+      enabled_features: enabledFeatures,
     };
   }
 }

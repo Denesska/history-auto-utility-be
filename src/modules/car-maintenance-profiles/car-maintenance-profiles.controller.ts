@@ -1,4 +1,5 @@
 import { Scope } from '../../common/context/scope.decorator';
+import { Feature } from '../../common/features/feature.decorator';
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseIntPipe, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiCookieAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CarMaintenanceProfilesService } from './car-maintenance-profiles.service';
@@ -12,6 +13,7 @@ import { RequestWithUser } from '../auth/express-request.interface';
 @UseGuards(JwtAuthGuard)
 @ApiCookieAuth()
 @Scope('personal', 'business')
+@Feature('maintenance')
 @Controller('car/:carId/maintenance-profiles')
 export class CarMaintenanceProfilesController {
   constructor(private readonly service: CarMaintenanceProfilesService) {}
