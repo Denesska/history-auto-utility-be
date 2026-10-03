@@ -123,4 +123,17 @@ export class AddCarDto {
   @IsInt()
   @IsOptional()
   readonly default_new_photo_index?: number;
+
+  /**
+   * Creates the car directly inside this organization's fleet instead of as
+   * a personal car — the only way a car enters a fleet. Restricted to a
+   * Director-tier member (OWNER/SUPER_ADMIN) of that org; there's no
+   * "attach one of my personal cars" path, since a company asset shouldn't
+   * depend on — or ever have been — someone's personal property.
+   */
+  @ApiProperty({ example: 2, required: false })
+  @Type(() => Number)
+  @IsInt()
+  @IsOptional()
+  readonly organizationId?: number;
 }

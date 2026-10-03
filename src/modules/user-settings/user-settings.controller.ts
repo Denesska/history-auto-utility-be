@@ -1,3 +1,4 @@
+import { Scope } from '../../common/context/scope.decorator';
 import { Body, Controller, Get, Put, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -9,6 +10,7 @@ import { UserSettingsDto } from './dto/user-settings.dto';
 @ApiTags('user-settings')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
+@Scope('any')
 @Controller('user-settings')
 export class UserSettingsController {
     constructor(private readonly userSettingsService: UserSettingsService) {}

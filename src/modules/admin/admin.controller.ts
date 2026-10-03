@@ -1,3 +1,4 @@
+import { Scope } from '../../common/context/scope.decorator';
 import { BadRequestException, Controller, Get, ParseIntPipe, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -9,12 +10,15 @@ import { ADMIN_RANGES, AdminRange, AdminStatsDto, AdminUserRow } from './dto/adm
 @ApiTags('admin')
 @ApiCookieAuth()
 @UseGuards(JwtAuthGuard)
+@Scope('personal')
 @Controller('admin')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
   /** Open to every signed-in user — the frontend uses it to decide whether to show the Admin entry. */
   @Get('me')
+  // Harmless self-check (returns only the caller's own flag): the frontend may ask in any context.
+  @Scope('any')
   @ApiOperation({ summary: 'Whether the current user can open the admin page' })
   me(@Req() req: RequestWithUser): Promise<{ isAdmin: boolean }> {
     return this.adminService.isAdmin(req.user.id);

@@ -62,8 +62,15 @@ export class DocumentRemindersService {
     const today = startOfDay(new Date());
 
     for (const car of cars) {
-      const carLabel = car.nickname ?? `${car.make} ${car.model}`.trim();
       const recipients = this.uniqueRecipients(car);
+      const carMakeModel = `${car.make} ${car.model}`.trim();
+      // Each recipient sees THEIR OWN private label for this car (or falls back
+      // to make+model) — never a shared value, and never another viewer's label.
+      // See CarUserNickname.
+      const nicknameRows = await this.prisma.carUserNickname.findMany({
+        where: { car_id: car.id, user_id: { in: recipients.map(r => r.id) } },
+      });
+      const nicknameByUserId = new Map(nicknameRows.map(r => [r.user_id, r.nickname]));
 
       for (const { type, field } of DOC_FIELDS) {
         const expiresAt = car[field];
@@ -73,6 +80,7 @@ export class DocumentRemindersService {
         if (daysLeft < 0) continue;
 
         for (const recipient of recipients) {
+          const carLabel = nicknameByUserId.get(recipient.id) ?? carMakeModel;
           await this.maybeSendReminder(recipient, car.id, carLabel, type, expiresAt, daysLeft);
         }
       }

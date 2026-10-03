@@ -74,15 +74,7 @@ export class CarMaintenanceProfilesService {
    * user with no access to the car must not be able to probe which cars exist.
    */
   private async assertCanSeeCar(carId: number, userId: number): Promise<void> {
-    const car = await this.prisma.car.findUnique({ where: { id: carId }, select: { user_id: true } });
-    if (!car) throw new NotFoundException('Car not found');
-    if (car.user_id === userId) return;
-
-    const access = await this.prisma.carUserAccess.findUnique({
-      where: { car_id_user_id: { car_id: carId, user_id: userId } },
-      select: { accepted_at: true },
-    });
-    if (!access?.accepted_at) throw new ForbiddenException('No access to this car');
+    await this.carAccess.assertHasAccess(carId, userId);
   }
 
   /** A profile is per (car, user) — must belong to this exact pair to rename/delete it. */

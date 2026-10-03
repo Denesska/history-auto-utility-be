@@ -10,6 +10,9 @@ import { MaintenanceProfileDto } from '../../car-maintenance-profiles/dto/mainte
 export class SharedCarEntry {
   car: CarDto;
   role: CarAccessRole;
+  /** Null = shared with you personally. Set = you see this car through an organization, not a personal share. */
+  organizationId: number | null;
+  organizationName: string | null;
 }
 
 export class BootstrapResponseDto {

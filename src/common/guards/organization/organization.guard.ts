@@ -8,13 +8,17 @@ import { Reflector } from '@nestjs/core';
 import { OrganizationRole } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { REQUIRED_ORG_ROLE_KEY } from '../../decorators/required-org-role.decorator';
+import { ORG_ROLE_RANK } from './organization-roles';
 
 /**
  * Gates routes under `/organization/:organizationId/**`. With no
  * `@RequiredOrgRole`, any accepted member may proceed. With
- * `@RequiredOrgRole(SUPER_ADMIN)`, only an accepted SUPER_ADMIN may — see
- * the decorator's doc comment for why this isn't a ranked hierarchy like
- * `CarAccessGuard`.
+ * `@RequiredOrgRole(SUPER_ADMIN)`, an accepted member must rank at
+ * SUPER_ADMIN or higher — i.e. SUPER_ADMIN (Director) or OWNER, since OWNER
+ * outranks everyone and must pass every Director-gated check too. See
+ * `organization-roles.ts` for the rank ladder and the invite/manage matrix
+ * (finer-grained checks, like "FLEET_ADMIN may invite only DRIVER", live in
+ * `OrganizationService` itself, not in this guard).
  */
 @Injectable()
 export class OrganizationGuard implements CanActivate {
@@ -45,8 +49,8 @@ export class OrganizationGuard implements CanActivate {
       throw new ForbiddenException('No accepted membership in this organization');
     }
 
-    if (requiredRole && membership.role !== requiredRole) {
-      throw new ForbiddenException(`Requires ${requiredRole} role, current role is ${membership.role}`);
+    if (requiredRole && ORG_ROLE_RANK[membership.role] > ORG_ROLE_RANK[requiredRole]) {
+      throw new ForbiddenException(`Requires ${requiredRole} role or higher, current role is ${membership.role}`);
     }
 
     return true;

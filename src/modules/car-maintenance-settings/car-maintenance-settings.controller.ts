@@ -1,3 +1,4 @@
+import { Scope } from '../../common/context/scope.decorator';
 import { Body, Controller, Get, Param, ParseEnumPipe, ParseIntPipe, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiCookieAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CarMaintenanceSettingsService } from './car-maintenance-settings.service';
@@ -10,6 +11,7 @@ import { ServiceCategory } from '@prisma/client';
 @ApiTags('car-maintenance-settings')
 @UseGuards(JwtAuthGuard)
 @ApiCookieAuth()
+@Scope('personal', 'business')
 @Controller('car/:carId/maintenance-settings')
 export class CarMaintenanceSettingsController {
   constructor(private readonly service: CarMaintenanceSettingsService) {}

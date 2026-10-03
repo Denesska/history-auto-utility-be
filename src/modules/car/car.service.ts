@@ -1,11 +1,15 @@
 import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { Car, CarAccessRole, CarPhoto, CarStatus, NotificationType, Prisma } from '@prisma/client';
+import { Car, CarAccessRole, CarPhoto, CarStatus, FuelType, NotificationType, OrganizationRole, Prisma, TransmissionType } from '@prisma/client';
+import { getRequestSessionContext } from '../../common/context/request-context';
 import { ROLE_RANK } from '../../common/guards/car-access/car-access.guard';
+import { ORG_ROLE_RANK } from '../../common/guards/organization/organization-roles';
 import { CarAccessService } from '../car-access/car-access.service';
 import { CarDto, CarPhotoDto } from './dto/car.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { AddCarDto } from './dto/add-car.dto';
+import { ImportRowResultDto } from './dto/import-cars-result.dto';
+import { ImportRow } from './fleet-import.util';
 import { NotificationsService } from '../notifications/notifications.service';
 
 type CarWithPhotos = Car & { photos: CarPhoto[] };
@@ -26,7 +30,10 @@ export class CarService {
     try {
       const existingCar = await this.prisma.car.findUnique({ where: { vin } });
       if (!existingCar || existingCar.user_id === ownerIdToExclude) return;
-      const carLabel = existingCar.nickname ?? `${existingCar.make} ${existingCar.model}`.trim();
+      // Shown only to this car's own owner, about their own car — safe to resolve
+      // their own private label (see CarUserNickname), never anyone else's.
+      const myNickname = await this.getMyNickname(existingCar.id, existingCar.user_id);
+      const carLabel = myNickname ?? `${existingCar.make} ${existingCar.model}`.trim();
       await this.notificationsService.create(existingCar.user_id, NotificationType.VIN_CONFLICT, {
         carId: existingCar.id,
         carLabel,
@@ -53,7 +60,10 @@ export class CarService {
         },
       });
       if (!existingCar) return;
-      const carLabel = existingCar.nickname ?? `${existingCar.make} ${existingCar.model}`.trim();
+      // Same reasoning as notifyVinConflictIfNeeded — the recipient is this car's
+      // own owner, so their own private label is safe to show them.
+      const myNickname = await this.getMyNickname(existingCar.id, existingCar.user_id);
+      const carLabel = myNickname ?? `${existingCar.make} ${existingCar.model}`.trim();
       await this.notificationsService.create(existingCar.user_id, NotificationType.LICENSE_PLATE_CONFLICT, {
         carId: existingCar.id,
         carLabel,
@@ -62,6 +72,52 @@ export class CarService {
     } catch (e) {
       this.logger.error(`Failed to notify owner of license plate conflict for plate=${licensePlate}`, e instanceof Error ? e.stack : String(e));
     }
+  }
+
+  // ── Private per-viewer nicknames (CarUserNickname) ────────────────────────
+  // A car's "name" is private per viewing user now, not one shared global
+  // value — see CarUserNickname in schema.prisma and the deprecation note on
+  // Car.nickname. Nothing below ever reads or writes the old column.
+
+  private async userIdFromGoogleId(googleId: string): Promise<number | null> {
+    const user = await this.prisma.user.findUnique({ where: { google_id: googleId } });
+    return user?.id ?? null;
+  }
+
+  private async getMyNickname(carId: number, userId: number): Promise<string | null> {
+    const row = await this.prisma.carUserNickname.findUnique({
+      where: { car_id_user_id: { car_id: carId, user_id: userId } },
+    });
+    return row?.nickname ?? null;
+  }
+
+  /** Batched version of getMyNickname for a list of cars — one query instead of N. */
+  private async getMyNicknamesMap(carIds: number[], userId: number): Promise<Map<number, string>> {
+    if (carIds.length === 0) return new Map();
+    const rows = await this.prisma.carUserNickname.findMany({
+      where: { user_id: userId, car_id: { in: carIds } },
+    });
+    return new Map(rows.map(r => [r.car_id, r.nickname]));
+  }
+
+  /**
+   * `nickname === undefined` means "the caller didn't send this field at all" —
+   * left untouched. `null`/empty string clears the viewer's label (row deleted,
+   * display falls back to make+model); any other string sets/replaces it.
+   * Private per (car, user) pair — never globally unique, unlike the old column.
+   */
+  private async setMyNickname(carId: number, userId: number, nickname: string | null | undefined): Promise<void> {
+    if (nickname === undefined) return;
+    const trimmed = nickname?.trim();
+    if (!trimmed) {
+      await this.prisma.carUserNickname.deleteMany({ where: { car_id: carId, user_id: userId } });
+      return;
+    }
+    await this.prisma.carUserNickname.upsert({
+      where: { car_id_user_id: { car_id: carId, user_id: userId } },
+      create: { car_id: carId, user_id: userId, nickname: trimmed },
+      update: { nickname: trimmed },
+    });
   }
 
   async createCar(
@@ -81,7 +137,40 @@ export class CarService {
     }
 
     this.logger.log(`Found user id=${user.id}, creating car...`);
-    const { id, default_new_photo_index, ...carData } = data as any;
+    // `nickname` is pulled out here and never written to the Car row — it
+    // becomes the creator's own private label (setMyNickname below), not a
+    // column on the car itself. See CarUserNickname.
+    const { id, default_new_photo_index, organizationId: requestedOrganizationId, nickname, ...carData } = data as any;
+
+    // Where the car lives is decided by the session context, never by the
+    // client: business -> always the session's organization, personal -> always
+    // personal (null), whatever `organizationId` was sent. Only a caller outside
+    // an HTTP request (no context) may pass it explicitly.
+    const sessionCtx = getRequestSessionContext();
+    const organizationId: number | null | undefined = sessionCtx
+      ? (sessionCtx.type === 'business' ? sessionCtx.orgId : null)
+      : requestedOrganizationId;
+
+    // Creating a car directly inside an organization — the only way a car
+    // enters a fleet; there's no "attach one of my personal cars" path, so a
+    // company asset never has to have been someone's personal property
+    // first. Restricted to that org's Director tier (OWNER/SUPER_ADMIN).
+    if (organizationId != null) {
+      const membership = await this.prisma.organizationMembership.findUnique({
+        where: { organization_id_user_id: { organization_id: Number(organizationId), user_id: user.id } },
+      });
+      if (!membership?.accepted_at || ORG_ROLE_RANK[membership.role] > ORG_ROLE_RANK[OrganizationRole.SUPER_ADMIN]) {
+        throw new ForbiddenException('Only a Director or Super Admin can add a car directly to the organization');
+      }
+      if (carData.license_plate) {
+        const conflict = await this.prisma.car.findFirst({
+          where: { license_plate: carData.license_plate, status: CarStatus.ACTIVE, organization_id: { not: null } },
+        });
+        if (conflict && conflict.organization_id !== Number(organizationId)) {
+          throw new ConflictException({ code: 'CAR_ORG_PLATE_CONFLICT', message: 'A car with this license plate already belongs to another fleet' });
+        }
+      }
+    }
 
     let car: CarWithPhotos;
     try {
@@ -94,6 +183,7 @@ export class CarService {
           rov_expiry_date: carData.rov_expiry_date ? new Date(carData.rov_expiry_date) : null,
           last_oil_service_date: carData.last_oil_service_date ? new Date(carData.last_oil_service_date) : null,
           user_id: user.id,
+          organization_id: organizationId != null ? Number(organizationId) : null,
           photos: photoPaths.length > 0
             ? {
                 create: photoPaths.map((url, i) => ({
@@ -106,9 +196,6 @@ export class CarService {
         include: { photos: true },
       }) as CarWithPhotos;
     } catch (e: any) {
-      if (e?.code === 'P2002' && e?.meta?.target?.includes('nickname')) {
-        throw new ConflictException({ code: 'CAR_NICKNAME_CONFLICT', message: 'A car with this nickname already exists' });
-      }
       if (e?.code === 'P2002' && e?.meta?.target?.includes('vin')) {
         await this.notifyVinConflictIfNeeded(carData.vin, user.id);
         throw new ConflictException({ code: 'CAR_VIN_CONFLICT', message: 'A car with this VIN already exists' });
@@ -118,7 +205,10 @@ export class CarService {
 
     await this.notifyLicensePlateConflictIfNeeded(car.license_plate, car.id, car.user_id);
 
-    return this.toCarDto(car);
+    // The creator's own private label for their new car — never a shared value.
+    await this.setMyNickname(car.id, user.id, nickname);
+
+    return this.toCarDto(car, nickname?.trim() || null);
   }
 
   async getCar(id: number, userId: number): Promise<CarDto | null> {
@@ -132,7 +222,8 @@ export class CarService {
     } catch {
       return null;
     }
-    return await this.toCarDto(car as CarWithPhotos);
+    const myNickname = await this.getMyNickname(id, userId);
+    return await this.toCarDto(car as CarWithPhotos, myNickname);
   }
 
   async updateCar(
@@ -144,13 +235,21 @@ export class CarService {
     defaultNewPhotoIndex: number | null = null,
     googleId?: string,
   ): Promise<CarDto> {
+    let actingUserId: number | null = null;
     if (googleId) {
       const role = await this.carAccessService.resolveUserRole(id, googleId);
       if (ROLE_RANK[role] < ROLE_RANK[CarAccessRole.USER]) {
         throw new ForbiddenException('Insufficient permissions to edit this car');
       }
+      actingUserId = await this.userIdFromGoogleId(googleId);
     }
-    const updateData: Prisma.CarUpdateInput = { ...data };
+
+    // `nickname` never reaches the Car row — it's the acting viewer's own
+    // private label (setMyNickname below), not a shared column. See
+    // CarUserNickname.
+    // `organizationId` is dropped too: a car never moves between personal and a fleet via update.
+    const { nickname, organizationId: _ignoredOrganizationId, ...rest } = data as any;
+    const updateData: Prisma.CarUpdateInput = { ...rest };
 
     if (updateData.actual_mileage !== undefined) {
       updateData.actual_mileage_updated_at = new Date();
@@ -205,9 +304,6 @@ export class CarService {
         include: { photos: true },
       }) as CarWithPhotos;
     } catch (e: any) {
-      if (e?.code === 'P2002' && e?.meta?.target?.includes('nickname')) {
-        throw new ConflictException({ code: 'CAR_NICKNAME_CONFLICT', message: 'A car with this nickname already exists' });
-      }
       if (e?.code === 'P2002' && e?.meta?.target?.includes('vin')) {
         const targetCar = await this.prisma.car.findUnique({ where: { id }, select: { user_id: true } });
         if (targetCar) {
@@ -220,18 +316,41 @@ export class CarService {
 
     await this.notifyLicensePlateConflictIfNeeded(car.license_plate, car.id, car.user_id);
 
-    return await this.toCarDto(car);
+    // The acting viewer's own private label. Falls back to the car's owner
+    // only when no actor could be resolved (shouldn't happen through the
+    // controller, which always supplies a google_id).
+    const nicknameOwnerId = actingUserId ?? car.user_id;
+    await this.setMyNickname(id, nicknameOwnerId, nickname);
+    const myNickname = nickname !== undefined
+      ? (nickname?.trim() || null)
+      : await this.getMyNickname(id, nicknameOwnerId);
+
+    return await this.toCarDto(car, myNickname);
   }
 
-  async deletePhoto(photoId: number): Promise<void> {
+  /**
+   * Loads the photo (404 if missing) and requires the same write role as
+   * `PUT /car` (USER or above) on the photo's car, resolved in the current
+   * session context (personal vs. business) — a photo id alone must never be
+   * enough to touch another car's photos.
+   */
+  private async loadPhotoForEdit(photoId: number, userId: number): Promise<CarPhoto> {
     const photo = await this.prisma.carPhoto.findUnique({ where: { id: photoId } });
     if (!photo) throw new NotFoundException('Photo not found');
+    const role = await this.carAccessService.resolveUserRoleById(photo.car_id, userId);
+    if (ROLE_RANK[role] < ROLE_RANK[CarAccessRole.USER]) {
+      throw new ForbiddenException('Insufficient permissions to edit this car');
+    }
+    return photo;
+  }
+
+  async deletePhoto(photoId: number, userId: number): Promise<void> {
+    await this.loadPhotoForEdit(photoId, userId);
     await this.prisma.carPhoto.delete({ where: { id: photoId } });
   }
 
-  async setDefaultPhoto(photoId: number): Promise<void> {
-    const photo = await this.prisma.carPhoto.findUnique({ where: { id: photoId } });
-    if (!photo) throw new NotFoundException('Photo not found');
+  async setDefaultPhoto(photoId: number, userId: number): Promise<void> {
+    const photo = await this.loadPhotoForEdit(photoId, userId);
     await this.prisma.carPhoto.updateMany({
       where: { car_id: photo.car_id },
       data: { is_default: false },
@@ -243,49 +362,67 @@ export class CarService {
   }
 
   async markAsSold(id: number, googleId?: string): Promise<CarDto> {
+    let actingUserId: number | null = null;
     if (googleId) {
       const role = await this.carAccessService.resolveUserRole(id, googleId);
       if (role !== CarAccessRole.OWNER) {
         throw new ForbiddenException('Only the owner can archive this car');
       }
+      actingUserId = await this.userIdFromGoogleId(googleId);
     }
     const car = await this.prisma.car.update({
       where: { id },
       data: { status: CarStatus.SOLD, sold_at: new Date() },
       include: { photos: true },
     });
-    return await this.toCarDto(car as CarWithPhotos);
+    const myNickname = await this.getMyNickname(id, actingUserId ?? car.user_id);
+    return await this.toCarDto(car as CarWithPhotos, myNickname);
   }
 
   async restoreCar(id: number, googleId?: string): Promise<CarDto> {
+    let actingUserId: number | null = null;
     if (googleId) {
       const role = await this.carAccessService.resolveUserRole(id, googleId);
       if (role !== CarAccessRole.OWNER) {
         throw new ForbiddenException('Only the owner can restore this car');
       }
+      actingUserId = await this.userIdFromGoogleId(googleId);
     }
     const car = await this.prisma.car.update({
       where: { id },
       data: { status: CarStatus.ACTIVE, sold_at: null },
       include: { photos: true },
     });
-    return await this.toCarDto(car as CarWithPhotos);
+    const myNickname = await this.getMyNickname(id, actingUserId ?? car.user_id);
+    return await this.toCarDto(car as CarWithPhotos, myNickname);
   }
 
   async deleteCar(id: number, googleId?: string): Promise<CarDto> {
+    let actingUserId: number | null = null;
     if (googleId) {
       const role = await this.carAccessService.resolveUserRole(id, googleId);
       if (role !== CarAccessRole.OWNER) {
         throw new ForbiddenException('Only the owner can delete this car');
       }
+      actingUserId = await this.userIdFromGoogleId(googleId);
     }
+    // Resolved before the delete — CarUserNickname rows for this car cascade
+    // away together with it, so there'd be nothing left to read afterward.
+    const existing = await this.prisma.car.findUnique({ where: { id } });
+    const myNickname = existing ? await this.getMyNickname(id, actingUserId ?? existing.user_id) : null;
     const car = await this.prisma.car.delete({
       where: { id },
       include: { photos: true },
     });
-    return await this.toCarDto(car as CarWithPhotos);
+    return await this.toCarDto(car as CarWithPhotos, myNickname);
   }
 
+  /**
+   * The cars of the current session context. Personal: the user's own cars with
+   * `organization_id` NULL (unchanged). Business: the active organization's
+   * fleet (a DRIVER only sees currently assigned cars) — resolved through
+   * `CarAccessService.getAccessibleCarIds`, the single source for that rule.
+   */
   async getAllCars(google_id: string): Promise<CarDto[]> {
     const user = await this.prisma.user.findUnique({
       where: { google_id },
@@ -295,22 +432,31 @@ export class CarService {
       throw new Error('User not found');
     }
 
+    const ctx = getRequestSessionContext();
+    const where: Prisma.CarWhereInput = ctx?.type === 'business'
+      ? { id: { in: await this.carAccessService.getAccessibleCarIds(user.id) } }
+      : { user_id: user.id, organization_id: null };
+
     const cars = await this.prisma.car.findMany({
-      where: { user_id: user.id },
+      where,
       include: { photos: true },
     });
-    return Promise.all(cars.map(car => this.toCarDto(car as CarWithPhotos)));
+    const nicknames = await this.getMyNicknamesMap(cars.map(c => c.id), user.id);
+    return Promise.all(cars.map(car => this.toCarDto(car as CarWithPhotos, nicknames.get(car.id) ?? null)));
   }
 
+  /** Personal cars (organization_id NULL) of a user; the controller only lets callers ask for themselves. */
   async getCarsByUser(userId: number): Promise<CarDto[]> {
     const cars = await this.prisma.car.findMany({
-      where: { user_id: userId },
+      where: { user_id: userId, organization_id: null },
       include: { photos: true },
     });
-    return Promise.all(cars.map(car => this.toCarDto(car as CarWithPhotos)));
+    const nicknames = await this.getMyNicknamesMap(cars.map(c => c.id), userId);
+    return Promise.all(cars.map(car => this.toCarDto(car as CarWithPhotos, nicknames.get(car.id) ?? null)));
   }
 
-  private async toCarDto(car: CarWithPhotos): Promise<CarDto> {
+  /** `myNickname` is the resolved viewer-private label (or null) — see getMyNickname/getMyNicknamesMap. Never reads car.nickname. */
+  private async toCarDto(car: CarWithPhotos, myNickname: string | null): Promise<CarDto> {
     const photos = await Promise.all(
       car.photos.map(async (p: CarPhoto): Promise<CarPhotoDto> => ({
         id: p.id,
@@ -322,7 +468,7 @@ export class CarService {
       id: car.id,
       user_id: car.user_id,
       vin: car.vin,
-      nickname: car.nickname,
+      nickname: myNickname,
       make: car.make,
       model: car.model,
       variant: car.variant,
@@ -347,9 +493,66 @@ export class CarService {
     };
   }
 
-  private resolveUrl(url: string | null): Promise<string | null> | string | null {
+  /** Public so other modules (e.g. OrganizationService's company-cars list) resolve a stored photo path the same way, instead of re-deriving it. */
+  resolveUrl(url: string | null): Promise<string | null> | string | null {
     if (!url || url.startsWith('/') || url.startsWith('http')) return url;
     return this.storage.createPresignedGetUrl(url);
+  }
+
+  /**
+   * Bulk-creates cars directly inside an organization's fleet from a parsed
+   * import file (see `fleet-import.util.ts`) — one `createCar` call per row,
+   * so every row gets the exact same authorization (Director-tier only) and
+   * conflict checks (duplicate plate/VIN) as adding a single company car.
+   * A bad row (missing make/model, a conflict, an invalid enum value)
+   * fails that row only — the rest of the file still gets imported.
+   */
+  async importCars(rows: ImportRow[], organizationId: number, google_id: string): Promise<ImportRowResultDto[]> {
+    const results: ImportRowResultDto[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const rowNumber = i + 1;
+      const row = rows[i];
+      const make = row.make?.trim();
+      const model = row.model?.trim();
+
+      if (!make || !model) {
+        results.push({ row: rowNumber, success: false, error: 'Missing required field: make and/or model' });
+        continue;
+      }
+
+      const year = row.year ? Number(row.year) : undefined;
+      const current_mileage = row.current_mileage ? Number(row.current_mileage) : undefined;
+      const fuel_type = row.fuel_type && (Object.values(FuelType) as string[]).includes(row.fuel_type.toUpperCase())
+        ? (row.fuel_type.toUpperCase() as FuelType) : undefined;
+      const transmission = row.transmission && (Object.values(TransmissionType) as string[]).includes(row.transmission.toUpperCase())
+        ? (row.transmission.toUpperCase() as TransmissionType) : undefined;
+
+      const dto = {
+        make,
+        model,
+        variant: row.variant?.trim() || undefined,
+        year: year && !isNaN(year) ? year : undefined,
+        license_plate: row.license_plate?.trim() || undefined,
+        vin: row.vin?.trim() || undefined,
+        nickname: row.nickname?.trim() || undefined,
+        fuel_type,
+        transmission,
+        color: row.color?.trim() || undefined,
+        current_mileage: current_mileage && !isNaN(current_mileage) ? current_mileage : undefined,
+        organizationId,
+      } as AddCarDto;
+
+      try {
+        const car = await this.createCar(dto, google_id);
+        results.push({ row: rowNumber, success: true, carId: car.id, label: car.nickname ?? `${car.make} ${car.model}`.trim() });
+      } catch (e: any) {
+        const message = e?.response?.message ?? e?.message ?? 'Could not create this car';
+        results.push({ row: rowNumber, success: false, error: Array.isArray(message) ? message.join(', ') : message });
+      }
+    }
+
+    return results;
   }
 }
 

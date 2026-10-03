@@ -3,7 +3,7 @@ import { CarAccessRole } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CarAccessService } from '../car-access/car-access.service';
 import { AssignDriverDto } from './dto/assign-driver.dto';
-import { DriverAssignmentDto } from './dto/driver-assignment.dto';
+import { AssignableUserDto, DriverAssignmentDto } from './dto/driver-assignment.dto';
 
 const userSelect = { id: true, email: true, first_name: true, last_name: true, picture: true };
 
@@ -36,6 +36,24 @@ export class DriverAssignmentService {
     return car;
   }
 
+  /**
+   * Every accepted member of the car's organization, any role — the pool the
+   * assignee picker draws from. Deliberately not `GET /organization/:id/members`:
+   * that list is rank-filtered (`canSeeMember`), so a fleet admin would only see
+   * a couple of people. Same permission as assigning.
+   */
+  async getAssignableUsers(carId: number, actingUserId: number): Promise<AssignableUserDto[]> {
+    const car = await this.getOrgCarOrThrow(carId);
+    await this.assertCanManage(carId, actingUserId);
+
+    const memberships = await this.prisma.organizationMembership.findMany({
+      where: { organization_id: car.organization_id!, accepted_at: { not: null } },
+      include: { user: { select: userSelect } },
+      orderBy: { created_at: 'asc' },
+    });
+    return memberships.map(m => ({ user: m.user as AssignableUserDto['user'], role: m.role }));
+  }
+
   async assignDriver(carId: number, dto: AssignDriverDto, actingUserId: number): Promise<DriverAssignmentDto> {
     const car = await this.getOrgCarOrThrow(carId);
     await this.assertCanManage(carId, actingUserId);
@@ -44,7 +62,7 @@ export class DriverAssignmentService {
       where: { organization_id_user_id: { organization_id: car.organization_id!, user_id: dto.driver_user_id } },
     });
     if (!membership?.accepted_at) {
-      throw new BadRequestException('The driver must be an accepted member of this car\'s organization');
+      throw new BadRequestException('The user must be an accepted member of this car\'s organization');
     }
 
     const created = await this.prisma.$transaction(async tx => {

@@ -1,3 +1,6 @@
+import { Scope } from '../../common/context/scope.decorator';
+import { BusinessRoles } from '../../common/context/business-roles.decorator';
+import { OrganizationRole } from '@prisma/client';
 import {
     BadRequestException,
     Body,
@@ -35,6 +38,8 @@ const IDENTITY_UPLOAD_LIMIT_BYTES = 15 * 1024 * 1024;
 
 @ApiTags('sale-contract')
 @UseGuards(JwtAuthGuard)
+@Scope('personal', 'business')
+@BusinessRoles(OrganizationRole.OWNER, OrganizationRole.SUPER_ADMIN, OrganizationRole.FLEET_ADMIN)
 @Controller('sale-contract')
 export class SaleContractController {
     constructor(

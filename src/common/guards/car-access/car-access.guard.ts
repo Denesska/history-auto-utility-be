@@ -48,6 +48,13 @@ export class CarAccessGuard implements CanActivate {
     const car = await this.prisma.car.findUnique({ where: { id: carId } });
     if (!car) throw new NotFoundException('Car not found');
 
+    // This guard only backs personal car sharing (CarUserAccess). Organization
+    // fleet cars are never shared this way — business access comes from
+    // membership / driver assignment (see CarAccessService.resolveUserRoleById).
+    if (car.organization_id != null) {
+      throw new ForbiddenException('Organization cars cannot be shared personally');
+    }
+
     // Car owner always has full access regardless of CarUserAccess table
     if (car.user_id === user.id) return true;
 

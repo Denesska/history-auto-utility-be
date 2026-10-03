@@ -5,9 +5,10 @@ import { OrganizationGuard } from '../../common/guards/organization/organization
 import { PrismaModule } from '../../prisma/prisma.module';
 import { MailModule } from '../mail/mail.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { CarModule } from '../car/car.module';
 
 @Module({
-  imports: [PrismaModule, MailModule, NotificationsModule],
+  imports: [PrismaModule, MailModule, NotificationsModule, CarModule],
   controllers: [OrganizationController],
   providers: [OrganizationService, OrganizationGuard],
   exports: [OrganizationService, OrganizationGuard],

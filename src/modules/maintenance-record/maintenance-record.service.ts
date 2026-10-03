@@ -26,7 +26,7 @@ export class MaintenanceRecordService {
 
     async createMaintenanceRecord(data: CreateMaintenanceRecordDto, userId: number): Promise<MaintenanceRecordWithParts> {
         await this.carAccess.assertHasAccess(data.car_id, userId);
-        if (data.supplier_id != null) await this.supplierService.assertAccessible(data.supplier_id, userId);
+        const supplierId = (await this.supplierService.resolveLinkedSupplierId(data.supplier_id, userId)) ?? null;
         const record = await this.prisma.maintenanceRecord.create({
             data: {
                 car_id:           data.car_id,
@@ -41,7 +41,7 @@ export class MaintenanceRecordService {
                 fuel_liters:        data.fuel_liters,
                 energy_kwh:         data.energy_kwh,
                 is_company_expense: data.is_company_expense ?? false,
-                supplier_id:        data.supplier_id ?? null,
+                supplier_id:        supplierId,
                 parts: data.parts?.length
                     ? { create: data.parts.map(p => ({ name: p.name, code: p.code, quantity: p.quantity, price: p.price })) }
                     : undefined,
@@ -67,7 +67,7 @@ export class MaintenanceRecordService {
         const existing = await this.prisma.maintenanceRecord.findUnique({ where: { id } });
         if (!existing) throw new NotFoundException('Maintenance record not found');
         await this.assertAccessOrNotFound(existing.car_id, userId);
-        if (data.supplier_id != null) await this.supplierService.assertAccessible(data.supplier_id, userId);
+        const supplierId = await this.supplierService.resolveLinkedSupplierId(data.supplier_id, userId);
 
         // Parts have no stable client-side id to diff against, so an edit replaces
         // the whole set rather than trying to patch individual rows.
@@ -89,7 +89,7 @@ export class MaintenanceRecordService {
                 fuel_liters:        data.fuel_liters,
                 energy_kwh:         data.energy_kwh,
                 is_company_expense: data.is_company_expense,
-                supplier_id:        data.supplier_id,
+                supplier_id:        supplierId,
                 parts: data.parts !== undefined
                     ? { create: data.parts.map(p => ({ name: p.name, code: p.code, quantity: p.quantity, price: p.price })) }
                     : undefined,

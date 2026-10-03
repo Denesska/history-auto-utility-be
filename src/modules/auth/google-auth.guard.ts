@@ -20,6 +20,17 @@ export class GoogleAuthGuard extends AuthGuard('google') {
       });
     }
 
+    // Requested login context (?context=personal|business) survives the Google
+    // round-trip in a short-lived cookie, same mechanism as login_origin.
+    const requested = request.query.context as string;
+    response.cookie('login_ctx', requested === 'business' ? 'business' : 'personal', {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      maxAge: 5 * 60 * 1000,
+      path: '/',
+    });
+
     return super.canActivate(context) as Promise<boolean>;
   }
 }

@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { OrganizationRole } from '@prisma/client';
 
 export class AssignmentUserDto {
   @ApiProperty({ example: 1 })
@@ -38,4 +39,12 @@ export class DriverAssignmentDto {
 
   @ApiPropertyOptional({ nullable: true })
   notes: string | null;
+}
+
+export class AssignableUserDto {
+  @ApiProperty({ type: AssignmentUserDto })
+  user: AssignmentUserDto;
+
+  @ApiProperty({ enum: OrganizationRole, example: OrganizationRole.FLEET_ADMIN })
+  role: OrganizationRole;
 }

@@ -1,3 +1,4 @@
+import { Scope } from '../../common/context/scope.decorator';
 import {
   BadRequestException,
   Controller,
@@ -45,6 +46,7 @@ const uploadStorage = diskStorage({
 
 @ApiTags('document')
 @UseGuards(JwtAuthGuard)
+@Scope('personal', 'business')
 @Controller('document')
 export class DocumentController {
   constructor(

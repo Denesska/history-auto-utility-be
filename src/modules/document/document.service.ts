@@ -36,7 +36,7 @@ export class DocumentService {
 
     async createDocument(data: CreateDocumentDto, userId: number): Promise<DocumentDto> {
         await this.carAccess.assertHasAccess(data.car_id, userId);
-        if (data.supplier_id != null) await this.supplierService.assertAccessible(data.supplier_id, userId);
+        const supplierId = (await this.supplierService.resolveLinkedSupplierId(data.supplier_id, userId)) ?? null;
         const conversion = await this.convertPrice(
             data.premium ?? null, data.currency ?? null, data.exchange_rate ?? null,
             data.issue_date ? new Date(data.issue_date) : null,
@@ -58,7 +58,7 @@ export class DocumentService {
                 cnp_id: data.cnp_id ?? null,
                 is_active: data.is_active ?? true,
                 country: data.country ?? null,
-                supplier_id: data.supplier_id ?? null,
+                supplier_id: supplierId,
                 ...conversion,
             },
         });
@@ -76,7 +76,7 @@ export class DocumentService {
         const existing = await this.prisma.document.findUnique({ where: { id } });
         if (!existing) throw new NotFoundException('Document not found');
         await this.assertAccessOrNotFound(existing.car_id, userId);
-        if (data.supplier_id != null) await this.supplierService.assertAccessible(data.supplier_id, userId);
+        const supplierId = await this.supplierService.resolveLinkedSupplierId(data.supplier_id, userId);
 
         const conversion = await this.recomputeConversionForUpdate(id, data);
         const document = await this.prisma.document.update({
@@ -97,7 +97,7 @@ export class DocumentService {
                 ...(data.cnp_id !== undefined && { cnp_id: data.cnp_id }),
                 ...(data.is_active !== undefined && { is_active: data.is_active }),
                 ...(data.country !== undefined && { country: data.country }),
-                ...(data.supplier_id !== undefined && { supplier_id: data.supplier_id }),
+                ...(supplierId !== undefined && { supplier_id: supplierId }),
                 ...conversion,
             },
         });

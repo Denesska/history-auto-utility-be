@@ -7,6 +7,10 @@ export class OrganizationMemberUserDto {
   @ApiProperty() first_name: string;
   @ApiProperty() last_name: string;
   @ApiPropertyOptional() picture?: string;
+  /** True for a company-created username/password account (see OrganizationService.createLocalMember) — the frontend only offers "reset password" for these, never for a Google-identity member. */
+  @ApiProperty() is_company_managed: boolean;
+  /** Login username of a company-managed account; null for a Google-identity member. */
+  @ApiPropertyOptional() username?: string | null;
 }
 
 export class OrganizationMembershipDto {
@@ -25,4 +29,6 @@ export class MyOrganizationDto {
   @ApiProperty() name: string;
   @ApiProperty({ enum: OrganizationRole }) role: OrganizationRole;
   @ApiPropertyOptional() accepted_at: Date | null;
+  /** Company code for the Business login; only returned to OWNER/SUPER_ADMIN/FLEET_ADMIN, null for other roles. */
+  @ApiPropertyOptional() login_code?: string | null;
 }

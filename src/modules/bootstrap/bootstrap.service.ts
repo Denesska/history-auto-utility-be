@@ -42,7 +42,7 @@ export class BootstrapService {
         ? Promise.all(
             accepted.map(async s => {
               const car = await this.carService.getCar(s.id, me.id);
-              return car ? { car, role: s.shared_role } : null;
+              return car ? { car, role: s.shared_role, organizationId: s.organization_id, organizationName: s.organization_name } : null;
             }),
           )
         : Promise.resolve([]),

@@ -1,3 +1,4 @@
+import { Scope } from '../../common/context/scope.decorator';
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiCookieAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -7,6 +8,7 @@ import { PushService } from './push.service';
 import { NotificationDto, UnreadCountDto } from './dto/notification.dto';
 import { RegisterPushTokenDto } from './dto/register-push-token.dto';
 
+@Scope('personal', 'business', { allowNoOrg: true })
 @Controller('notifications')
 @ApiTags('notifications')
 @UseGuards(JwtAuthGuard)

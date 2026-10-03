@@ -282,7 +282,7 @@ paths:
   /api/auth/google:
     get:
       operationId: "AuthController_login"
-      summary: "Initiate Google OAuth login"
+      summary: "Initiate Google OAuth login (?context=personal|business)"
       parameters: []
       responses:
         200:
@@ -309,6 +309,64 @@ paths:
       responses:
         200:
           description: ""
+      tags:
+        - "auth"
+  /api/auth/local-login:
+    post:
+      operationId: "AuthController_localLogin"
+      summary: "Log in with a company-issued username/password account"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LocalLoginDto"
+      responses:
+        200:
+          description: "Authenticated; access token issued."
+        401:
+          description: "Invalid credentials or disabled account."
+        403:
+          description: "LOCAL_LOGIN_BUSINESS_ONLY: context \"personal\" requested."
+      tags:
+        - "auth"
+  /api/auth/context:
+    post:
+      operationId: "AuthController_switchContext"
+      summary: "Select the active organization of a business session; issues new tokens"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SwitchContextDto"
+      responses:
+        200:
+          description: "New access token issued with ctx.orgId set."
+        403:
+          description: "PERSONAL_SESSION or NOT_ORG_MEMBER."
+      tags:
+        - "auth"
+  /api/auth/change-password:
+    post:
+      operationId: "AuthController_changePassword"
+      summary: "Change the current user's own password (company-managed accounts only)"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordDto"
+      responses:
+        200:
+          description: "Password changed."
+        400:
+          description: "Account has no password login."
+        401:
+          description: "Current password is incorrect."
       tags:
         - "auth"
   /api/auth/refresh:
@@ -704,6 +762,8 @@ paths:
       responses:
         204:
           description: "Photo deleted."
+        403:
+          description: "No edit access to the photo's car."
         404:
           description: "Photo not found."
       tags:
@@ -723,6 +783,8 @@ paths:
       responses:
         204:
           description: "Default photo updated."
+        403:
+          description: "No edit access to the photo's car."
         404:
           description: "Photo not found."
       tags:
@@ -778,7 +840,7 @@ paths:
   /api/car/user/{userId}:
     get:
       operationId: "CarController_getCarsByUser"
-      summary: "Get all cars for a specific user"
+      summary: "Get the personal cars of a user (only yourself)"
       parameters:
         - name: "userId"
           required: true
@@ -2312,6 +2374,46 @@ paths:
         - "admin"
       security:
         - cookie: []
+  /api/vehicle-silhouette:
+    get:
+      operationId: "VehicleSilhouetteController_get"
+      summary: "Shared schematic silhouette for a make + model (generated on first request)"
+      parameters:
+        - name: "make"
+          required: true
+          in: "query"
+          schema:
+            type: "string"
+        - name: "model"
+          required: true
+          in: "query"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+      tags:
+        - "vehicle-silhouette"
+      security:
+        - cookie: []
+  /api/vehicle-silhouette/regenerate:
+    post:
+      operationId: "VehicleSilhouetteController_regenerate"
+      summary: "App admins only: regenerate a bad silhouette"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegenerateSilhouetteDto"
+      responses:
+        201:
+          description: ""
+      tags:
+        - "vehicle-silhouette"
+      security:
+        - cookie: []
   /api/organization:
     post:
       operationId: "OrganizationController_createOrganization"
@@ -2354,7 +2456,7 @@ paths:
   /api/organization/{organizationId}/members:
     get:
       operationId: "OrganizationController_getMembers"
-      summary: "List every member of an organization"
+      summary: "List members of an organization visible to the caller (everyone below them in rank, never above — see OrganizationService.getMembers)"
       parameters:
         - name: "organizationId"
           required: true
@@ -2377,7 +2479,7 @@ paths:
   /api/organization/{organizationId}/members/invite:
     post:
       operationId: "OrganizationController_inviteMember"
-      summary: "Invite a registered user to the organization with a role"
+      summary: "Invite a registered user with a role the caller is allowed to assign (SUPER_ADMIN invites FLEET_ADMIN/FINANCE/DRIVER, FLEET_ADMIN invites only DRIVER — enforced in OrganizationService, not here)"
       parameters:
         - name: "organizationId"
           required: true
@@ -2397,6 +2499,116 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OrganizationMembershipDto"
+      tags:
+        - "organization"
+      security:
+        - bearer: []
+  /api/organization/{organizationId}/members/username-suggestion:
+    get:
+      operationId: "OrganizationController_usernameSuggestion"
+      summary: "Suggest a free, globally-unique username for a new company-managed account from the typed first/last name"
+      parameters:
+        - name: "organizationId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+        - name: "firstName"
+          required: true
+          in: "query"
+          schema:
+            type: "string"
+        - name: "lastName"
+          required: true
+          in: "query"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsernameSuggestionDto"
+      tags:
+        - "organization"
+      security:
+        - bearer: []
+  /api/organization/{organizationId}/members/username-available:
+    get:
+      operationId: "OrganizationController_usernameAvailable"
+      summary: "Whether a username is free (global); 400 when the format is invalid"
+      parameters:
+        - name: "organizationId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+        - name: "username"
+          required: true
+          in: "query"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsernameAvailableDto"
+      tags:
+        - "organization"
+      security:
+        - bearer: []
+  /api/organization/{organizationId}/members/local:
+    post:
+      operationId: "OrganizationController_createLocalMember"
+      summary: "Create a brand-new company-owned account directly (no email invite, no Google sign-in) — see OrganizationService.createLocalMember"
+      parameters:
+        - name: "organizationId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLocalMemberDto"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateLocalMemberResultDto"
+      tags:
+        - "organization"
+      security:
+        - bearer: []
+  /api/organization/{organizationId}/members/{targetUserId}/reset-password:
+    post:
+      operationId: "OrganizationController_resetLocalPassword"
+      summary: "Reset a company-managed member's password to the shared default and force a change on next login"
+      parameters:
+        - name: "organizationId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+        - name: "targetUserId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResetLocalPasswordResultDto"
       tags:
         - "organization"
       security:
@@ -2425,7 +2637,7 @@ paths:
   /api/organization/{organizationId}/members/{targetUserId}/role:
     patch:
       operationId: "OrganizationController_changeRole"
-      summary: "Change the role of a member"
+      summary: "Change the role of a member the caller is allowed to manage, to a role the caller is allowed to assign (see OrganizationService.changeRole)"
       parameters:
         - name: "organizationId"
           required: true
@@ -2474,7 +2686,7 @@ paths:
   /api/organization/{organizationId}/members/{targetUserId}:
     delete:
       operationId: "OrganizationController_removeMember"
-      summary: "Remove a member from the organization"
+      summary: "Remove a member the caller is allowed to manage from the organization (see OrganizationService.removeMember)"
       parameters:
         - name: "organizationId"
           required: true
@@ -2489,6 +2701,89 @@ paths:
       responses:
         204:
           description: "Membership removed"
+      tags:
+        - "organization"
+      security:
+        - bearer: []
+  /api/organization/{organizationId}/cars:
+    get:
+      operationId: "OrganizationController_getCars"
+      summary: "List every car currently in the organization's fleet"
+      parameters:
+        - name: "organizationId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/OrganizationCarDto"
+      tags:
+        - "organization"
+      security:
+        - bearer: []
+  /api/organization/{organizationId}/cars/import:
+    post:
+      operationId: "OrganizationController_importCars"
+      summary: "Bulk-create cars directly in the fleet from an uploaded .csv/.xlsx/.xls file — Director-tier only (enforced per-row in CarService.createCar, same as adding a single company car). A bad row fails on its own; the rest of the file still imports. Columns: make, model (required), variant, year, license_plate, vin, nickname, fuel_type, transmission, color, current_mileage."
+      parameters:
+        - name: "organizationId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportCarsResultDto"
+      tags:
+        - "organization"
+      security:
+        - bearer: []
+  /api/organization/{organizationId}/cars/{carId}:
+    delete:
+      operationId: "OrganizationController_removeCar"
+      summary: "Remove a car from the organization (un-links it, doesn't delete it — it becomes personal again)"
+      parameters:
+        - name: "organizationId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        204:
+          description: "Car un-linked from the organization"
+      tags:
+        - "organization"
+      security:
+        - bearer: []
+  /api/organization/{organizationId}:
+    delete:
+      operationId: "OrganizationController_deleteOrganization"
+      summary: "Delete an organization permanently — its cars and suppliers aren't deleted, they become personal again"
+      parameters:
+        - name: "organizationId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        204:
+          description: "Organization deleted"
       tags:
         - "organization"
       security:
@@ -2571,6 +2866,54 @@ paths:
                   $ref: "#/components/schemas/DriverAssignmentDto"
       tags:
         - "driver-assignment"
+  /api/car/{carId}/driver-assignment/candidates:
+    get:
+      operationId: "DriverAssignmentController_getCandidates"
+      summary: "List every accepted member of the car's organization (any role) that can be assigned to the car"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/AssignableUserDto"
+      tags:
+        - "driver-assignment"
+  /api/organization/{organizationId}/cost-dashboard:
+    get:
+      operationId: "FleetCostController_getDashboard"
+      summary: "Fleet-wide maintenance cost totals, monthly trend, and per-car breakdown"
+      parameters:
+        - name: "organizationId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+        - name: "range"
+          required: false
+          in: "query"
+          description: "Days to look back; 0 = all time. Default 90."
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FleetCostDashboardDto"
+      tags:
+        - "fleet-cost"
+      security:
+        - bearer: []
 info:
   title: "History Auto Utility API"
   description: "API documentation for History Auto Utility"
@@ -2617,6 +2960,12 @@ components:
         accepted_at:
           format: "date-time"
           type: "string"
+        organization_id:
+          type: "number"
+          nullable: true
+        organization_name:
+          type: "string"
+          nullable: true
       required:
         - "id"
         - "make"
@@ -2721,6 +3070,7 @@ components:
             - "DOCUMENT_EXPIRING"
             - "VIN_CONFLICT"
             - "LICENSE_PLATE_CONFLICT"
+            - "ORG_INVITED"
             - "ORG_INVITE_ACCEPTED"
         data:
           type: "object"
@@ -2757,6 +3107,46 @@ components:
       required:
         - "token"
         - "platform"
+    LocalLoginDto:
+      type: "object"
+      properties:
+        username:
+          type: "string"
+          example: "gandzde"
+        email:
+          type: "string"
+          example: "gandzde@denhau-solutions"
+        companyCode:
+          type: "string"
+          example: "denhau-solutions"
+        password:
+          type: "string"
+        context:
+          type: "string"
+          enum:
+            - "business"
+            - "personal"
+          default: "business"
+      required:
+        - "password"
+    SwitchContextDto:
+      type: "object"
+      properties:
+        organizationId:
+          type: "number"
+          example: 1
+      required:
+        - "organizationId"
+    ChangePasswordDto:
+      type: "object"
+      properties:
+        currentPassword:
+          type: "string"
+        newPassword:
+          type: "string"
+      required:
+        - "currentPassword"
+        - "newPassword"
     DeadlineOrderDto:
       type: "object"
       properties:
@@ -2993,6 +3383,9 @@ components:
         default_new_photo_index:
           type: "number"
           example: 0
+        organizationId:
+          type: "number"
+          example: 2
       required:
         - "id"
         - "make"
@@ -5206,6 +5599,9 @@ components:
         - "revision"
         - "prefs"
         - "files"
+    RegenerateSilhouetteDto:
+      type: "object"
+      properties: {}
     CreateOrganizationDto:
       type: "object"
       properties:
@@ -5224,6 +5620,7 @@ components:
         role:
           type: "string"
           enum:
+            - "OWNER"
             - "SUPER_ADMIN"
             - "FLEET_ADMIN"
             - "MANAGER"
@@ -5231,6 +5628,8 @@ components:
             - "FINANCE"
         accepted_at:
           format: "date-time"
+          type: "string"
+        login_code:
           type: "string"
       required:
         - "id"
@@ -5249,11 +5648,16 @@ components:
           type: "string"
         picture:
           type: "string"
+        is_company_managed:
+          type: "boolean"
+        username:
+          type: "string"
       required:
         - "id"
         - "email"
         - "first_name"
         - "last_name"
+        - "is_company_managed"
     OrganizationMembershipDto:
       type: "object"
       properties:
@@ -5264,6 +5668,7 @@ components:
         role:
           type: "string"
           enum:
+            - "OWNER"
             - "SUPER_ADMIN"
             - "FLEET_ADMIN"
             - "MANAGER"
@@ -5295,6 +5700,7 @@ components:
         role:
           type: "string"
           enum:
+            - "OWNER"
             - "SUPER_ADMIN"
             - "FLEET_ADMIN"
             - "MANAGER"
@@ -5304,12 +5710,83 @@ components:
       required:
         - "email"
         - "role"
+    UsernameSuggestionDto:
+      type: "object"
+      properties:
+        username:
+          type: "string"
+      required:
+        - "username"
+    UsernameAvailableDto:
+      type: "object"
+      properties:
+        available:
+          type: "boolean"
+      required:
+        - "available"
+    CreateLocalMemberDto:
+      type: "object"
+      properties:
+        firstName:
+          type: "string"
+          example: "Ion"
+        lastName:
+          type: "string"
+          example: "Popescu"
+        username:
+          type: "string"
+          example: "popesio"
+        role:
+          type: "string"
+          enum:
+            - "OWNER"
+            - "SUPER_ADMIN"
+            - "FLEET_ADMIN"
+            - "MANAGER"
+            - "DRIVER"
+            - "FINANCE"
+          example: "DRIVER"
+      required:
+        - "firstName"
+        - "lastName"
+        - "role"
+    LocalAccountCredentialsDto:
+      type: "object"
+      properties:
+        email:
+          type: "string"
+        password:
+          type: "string"
+        username:
+          type: "string"
+      required:
+        - "email"
+        - "password"
+        - "username"
+    CreateLocalMemberResultDto:
+      type: "object"
+      properties:
+        membership:
+          $ref: "#/components/schemas/OrganizationMembershipDto"
+        credentials:
+          $ref: "#/components/schemas/LocalAccountCredentialsDto"
+      required:
+        - "membership"
+        - "credentials"
+    ResetLocalPasswordResultDto:
+      type: "object"
+      properties:
+        password:
+          type: "string"
+      required:
+        - "password"
     ChangeMemberRoleDto:
       type: "object"
       properties:
         role:
           type: "string"
           enum:
+            - "OWNER"
             - "SUPER_ADMIN"
             - "FLEET_ADMIN"
             - "MANAGER"
@@ -5318,6 +5795,95 @@ components:
           example: "FLEET_ADMIN"
       required:
         - "role"
+    OrganizationCarDriverDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+        first_name:
+          type: "string"
+        last_name:
+          type: "string"
+        picture:
+          type: "string"
+          nullable: true
+      required:
+        - "id"
+        - "first_name"
+        - "last_name"
+        - "picture"
+    OrganizationCarDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+        make:
+          type: "string"
+        model:
+          type: "string"
+        photoUrl:
+          type: "string"
+          nullable: true
+        license_plate:
+          type: "string"
+          nullable: true
+        vin:
+          type: "string"
+          nullable: true
+        year:
+          type: "number"
+          nullable: true
+        currentDriver:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/OrganizationCarDriverDto"
+      required:
+        - "id"
+        - "make"
+        - "model"
+        - "photoUrl"
+        - "license_plate"
+        - "vin"
+        - "year"
+        - "currentDriver"
+    ImportRowResultDto:
+      type: "object"
+      properties:
+        row:
+          type: "number"
+          description: "1-indexed row number in the uploaded file (header row excluded)"
+        success:
+          type: "boolean"
+        carId:
+          type: "number"
+          nullable: true
+        label:
+          type: "string"
+          nullable: true
+        error:
+          type: "string"
+          nullable: true
+      required:
+        - "row"
+        - "success"
+    ImportCarsResultDto:
+      type: "object"
+      properties:
+        total:
+          type: "number"
+        created:
+          type: "number"
+        failed:
+          type: "number"
+        results:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/ImportRowResultDto"
+      required:
+        - "total"
+        - "created"
+        - "failed"
+        - "results"
     AssignmentUserDto:
       type: "object"
       properties:
@@ -5372,15 +5938,113 @@ components:
         - "driver"
         - "assigned_by"
         - "started_at"
+    AssignableUserDto:
+      type: "object"
+      properties:
+        user:
+          $ref: "#/components/schemas/AssignmentUserDto"
+        role:
+          type: "string"
+          enum:
+            - "OWNER"
+            - "SUPER_ADMIN"
+            - "FLEET_ADMIN"
+            - "MANAGER"
+            - "DRIVER"
+            - "FINANCE"
+          example: "FLEET_ADMIN"
+      required:
+        - "user"
+        - "role"
     AssignDriverDto:
       type: "object"
       properties:
         driver_user_id:
           type: "number"
           example: 42
-          description: "User id of the driver — must be an accepted member of the car's organization."
+          description: "User id of the assignee (any role) — must be an accepted member of the car's organization."
         notes:
           type: "string"
           example: "Starts Monday, covering the Cluj route"
       required:
         - "driver_user_id"
+    FleetCostByMonthDto:
+      type: "object"
+      properties:
+        month:
+          type: "string"
+          example: "2026-09"
+        total:
+          type: "number"
+          example: 1240.5
+        companyExpense:
+          type: "number"
+          example: 820
+      required:
+        - "month"
+        - "total"
+        - "companyExpense"
+    FleetCostByCarDto:
+      type: "object"
+      properties:
+        carId:
+          type: "number"
+          example: 149
+        label:
+          type: "string"
+          example: "Dacia Logan MCV"
+        licensePlate:
+          type: "string"
+          example: "BV 22 DHS"
+          nullable: true
+        total:
+          type: "number"
+          example: 2150.75
+        companyExpense:
+          type: "number"
+          example: 1500
+        recordCount:
+          type: "number"
+          example: 6
+      required:
+        - "carId"
+        - "label"
+        - "licensePlate"
+        - "total"
+        - "companyExpense"
+        - "recordCount"
+    FleetCostDashboardDto:
+      type: "object"
+      properties:
+        range:
+          type: "number"
+          example: 90
+        totalCost:
+          type: "number"
+          example: 4820.25
+        companyExpenseCost:
+          type: "number"
+          example: 3100
+        recordCount:
+          type: "number"
+          example: 14
+        carCount:
+          type: "number"
+          example: 2
+        byMonth:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/FleetCostByMonthDto"
+        byCar:
+          description: "Sorted by total cost, highest first."
+          type: "array"
+          items:
+            $ref: "#/components/schemas/FleetCostByCarDto"
+      required:
+        - "range"
+        - "totalCost"
+        - "companyExpenseCost"
+        - "recordCount"
+        - "carCount"
+        - "byMonth"
+        - "byCar"

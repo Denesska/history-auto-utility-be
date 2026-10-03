@@ -1,3 +1,4 @@
+import { Scope } from '../../common/context/scope.decorator';
 import {
   Body,
   Controller,
@@ -14,6 +15,7 @@ import {
   UseGuards,
   UseInterceptors,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { CarService } from './car.service';
 import { AddCarDto } from './dto/add-car.dto';
@@ -49,6 +51,7 @@ const carPhotoFilter = (req: any, file: Express.Multer.File, cb: any) => {
   cb(null, true);
 };
 
+@Scope('personal', 'business')
 @Controller('car')
 @ApiTags('car')
 @UseGuards(JwtAuthGuard)
@@ -148,18 +151,20 @@ export class CarController {
   @HttpCode(204)
   @ApiOperation({ summary: 'Delete a car photo' })
   @ApiResponse({ status: 204, description: 'Photo deleted.' })
+  @ApiResponse({ status: 403, description: 'No edit access to the photo\'s car.' })
   @ApiResponse({ status: 404, description: 'Photo not found.' })
-  async deletePhoto(@Param('photoId') photoId: string): Promise<void> {
-    return this.carService.deletePhoto(Number(photoId));
+  async deletePhoto(@Req() req: RequestWithUser, @Param('photoId') photoId: string): Promise<void> {
+    return this.carService.deletePhoto(Number(photoId), req.user.id);
   }
 
   @Patch('photo/:photoId/default')
   @HttpCode(204)
   @ApiOperation({ summary: 'Set a photo as the default for its car' })
   @ApiResponse({ status: 204, description: 'Default photo updated.' })
+  @ApiResponse({ status: 403, description: 'No edit access to the photo\'s car.' })
   @ApiResponse({ status: 404, description: 'Photo not found.' })
-  async setDefaultPhoto(@Param('photoId') photoId: string): Promise<void> {
-    return this.carService.setDefaultPhoto(Number(photoId));
+  async setDefaultPhoto(@Req() req: RequestWithUser, @Param('photoId') photoId: string): Promise<void> {
+    return this.carService.setDefaultPhoto(Number(photoId), req.user.id);
   }
 
   @Patch(':id/sold')
@@ -197,9 +202,13 @@ export class CarController {
   }
 
   @Get('user/:userId')
-  @ApiOperation({ summary: 'Get all cars for a specific user' })
+  @Scope('personal')
+  @ApiOperation({ summary: 'Get the personal cars of a user (only yourself)' })
   @ApiResponse({ status: 200, description: 'Return list of cars.', type: [CarDto] })
-  async getCarsByUser(@Param('userId') userId: string): Promise<CarDto[]> {
+  async getCarsByUser(@Req() req: RequestWithUser, @Param('userId') userId: string): Promise<CarDto[]> {
+    if (Number(userId) !== req.user.id) {
+      throw new ForbiddenException('You can only list your own cars');
+    }
     return this.carService.getCarsByUser(Number(userId));
   }
 }
