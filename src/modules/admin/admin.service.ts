@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { FeatureAccessService } from '../../common/features/feature-access.service';
+import { FEATURE_KEYS, FeatureKey } from '../../common/features/feature-keys';
 import { ACTIVITY_TIMEZONE, localDay } from '../activity/activity-date.util';
 import {
   AdminBucket,
@@ -15,6 +17,27 @@ import {
   AdminStorageRow,
   AdminUserRow,
 } from './dto/admin-stats.dto';
+import {
+  AdminOrganizationDto,
+  UpdateOrganizationFeaturesDto,
+} from './dto/admin-organization.dto';
+
+/** Organization row shape shared by the list query and the post-update refetch. */
+type OrgWithCounts = {
+  id: number;
+  name: string;
+  plan: string | null;
+  feature_flags: Prisma.JsonValue;
+  _count: { members: number; cars: number };
+};
+
+const ORG_WITH_COUNTS_SELECT = {
+  id: true,
+  name: true,
+  plan: true,
+  feature_flags: true,
+  _count: { select: { members: true, cars: true } },
+} as const;
 
 /** Prisma stores `timestamp without time zone` in UTC — convert to local wall time for bucketing. */
 const local = (col: string) => Prisma.raw(`(${col} AT TIME ZONE 'UTC' AT TIME ZONE '${ACTIVITY_TIMEZONE}')`);
@@ -66,11 +89,82 @@ function daysBetween(from: string, to: string): number {
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly featureAccess: FeatureAccessService,
+  ) {}
 
   async isAdmin(userId: number): Promise<{ isAdmin: boolean }> {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { is_admin: true } });
     return { isAdmin: !!user?.is_admin };
+  }
+
+  /** Every organization with usage counts and effective feature flags, for the app-owner feature-switch screen. */
+  async getOrganizations(): Promise<AdminOrganizationDto[]> {
+    const orgs = await this.prisma.organization.findMany({
+      select: ORG_WITH_COUNTS_SELECT,
+      orderBy: { name: 'asc' },
+    });
+    return orgs.map((org) => this.toOrganizationDto(org));
+  }
+
+  /**
+   * Enables/disables feature switches for one organization. `false` writes an explicit override
+   * into `feature_flags`; `true` removes the override (back to the default of on). Invalidates
+   * the org's FeatureAccessService cache so it takes effect on the next request, not after 60s.
+   */
+  async updateOrganizationFeatures(
+    organizationId: number,
+    dto: UpdateOrganizationFeaturesDto,
+  ): Promise<AdminOrganizationDto> {
+    const existing = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { feature_flags: true },
+    });
+    if (!existing) throw new NotFoundException('Organization not found');
+
+    const flags = this.asFlagsRecord(existing.feature_flags);
+    for (const key of FEATURE_KEYS) {
+      const value = dto[key];
+      if (value === undefined) continue;
+      if (value === false) flags[key] = false;
+      else delete flags[key]; // true = no override, back to the default of on
+    }
+
+    await this.prisma.organization.update({
+      where: { id: organizationId },
+      data: { feature_flags: flags as Prisma.InputJsonValue },
+    });
+    this.featureAccess.invalidate(organizationId);
+
+    const updated = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: ORG_WITH_COUNTS_SELECT,
+    });
+    return this.toOrganizationDto(updated!);
+  }
+
+  private asFlagsRecord(
+    flags: Prisma.JsonValue | null,
+  ): Record<string, unknown> {
+    return flags && typeof flags === 'object' && !Array.isArray(flags)
+      ? { ...(flags as Record<string, unknown>) }
+      : {};
+  }
+
+  private toOrganizationDto(org: OrgWithCounts): AdminOrganizationDto {
+    const raw = this.asFlagsRecord(org.feature_flags);
+    const feature_flags = {} as Record<FeatureKey, boolean>;
+    for (const key of FEATURE_KEYS) feature_flags[key] = raw[key] !== false;
+
+    return {
+      id: org.id,
+      name: org.name,
+      plan: org.plan,
+      member_count: org._count.members,
+      car_count: org._count.cars,
+      feature_flags,
+    };
   }
 
   async getStats(range: AdminRange): Promise<AdminStatsDto> {

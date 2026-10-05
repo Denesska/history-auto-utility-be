@@ -1,11 +1,15 @@
 import { Scope } from '../../common/context/scope.decorator';
-import { BadRequestException, Controller, Get, ParseIntPipe, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, ParseIntPipe, Patch, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RequestWithUser } from '../auth/express-request.interface';
 import { AdminGuard } from './admin.guard';
 import { AdminService } from './admin.service';
 import { ADMIN_RANGES, AdminRange, AdminStatsDto, AdminUserRow } from './dto/admin-stats.dto';
+import {
+  AdminOrganizationDto,
+  UpdateOrganizationFeaturesDto,
+} from './dto/admin-organization.dto';
 
 @ApiTags('admin')
 @ApiCookieAuth()
@@ -39,5 +43,28 @@ export class AdminController {
   @ApiOperation({ summary: 'Per-user usage counts for the admin page (no user content)' })
   users(): Promise<AdminUserRow[]> {
     return this.adminService.getUsers();
+  }
+
+  @Get('organizations')
+  @UseGuards(AdminGuard)
+  @ApiOperation({
+    summary:
+      'Organizations with usage counts and effective feature flags, for the feature-switches admin screen',
+  })
+  organizations(): Promise<AdminOrganizationDto[]> {
+    return this.adminService.getOrganizations();
+  }
+
+  @Patch('organizations/:id/features')
+  @UseGuards(AdminGuard)
+  @ApiOperation({
+    summary:
+      "Enable/disable feature switches for one organization's business sessions; takes effect immediately",
+  })
+  updateOrganizationFeatures(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateOrganizationFeaturesDto,
+  ): Promise<AdminOrganizationDto> {
+    return this.adminService.updateOrganizationFeatures(id, dto);
   }
 }
