@@ -1,4 +1,5 @@
 import { Scope } from '../../common/context/scope.decorator';
+import { BusinessRoles } from '../../common/context/business-roles.decorator';
 import {
   Body,
   Controller,
@@ -17,7 +18,7 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
-import { CarService } from './car.service';
+import { CAR_CREATE_ROLES, CarService } from './car.service';
 import { AddCarDto } from './dto/add-car.dto';
 import {
   ApiCookieAuth,
@@ -66,6 +67,12 @@ export class CarController {
   @ApiConsumes('multipart/form-data')
   @ApiResponse({ status: 201, description: 'Car created successfully.', type: CarDto })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
+  // Business: only an org admin manages the fleet (see "Adding a car" in
+  // ACCOUNT-CONTEXT.md) — every other role (DRIVER, FINANCE, ...) is rejected with
+  // 403 ROLE_NOT_ALLOWED before the handler runs. Personal sessions are unaffected
+  // (BusinessRoles is a no-op outside business context). Same role set CarService
+  // itself re-checks for both this and the bulk import (see CAR_CREATE_ROLES).
+  @BusinessRoles(...CAR_CREATE_ROLES)
   @UseInterceptors(
     FilesInterceptor('files', 13, {
       storage: carPhotoStorage,

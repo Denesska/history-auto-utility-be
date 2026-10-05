@@ -1991,6 +1991,43 @@ paths:
         - "user-settings"
       security:
         - bearer: []
+  /api/user-settings/navigation:
+    get:
+      operationId: "UserSettingsController_getNavigation"
+      summary: "Get the current session context's navigation preferences (bottom bar, favorite car)"
+      parameters: []
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NavigationPrefsDto"
+      tags:
+        - "user-settings"
+      security:
+        - bearer: []
+    put:
+      operationId: "UserSettingsController_updateNavigation"
+      summary: "Update the current session context's navigation preferences"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateNavigationPrefsDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NavigationPrefsDto"
+      tags:
+        - "user-settings"
+      security:
+        - bearer: []
   /api/app-data/initial:
     get:
       operationId: "BootstrapController_getInitialData"
@@ -5239,6 +5276,47 @@ components:
               - 7
               - 14
               - 30
+    NavigationPrefsDto:
+      type: "object"
+      properties:
+        bottom_bar:
+          nullable: true
+          description: "Mobile bottom-bar item ids, in order. Null = not set; use the frontend defaults."
+          example:
+            - "garage"
+            - "documents"
+            - "maintenance"
+            - "settings"
+          type: "array"
+          items:
+            type: "string"
+        favorite_car_id:
+          type: "number"
+          nullable: true
+          description: "Favorite car for this context. Null = not set, or the previously stored car is no longer accessible."
+          example: 143
+      required:
+        - "bottom_bar"
+        - "favorite_car_id"
+    UpdateNavigationPrefsDto:
+      type: "object"
+      properties:
+        bottom_bar:
+          nullable: true
+          description: "1-3 unique bottom-bar item ids. Null resets to the frontend defaults."
+          example:
+            - "garage"
+            - "documents"
+            - "maintenance"
+            - "settings"
+          type: "array"
+          items:
+            type: "string"
+        favorite_car_id:
+          type: "number"
+          nullable: true
+          description: "Car id to favorite in this context, or null to unset."
+          example: 143
     BootstrapResponseDto:
       type: "object"
       properties:
@@ -5251,8 +5329,13 @@ components:
           type: "array"
           items:
             type: "string"
+        navigation:
+          description: "The session's navigation preferences (mobile bottom bar, favorite car) for its current context"
+          allOf:
+            - $ref: "#/components/schemas/NavigationPrefsDto"
       required:
         - "enabled_features"
+        - "navigation"
     CarNoteChecklistItemDto:
       type: "object"
       properties:

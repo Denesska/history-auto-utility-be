@@ -10,6 +10,8 @@ import { CarMaintenanceSettingsService } from '../car-maintenance-settings/car-m
 import { CarMaintenanceProfilesService } from '../car-maintenance-profiles/car-maintenance-profiles.service';
 import { FeatureAccessService } from '../../common/features/feature-access.service';
 import { parseSessionContext, SessionContext } from '../../common/context/session-context';
+import { UserSettingsService } from '../user-settings/user-settings.service';
+import { NavigationPrefsDto } from '../user-settings/dto/navigation-prefs.dto';
 import { BootstrapResponseDto, SharedCarEntry } from './dto/bootstrap-response.dto';
 import { DocumentDto } from '../document/dto/document.dto';
 import { MaintenanceIntervalDto } from '../maintenance-record/dto/maintenance-interval.dto';
@@ -25,6 +27,7 @@ export class BootstrapService {
     private readonly carMaintenanceSettingsService: CarMaintenanceSettingsService,
     private readonly carMaintenanceProfilesService: CarMaintenanceProfilesService,
     private readonly featureAccess: FeatureAccessService,
+    private readonly userSettingsService: UserSettingsService,
   ) {}
 
   async getInitialData(googleId: string, ctx?: SessionContext): Promise<BootstrapResponseDto> {
@@ -46,7 +49,7 @@ export class BootstrapService {
     const accepted = sharedInvitations.filter(s => s.accepted_at !== null);
     const pendingInvites = sharedInvitations.filter(s => s.accepted_at === null);
 
-    const [sharedCarEntries, allDocuments, allMaintenance, carMaintenanceSettings, maintenanceProfiles] = await Promise.all([
+    const [sharedCarEntries, allDocuments, allMaintenance, carMaintenanceSettings, maintenanceProfiles, navigation] = await Promise.all([
       me
         ? Promise.all(
             accepted.map(async s => {
@@ -59,6 +62,9 @@ export class BootstrapService {
       me && maintenanceEnabled ? this.maintenanceRecordService.getAllByUser(me.id) : Promise.resolve([]),
       me && maintenanceEnabled ? this.carMaintenanceSettingsService.getAllByUser(me.id) : Promise.resolve({}),
       me && maintenanceEnabled ? this.carMaintenanceProfilesService.getAllByUser(me.id) : Promise.resolve({}),
+      me
+        ? this.userSettingsService.getNavigationPrefs(me.id, sessionCtx)
+        : Promise.resolve<NavigationPrefsDto>({ bottom_bar: null, favorite_car_id: null }),
     ]);
 
     const validSharedCars: SharedCarEntry[] = (sharedCarEntries as (SharedCarEntry | null)[]).filter(
@@ -92,6 +98,7 @@ export class BootstrapService {
       carMaintenanceSettings,
       maintenanceProfiles,
       enabled_features: enabledFeatures,
+      navigation,
     };
   }
 }

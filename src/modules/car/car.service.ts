@@ -2,7 +2,6 @@ import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundExce
 import { Car, CarAccessRole, CarPhoto, CarStatus, FuelType, NotificationType, OrganizationRole, Prisma, TransmissionType } from '@prisma/client';
 import { getRequestSessionContext } from '../../common/context/request-context';
 import { ROLE_RANK } from '../../common/guards/car-access/car-access.guard';
-import { ORG_ROLE_RANK } from '../../common/guards/organization/organization-roles';
 import { CarAccessService } from '../car-access/car-access.service';
 import { CarDto, CarPhotoDto } from './dto/car.dto';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -13,6 +12,21 @@ import { ImportRow } from './fleet-import.util';
 import { NotificationsService } from '../notifications/notifications.service';
 
 type CarWithPhotos = Car & { photos: CarPhoto[] };
+
+/**
+ * The only business roles allowed to add a car to an organization's fleet — single create
+ * (`CarController.createCar`'s `@BusinessRoles`) and the org admin's bulk import (`createCar`
+ * called once per row, see `importCars` below) share this exact set, checked with `.includes()`
+ * instead of a rank comparison: `ORG_ROLE_RANK` gives FLEET_ADMIN/FINANCE/MANAGER the same
+ * rank (they're peers, not ranked against each other — see that file's doc), so a rank-based
+ * check can't single out FLEET_ADMIN without also admitting FINANCE/MANAGER. See "Adding a
+ * car" in ACCOUNT-CONTEXT.md.
+ */
+export const CAR_CREATE_ROLES: readonly OrganizationRole[] = [
+  OrganizationRole.OWNER,
+  OrganizationRole.SUPER_ADMIN,
+  OrganizationRole.FLEET_ADMIN,
+];
 
 @Injectable()
 export class CarService {
@@ -154,13 +168,16 @@ export class CarService {
     // Creating a car directly inside an organization — the only way a car
     // enters a fleet; there's no "attach one of my personal cars" path, so a
     // company asset never has to have been someone's personal property
-    // first. Restricted to that org's Director tier (OWNER/SUPER_ADMIN).
+    // first. Restricted to CAR_CREATE_ROLES (OWNER/SUPER_ADMIN/FLEET_ADMIN) —
+    // the same set CarController.createCar's @BusinessRoles enforces for a plain
+    // HTTP request; this check is what actually covers importCars (bulk import
+    // has no @BusinessRoles of its own, it calls createCar once per row).
     if (organizationId != null) {
       const membership = await this.prisma.organizationMembership.findUnique({
         where: { organization_id_user_id: { organization_id: Number(organizationId), user_id: user.id } },
       });
-      if (!membership?.accepted_at || ORG_ROLE_RANK[membership.role] > ORG_ROLE_RANK[OrganizationRole.SUPER_ADMIN]) {
-        throw new ForbiddenException('Only a Director or Super Admin can add a car directly to the organization');
+      if (!membership?.accepted_at || !CAR_CREATE_ROLES.includes(membership.role)) {
+        throw new ForbiddenException('Only an owner, super admin or fleet admin can add a car directly to the organization');
       }
       if (carData.license_plate) {
         const conflict = await this.prisma.car.findFirst({

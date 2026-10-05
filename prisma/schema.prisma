@@ -580,6 +580,7 @@ model UserSettings {
   view_mode                String   @default("cards")
   expiry_reminders_enabled Boolean  @default(true)
   expiry_reminder_days     Int[]    @default([7])
+  navigation_prefs         Json?
   created_at               DateTime @default(now())
   updated_at               DateTime @updatedAt
 }

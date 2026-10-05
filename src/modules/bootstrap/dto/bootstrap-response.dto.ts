@@ -7,6 +7,7 @@ import { MaintenanceIntervalDto } from '../../maintenance-record/dto/maintenance
 import { MaintenanceRecordWithMeta } from '../../maintenance-record/maintenance-record.service';
 import { MaintenanceSettingDto } from '../../car-maintenance-settings/dto/maintenance-setting.dto';
 import { MaintenanceProfileDto } from '../../car-maintenance-profiles/dto/maintenance-profile.dto';
+import { NavigationPrefsDto } from '../../user-settings/dto/navigation-prefs.dto';
 
 export class SharedCarEntry {
   car: CarDto;
@@ -28,4 +29,6 @@ export class BootstrapResponseDto {
   maintenanceProfiles: Record<number, MaintenanceProfileDto[]>;
   @ApiProperty({ type: [String], description: "Feature keys switched on for the session's context (all of them in personal sessions)", example: ['supplier', 'fleet_cost', 'sale_contract'] })
   enabled_features: string[];
+  @ApiProperty({ type: NavigationPrefsDto, description: "The session's navigation preferences (mobile bottom bar, favorite car) for its current context" })
+  navigation: NavigationPrefsDto;
 }

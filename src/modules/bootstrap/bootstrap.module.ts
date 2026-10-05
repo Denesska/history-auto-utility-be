@@ -6,11 +6,12 @@ import { DocumentModule } from '../document/document.module';
 import { MaintenanceRecordModule } from '../maintenance-record/maintenance-record.module';
 import { CarMaintenanceSettingsModule } from '../car-maintenance-settings/car-maintenance-settings.module';
 import { CarMaintenanceProfilesModule } from '../car-maintenance-profiles/car-maintenance-profiles.module';
+import { UserSettingsModule } from '../user-settings/user-settings.module';
 import { BootstrapController } from './bootstrap.controller';
 import { BootstrapService } from './bootstrap.service';
 
 @Module({
-  imports: [PrismaModule, CarModule, CarAccessModule, DocumentModule, MaintenanceRecordModule, CarMaintenanceSettingsModule, CarMaintenanceProfilesModule],
+  imports: [PrismaModule, CarModule, CarAccessModule, DocumentModule, MaintenanceRecordModule, CarMaintenanceSettingsModule, CarMaintenanceProfilesModule, UserSettingsModule],
   controllers: [BootstrapController],
   providers: [BootstrapService],
 })
