@@ -26,6 +26,7 @@ import { CreateLocalMemberResultDto } from './dto/create-local-member-result.dto
 import { ResetLocalPasswordResultDto } from './dto/reset-local-password-result.dto';
 import { MyOrganizationDto, OrganizationMembershipDto } from './dto/organization.dto';
 import { OrganizationCarDto } from './dto/organization-car.dto';
+import { FeatureAccessService } from '../../common/features/feature-access.service';
 
 const BCRYPT_ROUNDS = 10;
 
@@ -56,6 +57,7 @@ export class OrganizationService {
     private readonly mailService: MailService,
     private readonly notificationsService: NotificationsService,
     private readonly configService: ConfigService,
+    private readonly featureAccess: FeatureAccessService,
   ) {}
 
   private toMembershipDto(entry: any): OrganizationMembershipDto {
@@ -489,8 +491,15 @@ export class OrganizationService {
    * null`), if any — there's at most one per car by the driver-assignment
    * module's own invariant, `take: 1` is just a safety net — so an admin can
    * see at a glance who's driving each car, or that nobody is.
+   * Disabled for this organization: still queries the (cheap, already-joined)
+   * assignment row, but `currentDriver` is forced to `null` before it ever
+   * leaves this method — same treatment as documents/maintenance being
+   * omitted in BootstrapService, just applied at the mapping step instead of
+   * the query since the two cases here share a single select shape.
    */
   async getOrganizationCars(organizationId: number): Promise<OrganizationCarDto[]> {
+    const driverAssignmentEnabled = await this.featureAccess.isEnabled({ type: 'business', orgId: organizationId }, 'driver_assignment');
+
     const cars = await this.prisma.car.findMany({
       where: { organization_id: organizationId },
       select: {
@@ -510,7 +519,7 @@ export class OrganizationService {
       return {
         ...rest,
         photoUrl: photo ? await this.carService.resolveUrl(photo.url) : null,
-        currentDriver: driver_assignments[0]?.driver ?? null,
+        currentDriver: driverAssignmentEnabled ? driver_assignments[0]?.driver ?? null : null,
       };
     }));
   }

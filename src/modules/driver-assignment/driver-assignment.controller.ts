@@ -3,6 +3,7 @@ import { Controller, Get, Post, Delete, Body, Param, Req, UseGuards } from '@nes
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RequestWithUser } from '../auth/express-request.interface';
+import { Feature } from '../../common/features/feature.decorator';
 import { DriverAssignmentService } from './driver-assignment.service';
 import { AssignDriverDto } from './dto/assign-driver.dto';
 import { AssignableUserDto, DriverAssignmentDto } from './dto/driver-assignment.dto';
@@ -10,6 +11,7 @@ import { AssignableUserDto, DriverAssignmentDto } from './dto/driver-assignment.
 @ApiTags('driver-assignment')
 @UseGuards(JwtAuthGuard)
 @Scope('business')
+@Feature('driver_assignment')
 @Controller('car/:carId/driver-assignment')
 export class DriverAssignmentController {
   constructor(private readonly driverAssignmentService: DriverAssignmentService) {}

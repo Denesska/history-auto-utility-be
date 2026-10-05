@@ -12,5 +12,6 @@ export const FEATURE_KEYS = [
   'car_wishlist',
   'journal',
   'reports',
+  'driver_assignment',
 ] as const;
 export type FeatureKey = (typeof FEATURE_KEYS)[number];
