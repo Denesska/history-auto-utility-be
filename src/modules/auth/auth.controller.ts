@@ -270,7 +270,12 @@ export class AuthController {
 
     // The refresh token is authoritative for the context (it can't be forged
     // client-side); pre-context refresh tokens fall back to the access token's ctx.
-    const ctx = this.authService.getRefreshTokenContext(refreshToken) ?? user.ctx ?? { type: 'personal' };
+    const refreshedCtx = this.authService.getRefreshTokenContext(refreshToken) ?? user.ctx ?? { type: 'personal' };
+    // Re-validate a business context against the CURRENT membership — the ctx
+    // frozen in the refresh token at login time otherwise never catches an org
+    // picked afterwards (POST /auth/context) or a role/membership change until
+    // a full new login (see ACCOUNT-CONTEXT.md).
+    const ctx = await this.authService.revalidateBusinessContext(user.google_id, refreshedCtx);
     const newAccessToken = this.authService.generateAccessToken(user, ctx);
     res.cookie('access_token', newAccessToken, this.cookieConfig);
     res.status(200).json({ accessToken: newAccessToken });

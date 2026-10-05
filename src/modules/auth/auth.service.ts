@@ -77,6 +77,29 @@ export class AuthService {
     return { type: 'business', orgId: null };
   }
 
+  /**
+   * Re-validates a business ctx carried in a refresh token against the CURRENT
+   * membership, instead of trusting the role/orgId frozen at original login.
+   * Personal ctx and a business ctx with no org picked yet (`orgId: null`,
+   * the picker state) are returned unchanged — no DB hit needed. If the
+   * membership is gone or not accepted (removed, un-accepted), downgrades to
+   * `{ type: 'business', orgId: null }` — the same picker state as a fresh
+   * business login without an org — rather than failing the refresh.
+   */
+  async revalidateBusinessContext(googleId: string, ctx: SessionContext): Promise<SessionContext> {
+    if (ctx.type !== 'business' || ctx.orgId === null) {
+      return ctx;
+    }
+    const membership = await this.prisma.organizationMembership.findFirst({
+      where: { organization_id: ctx.orgId, accepted_at: { not: null }, user: { google_id: googleId } },
+      select: { role: true },
+    });
+    if (!membership) {
+      return { type: 'business', orgId: null };
+    }
+    return { type: 'business', orgId: ctx.orgId, orgRole: membership.role };
+  }
+
   /** Context for POST /auth/context; throws 403 NOT_ORG_MEMBER unless the user has an ACCEPTED membership in the organization. */
   async buildOrganizationContext(userId: number, organizationId: number): Promise<SessionContext> {
     const membership = await this.prisma.organizationMembership.findUnique({
