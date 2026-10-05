@@ -15,6 +15,7 @@ export class AdminFeatureFlagsDto {
   @ApiProperty() car_wishlist: boolean;
   @ApiProperty() journal: boolean;
   @ApiProperty() reports: boolean;
+  @ApiProperty() driver_assignment: boolean;
 }
 
 /** One organization row for the app-owner "organizations & features" admin screen. */
@@ -47,4 +48,5 @@ export class UpdateOrganizationFeaturesDto {
   @ApiPropertyOptional() @IsOptional() @IsBoolean() car_wishlist?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() journal?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() reports?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() driver_assignment?: boolean;
 }

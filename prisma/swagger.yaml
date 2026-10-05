@@ -2411,6 +2411,41 @@ paths:
         - "admin"
       security:
         - cookie: []
+  /api/admin/organizations:
+    get:
+      operationId: "AdminController_organizations"
+      summary: "Organizations with usage counts and effective feature flags, for the feature-switches admin screen"
+      parameters: []
+      responses:
+        200:
+          description: ""
+      tags:
+        - "admin"
+      security:
+        - cookie: []
+  /api/admin/organizations/{id}/features:
+    patch:
+      operationId: "AdminController_updateOrganizationFeatures"
+      summary: "Enable/disable feature switches for one organization's business sessions; takes effect immediately"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrganizationFeaturesDto"
+      responses:
+        200:
+          description: ""
+      tags:
+        - "admin"
+      security:
+        - cookie: []
   /api/vehicle-silhouette:
     get:
       operationId: "VehicleSilhouetteController_get"
@@ -5693,6 +5728,29 @@ components:
         - "revision"
         - "prefs"
         - "files"
+    UpdateOrganizationFeaturesDto:
+      type: "object"
+      properties:
+        supplier:
+          type: "boolean"
+        fleet_cost:
+          type: "boolean"
+        sale_contract:
+          type: "boolean"
+        documents:
+          type: "boolean"
+        maintenance:
+          type: "boolean"
+        car_notes:
+          type: "boolean"
+        car_wishlist:
+          type: "boolean"
+        journal:
+          type: "boolean"
+        reports:
+          type: "boolean"
+        driver_assignment:
+          type: "boolean"
     RegenerateSilhouetteDto:
       type: "object"
       properties: {}
