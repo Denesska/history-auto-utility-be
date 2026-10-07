@@ -48,6 +48,7 @@ For FUEL_RECEIPT documents specifically:
 - "receipt_total_amount" is the overall receipt total ("total de plată") — only set this field when it differs from "fuel_total_amount" (i.e. the receipt includes non-fuel products), so the app can flag it for the user to double-check.
 - "fuel_station_name" is the gas station brand/name if visible (e.g. "Petrom", "OMV", "MOL").
 - "issue_date" is the transaction date/time printed on the receipt.
+- "currency" is the ISO code of the currency the total was paid in (RON, EUR, ...) if printed or otherwise inferable (e.g. a Romanian fuel station receipt is RON); leave it out if genuinely ambiguous.
 - If this is a PUMP/DISPENSER DISPLAY SCREEN rather than a printed receipt: it inherently shows fuel-only data (no other products can appear on it), so "fuel_total_amount" is simply the displayed total and "receipt_total_amount" should be left unset — there is nothing else to compare it against. It will typically have no station name or date visible; leave those fields out.
 
 For CHARGING_RECEIPT documents specifically:
@@ -56,6 +57,7 @@ For CHARGING_RECEIPT documents specifically:
 - "energy_total_amount" is the total amount paid for the charging session. Charging summaries rarely include unrelated products, so unlike fuel receipts this is normally just the session total.
 - "charging_station_name" is the charging network/operator name if visible (e.g. "Tesla Supercharger", "ENGIE", "E.ON DRIVE", "Ionity").
 - "issue_date" is the session date/time.
+- "currency" is the ISO code of the currency the total was paid in (RON, EUR, ...) if printed or otherwise inferable (e.g. a Romanian charging network's receipt is RON); leave it out if genuinely ambiguous.
 
 For ODOMETER photos specifically:
 - "odometer_km" is the total distance reading shown on the instrument cluster, as a plain integer string. Dashboards often show both a resettable trip counter and the main odometer — always prefer the larger, non-resettable total odometer reading over a trip counter if both are visible.

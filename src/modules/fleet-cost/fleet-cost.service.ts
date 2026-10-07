@@ -13,10 +13,13 @@ export class FleetCostService {
     const since: Prisma.Sql = range === 0 ? Prisma.sql`TRUE` : Prisma.sql`m.service_date >= CURRENT_DATE - ${range}::int * INTERVAL '1 day'`;
 
     const [[totals], byMonth, byCar] = await Promise.all([
+      // SUM(COALESCE(m.cost_ron, m.cost)) rather than SUM(m.cost): a non-RON record's raw
+      // cost can't be added straight into a RON total (see MaintenanceRecord.cost_ron, same
+      // RON-conversion design as Document.premium_ron).
       this.prisma.$queryRaw<{ totalCost: number; companyExpenseCost: number; recordCount: number; carCount: number }[]>`
         SELECT
-          COALESCE(SUM(m.cost), 0)::float8 AS "totalCost",
-          COALESCE(SUM(m.cost) FILTER (WHERE m.is_company_expense), 0)::float8 AS "companyExpenseCost",
+          COALESCE(SUM(COALESCE(m.cost_ron, m.cost)), 0)::float8 AS "totalCost",
+          COALESCE(SUM(COALESCE(m.cost_ron, m.cost)) FILTER (WHERE m.is_company_expense), 0)::float8 AS "companyExpenseCost",
           COUNT(*)::int AS "recordCount",
           COUNT(DISTINCT m.car_id)::int AS "carCount"
         FROM "MaintenanceRecord" m
@@ -25,8 +28,8 @@ export class FleetCostService {
       this.prisma.$queryRaw<FleetCostByMonthDto[]>`
         SELECT
           to_char(m.service_date, 'YYYY-MM') AS month,
-          SUM(m.cost)::float8 AS total,
-          COALESCE(SUM(m.cost) FILTER (WHERE m.is_company_expense), 0)::float8 AS "companyExpense"
+          SUM(COALESCE(m.cost_ron, m.cost))::float8 AS total,
+          COALESCE(SUM(COALESCE(m.cost_ron, m.cost)) FILTER (WHERE m.is_company_expense), 0)::float8 AS "companyExpense"
         FROM "MaintenanceRecord" m
         JOIN "Car" c ON c.id = m.car_id
         WHERE c.organization_id = ${organizationId} AND ${since}
@@ -40,8 +43,8 @@ export class FleetCostService {
           c.id AS "carId",
           trim(c.make || ' ' || c.model) AS label,
           c.license_plate AS "licensePlate",
-          SUM(m.cost)::float8 AS total,
-          COALESCE(SUM(m.cost) FILTER (WHERE m.is_company_expense), 0)::float8 AS "companyExpense",
+          SUM(COALESCE(m.cost_ron, m.cost))::float8 AS total,
+          COALESCE(SUM(COALESCE(m.cost_ron, m.cost)) FILTER (WHERE m.is_company_expense), 0)::float8 AS "companyExpense",
           COUNT(*)::int AS "recordCount"
         FROM "MaintenanceRecord" m
         JOIN "Car" c ON c.id = m.car_id

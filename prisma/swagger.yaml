@@ -3774,6 +3774,31 @@ components:
         cost:
           type: "number"
           example: "Insurance"
+        currency:
+          type: "string"
+          example: "RON"
+        cost_ron:
+          type: "number"
+          nullable: true
+          example: 250
+          description: "cost converted to RON (equals cost for RON); null if no rate was available"
+        exchange_rate:
+          type: "number"
+          nullable: true
+          example: 5.2718
+          description: "RON per 1 unit of currency used for cost_ron"
+        exchange_rate_date:
+          format: "date-time"
+          type: "string"
+          nullable: true
+          description: "BNR publication date of the rate used; null for RON"
+        exchange_rate_source:
+          type: "string"
+          nullable: true
+          enum:
+            - "BNR"
+            - "MANUAL"
+          description: "'BNR' when fetched automatically; null for RON"
         expiry_date:
           format: "date-time"
           type: "string"
@@ -3824,6 +3849,7 @@ components:
         - "service_type"
         - "service_category"
         - "cost"
+        - "currency"
         - "expiry_date"
         - "is_diy"
         - "is_company_expense"
@@ -3890,6 +3916,10 @@ components:
         cost:
           type: "number"
           example: 250
+        currency:
+          type: "string"
+          example: "RON"
+          description: "Currency the cost was paid in. Defaults to RON. cost_ron/exchange_rate/exchange_rate_date/exchange_rate_source are always computed server-side."
         expiry_date:
           type: "string"
           example: "2024-01-01"

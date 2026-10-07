@@ -325,6 +325,13 @@ model MaintenanceRecord {
   service_type       ServiceType
   service_category   ServiceCategory   @default(OTHER)
   cost               Float
+  // Currency the cost was paid in, and its RON equivalent — same shape as
+  // Document's premium/currency/premium_ron conversion (see document.service.ts).
+  currency           String            @default("RON")
+  cost_ron           Float?
+  exchange_rate      Float?
+  exchange_rate_date DateTime?
+  exchange_rate_source String?
   expiry_date        DateTime?
   is_diy             Boolean           @default(false)
   fuel_liters        Float?

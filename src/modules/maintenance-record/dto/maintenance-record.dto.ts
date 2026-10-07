@@ -38,6 +38,29 @@ export class MaintenanceRecordDto {
     @ApiProperty({ example: 'Insurance' })
     readonly cost: number;
 
+    @IsString()
+    @ApiProperty({ example: 'RON' })
+    readonly currency: string;
+
+    @IsOptional()
+    @IsNumber()
+    @ApiPropertyOptional({ nullable: true, example: 250, description: 'cost converted to RON (equals cost for RON); null if no rate was available' })
+    readonly cost_ron?: number | null;
+
+    @IsOptional()
+    @IsNumber()
+    @ApiPropertyOptional({ nullable: true, example: 5.2718, description: 'RON per 1 unit of currency used for cost_ron' })
+    readonly exchange_rate?: number | null;
+
+    @IsOptional()
+    @ApiPropertyOptional({ nullable: true, description: 'BNR publication date of the rate used; null for RON' })
+    readonly exchange_rate_date?: Date | null;
+
+    @IsOptional()
+    @IsString()
+    @ApiPropertyOptional({ nullable: true, enum: ['BNR', 'MANUAL'], description: "'BNR' when fetched automatically; null for RON" })
+    readonly exchange_rate_source?: string | null;
+
     @IsDate()
     @ApiProperty({ example: 'Insurance' })
     readonly expiry_date: Date;

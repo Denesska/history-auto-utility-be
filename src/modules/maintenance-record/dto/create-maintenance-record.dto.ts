@@ -37,6 +37,11 @@ export class CreateMaintenanceRecordDto {
     readonly cost: number;
 
     @IsOptional()
+    @IsString()
+    @ApiPropertyOptional({ example: 'RON', description: 'Currency the cost was paid in. Defaults to RON. cost_ron/exchange_rate/exchange_rate_date/exchange_rate_source are always computed server-side.' })
+    readonly currency?: string;
+
+    @IsOptional()
     @IsDateString()
     @ApiPropertyOptional({ example: '2024-01-01' })
     readonly expiry_date?: string;
