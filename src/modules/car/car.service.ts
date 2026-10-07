@@ -1,5 +1,5 @@
 import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { Car, CarAccessRole, CarPhoto, CarStatus, FuelType, NotificationType, OrganizationRole, Prisma, TransmissionType } from '@prisma/client';
+import { Car, CarAccessRole, CarPhoto, CarStatus, FuelType, NotificationType, OrganizationRole, Prisma, ServiceCategory, ServiceType, TransmissionType } from '@prisma/client';
 import { getRequestSessionContext } from '../../common/context/request-context';
 import { ROLE_RANK } from '../../common/guards/car-access/car-access.guard';
 import { CarAccessService } from '../car-access/car-access.service';
@@ -191,26 +191,52 @@ export class CarService {
 
     let car: CarWithPhotos;
     try {
-      car = await this.prisma.car.create({
-        data: {
-          ...carData,
-          ownership_start_date: carData.ownership_start_date ? new Date(carData.ownership_start_date) : null,
-          rca_expiry_date: carData.rca_expiry_date ? new Date(carData.rca_expiry_date) : null,
-          itp_expiry_date: carData.itp_expiry_date ? new Date(carData.itp_expiry_date) : null,
-          rov_expiry_date: carData.rov_expiry_date ? new Date(carData.rov_expiry_date) : null,
-          last_oil_service_date: carData.last_oil_service_date ? new Date(carData.last_oil_service_date) : null,
-          user_id: user.id,
-          organization_id: organizationId != null ? Number(organizationId) : null,
-          photos: photoPaths.length > 0
-            ? {
-                create: photoPaths.map((url, i) => ({
-                  url,
-                  is_default: i === defaultNewPhotoIndex,
-                })),
-              }
-            : undefined,
-        },
-        include: { photos: true },
+      car = await this.prisma.$transaction(async (tx) => {
+        const createdCar = await tx.car.create({
+          data: {
+            ...carData,
+            ownership_start_date: carData.ownership_start_date ? new Date(carData.ownership_start_date) : null,
+            rca_expiry_date: carData.rca_expiry_date ? new Date(carData.rca_expiry_date) : null,
+            itp_expiry_date: carData.itp_expiry_date ? new Date(carData.itp_expiry_date) : null,
+            rov_expiry_date: carData.rov_expiry_date ? new Date(carData.rov_expiry_date) : null,
+            last_oil_service_date: carData.last_oil_service_date ? new Date(carData.last_oil_service_date) : null,
+            user_id: user.id,
+            organization_id: organizationId != null ? Number(organizationId) : null,
+            photos: photoPaths.length > 0
+              ? {
+                  create: photoPaths.map((url, i) => ({
+                    url,
+                    is_default: i === defaultNewPhotoIndex,
+                  })),
+                }
+              : undefined,
+          },
+          include: { photos: true },
+        });
+
+        // A last-oil-change baseline entered on the add-car form only ever lived on
+        // Car.last_oil_service_* — the maintenance Plan (buildPlanItems) reads the
+        // latest MaintenanceRecord with service_category OIL_CHANGE and never looked
+        // at those columns, so the baseline was silently ignored until the car's
+        // *next* real oil-change record. Mirror it into a real record here, once, at
+        // creation time only (never on edit — see updateCar) so the Plan has
+        // something to count down from immediately. Columns are left as-is; this
+        // is purely additive.
+        if (carData.last_oil_service_date || carData.last_oil_service_mileage != null) {
+          await tx.maintenanceRecord.create({
+            data: {
+              car_id: createdCar.id,
+              service_date: carData.last_oil_service_date ? new Date(carData.last_oil_service_date) : new Date(),
+              mileage: carData.last_oil_service_mileage ?? null,
+              description: '',
+              service_type: ServiceType.MAINTENANCE,
+              service_category: ServiceCategory.OIL_CHANGE,
+              cost: 0,
+            },
+          });
+        }
+
+        return createdCar;
       }) as CarWithPhotos;
     } catch (e: any) {
       if (e?.code === 'P2002' && e?.meta?.target?.includes('vin')) {
