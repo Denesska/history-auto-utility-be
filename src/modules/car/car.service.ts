@@ -225,6 +225,13 @@ export class CarService {
             itp_expiry_date: carData.itp_expiry_date ? new Date(carData.itp_expiry_date) : null,
             rov_expiry_date: carData.rov_expiry_date ? new Date(carData.rov_expiry_date) : null,
             last_oil_service_date: carData.last_oil_service_date ? new Date(carData.last_oil_service_date) : null,
+            // Mirrors updateCar's handling of actual_mileage below: the add-car form's
+            // "current mileage" field (AddCarDto.actual_mileage) goes straight to the same
+            // column the Update-mileage sheet writes, so it needs the same "updated just now"
+            // timestamp stamped at creation time — otherwise getMileageUpdateInfo() would read
+            // a null actual_mileage_updated_at and show "never updated" for a car that was
+            // created with a current-mileage reading already on it.
+            actual_mileage_updated_at: carData.actual_mileage != null ? new Date() : undefined,
             user_id: user.id,
             organization_id: organizationId != null ? Number(organizationId) : null,
             photos: photoPaths.length > 0
