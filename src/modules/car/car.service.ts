@@ -2,6 +2,7 @@ import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundExce
 import { Car, CarAccessRole, CarPhoto, CarStatus, FuelType, NotificationType, OrganizationRole, Prisma, ServiceCategory, ServiceType, TransmissionType } from '@prisma/client';
 import { getRequestSessionContext } from '../../common/context/request-context';
 import { ROLE_RANK } from '../../common/guards/car-access/car-access.guard';
+import { formatLicensePlate, normalizePlateForComparison } from '../../common/util/license-plate.util';
 import { CarAccessService } from '../car-access/car-access.service';
 import { CarDto, CarPhotoDto } from './dto/car.dto';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -64,15 +65,22 @@ export class CarService {
     ownerIdToExclude: number,
   ): Promise<void> {
     if (!licensePlate) return;
+    const normalized = normalizePlateForComparison(licensePlate);
+    if (!normalized) return;
     try {
-      const existingCar = await this.prisma.car.findFirst({
-        where: {
-          license_plate: licensePlate,
-          status: CarStatus.ACTIVE,
-          id: { not: excludeCarId },
-          user_id: { not: ownerIdToExclude },
-        },
-      });
+      // Normalization-insensitive: an existing row saved before plates were
+      // formatted consistently (see formatLicensePlate) may still be in a
+      // different spacing/case, so this can't be a plain equality match.
+      const [existingCar] = await this.prisma.$queryRaw<{ id: number; user_id: number; make: string; model: string }[]>`
+        SELECT id, user_id, make, model
+        FROM "Car"
+        WHERE status = 'ACTIVE'
+          AND id != ${excludeCarId}
+          AND user_id != ${ownerIdToExclude}
+          AND license_plate IS NOT NULL
+          AND UPPER(REGEXP_REPLACE(license_plate, '[^A-Za-z0-9]', '', 'g')) = ${normalized}
+        LIMIT 1
+      `;
       if (!existingCar) return;
       // Same reasoning as notifyVinConflictIfNeeded — the recipient is this car's
       // own owner, so their own private label is safe to show them.
@@ -156,6 +164,14 @@ export class CarService {
     // column on the car itself. See CarUserNickname.
     const { id, default_new_photo_index, organizationId: requestedOrganizationId, nickname, ...carData } = data as any;
 
+    // Stored in this formatted shape from here on (uppercase, letter/digit
+    // groups separated by a single space) — see formatLicensePlate. Existing
+    // rows saved before this were never rewritten, so a lookup against them
+    // must stay normalization-insensitive (see normalizePlateForComparison).
+    if (carData.license_plate) {
+      carData.license_plate = formatLicensePlate(carData.license_plate);
+    }
+
     // Where the car lives is decided by the session context, never by the
     // client: business -> always the session's organization, personal -> always
     // personal (null), whatever `organizationId` was sent. Only a caller outside
@@ -180,9 +196,18 @@ export class CarService {
         throw new ForbiddenException('Only an owner, super admin or fleet admin can add a car directly to the organization');
       }
       if (carData.license_plate) {
-        const conflict = await this.prisma.car.findFirst({
-          where: { license_plate: carData.license_plate, status: CarStatus.ACTIVE, organization_id: { not: null } },
-        });
+        const normalizedPlate = normalizePlateForComparison(carData.license_plate);
+        const [conflict] = normalizedPlate
+          ? await this.prisma.$queryRaw<{ organization_id: number | null }[]>`
+              SELECT organization_id
+              FROM "Car"
+              WHERE status = 'ACTIVE'
+                AND organization_id IS NOT NULL
+                AND license_plate IS NOT NULL
+                AND UPPER(REGEXP_REPLACE(license_plate, '[^A-Za-z0-9]', '', 'g')) = ${normalizedPlate}
+              LIMIT 1
+            `
+          : [];
         if (conflict && conflict.organization_id !== Number(organizationId)) {
           throw new ConflictException({ code: 'CAR_ORG_PLATE_CONFLICT', message: 'A car with this license plate already belongs to another fleet' });
         }
@@ -293,6 +318,11 @@ export class CarService {
     // `organizationId` is dropped too: a car never moves between personal and a fleet via update.
     const { nickname, organizationId: _ignoredOrganizationId, ...rest } = data as any;
     const updateData: Prisma.CarUpdateInput = { ...rest };
+
+    // Same formatting as createCar — see the comment there.
+    if (typeof updateData.license_plate === 'string' && updateData.license_plate) {
+      updateData.license_plate = formatLicensePlate(updateData.license_plate);
+    }
 
     if (updateData.actual_mileage !== undefined) {
       updateData.actual_mileage_updated_at = new Date();
