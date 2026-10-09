@@ -28,6 +28,7 @@ import { ActivityModule } from './modules/activity/activity.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { VehicleSilhouetteModule } from './modules/vehicle-silhouette/vehicle-silhouette.module';
 import { OrganizationModule } from './modules/organization/organization.module';
+import { BusinessAccessModule } from './modules/business-access/business-access.module';
 import { SupplierModule } from './modules/supplier/supplier.module';
 import { DriverAssignmentModule } from './modules/driver-assignment/driver-assignment.module';
 import { FleetCostModule } from './modules/fleet-cost/fleet-cost.module';
@@ -64,6 +65,7 @@ import { FeatureEnforcementInterceptor, FeaturesModule } from './common/features
     ActivityModule,
     AdminModule,
     VehicleSilhouetteModule,
+    BusinessAccessModule,
     OrganizationModule,
     FeaturesModule,
     SupplierModule,

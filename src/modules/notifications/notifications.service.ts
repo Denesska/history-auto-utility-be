@@ -38,6 +38,8 @@ export class NotificationsService {
    * - DOCUMENT_EXPIRING / VIN_CONFLICT / LICENSE_PLATE_CONFLICT: follow their
    *   car (personal if it has no organization, business if it belongs to the
    *   session's organization).
+   * - BUSINESS_ACCESS_REQUESTED / BUSINESS_ACCESS_APPROVED / BUSINESS_ACCESS_REJECTED:
+   *   account-level, not org-bound — visible in any context (personal or business).
    * Outside an HTTP request (no context) nothing is filtered.
    */
   private async filterForContext<T extends { type: NotificationType; data: unknown }>(rows: T[]): Promise<T[]> {
@@ -61,6 +63,13 @@ export class NotificationsService {
     const orgByCar = new Map(cars.map(c => [c.id, c.organization_id]));
 
     return rows.filter(r => {
+      if (
+        r.type === NotificationType.BUSINESS_ACCESS_REQUESTED ||
+        r.type === NotificationType.BUSINESS_ACCESS_APPROVED ||
+        r.type === NotificationType.BUSINESS_ACCESS_REJECTED
+      ) {
+        return true;
+      }
       if (r.type === NotificationType.ORG_INVITED || r.type === NotificationType.ORG_INVITE_ACCEPTED) {
         return ctx.type === 'business';
       }

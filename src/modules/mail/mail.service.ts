@@ -5,6 +5,13 @@ import { MailLang } from './templates/base-email.template';
 import { CarShareInvitationData, carShareInvitationEmail } from './templates/car-share-invitation.template';
 import { DocumentExpiringData, documentExpiringEmail } from './templates/document-expiring.template';
 import { OrganizationInvitationData, organizationInvitationExistingUserEmail } from './templates/organization-invitation.template';
+import { BusinessAccessRequestedData, businessAccessRequestedEmail } from './templates/business-access-request.template';
+import {
+  BusinessAccessApprovedData,
+  BusinessAccessRejectedData,
+  businessAccessApprovedEmail,
+  businessAccessRejectedEmail,
+} from './templates/business-access-decision.template';
 
 @Injectable()
 export class MailService {
@@ -52,6 +59,22 @@ export class MailService {
    */
   async sendOrganizationInvitation(to: string, lang: MailLang, data: OrganizationInvitationData): Promise<void> {
     const { subject, html } = organizationInvitationExistingUserEmail(lang, data);
+    await this.sendMail(to, subject, html);
+  }
+
+  /** Admin alert: a user requested to be allowed to create an organization. */
+  async sendBusinessAccessRequested(to: string, lang: MailLang, data: BusinessAccessRequestedData): Promise<void> {
+    const { subject, html } = businessAccessRequestedEmail(lang, data);
+    await this.sendMail(to, subject, html);
+  }
+
+  async sendBusinessAccessApproved(to: string, lang: MailLang, data: BusinessAccessApprovedData): Promise<void> {
+    const { subject, html } = businessAccessApprovedEmail(lang, data);
+    await this.sendMail(to, subject, html);
+  }
+
+  async sendBusinessAccessRejected(to: string, lang: MailLang, data: BusinessAccessRejectedData): Promise<void> {
+    const { subject, html } = businessAccessRejectedEmail(lang, data);
     await this.sendMail(to, subject, html);
   }
 }

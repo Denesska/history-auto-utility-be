@@ -54,6 +54,8 @@ model User {
   driver_assignments               CarDriverAssignment[] @relation("DriverAssignments")
   driver_assignments_made          CarDriverAssignment[] @relation("DriverAssignmentsMadeBy")
   car_nicknames                    CarUserNickname[]
+  business_access_requests         BusinessAccessRequest[] @relation("BusinessAccessRequests")
+  business_access_decisions        BusinessAccessRequest[] @relation("BusinessAccessDecisions")
 }
 
 model Car {
@@ -229,6 +231,10 @@ enum NotificationType {
   LICENSE_PLATE_CONFLICT
   ORG_INVITED
   ORG_INVITE_ACCEPTED
+  // Account-level (not org-bound) — visible in any session context, see NotificationsService.filterForContext.
+  BUSINESS_ACCESS_REQUESTED
+  BUSINESS_ACCESS_APPROVED
+  BUSINESS_ACCESS_REJECTED
 }
 
 enum DocumentExpiryType {
@@ -934,6 +940,34 @@ model FeatureInterest {
   user         User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([organization_id, user_id, feature_key])
+}
+
+enum BusinessAccessRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// A user's request to be allowed to create an organization (the "business account
+/// approval gate" — see OrganizationService.createOrganization). Reviewed by an
+/// app admin (`User.is_admin`) on the admin page. A user may submit a new request
+/// after a REJECTED one, so several rows can exist per user — only the latest matters.
+model BusinessAccessRequest {
+  id                  Int                         @id @default(autoincrement())
+  user_id             Int
+  company_name        String
+  note                String?
+  status              BusinessAccessRequestStatus @default(PENDING)
+  rejection_reason    String?
+  decided_by_user_id  Int?
+  decided_at          DateTime?
+  created_at          DateTime                    @default(now())
+
+  user        User  @relation("BusinessAccessRequests", fields: [user_id], references: [id], onDelete: Cascade)
+  decided_by  User? @relation("BusinessAccessDecisions", fields: [decided_by_user_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id, created_at])
+  @@index([status])
 }
 
 // One row per user per (Europe/Bucharest) calendar day on which they made at

@@ -6,9 +6,10 @@ import { PrismaModule } from '../../prisma/prisma.module';
 import { MailModule } from '../mail/mail.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { CarModule } from '../car/car.module';
+import { BusinessAccessModule } from '../business-access/business-access.module';
 
 @Module({
-  imports: [PrismaModule, MailModule, NotificationsModule, CarModule],
+  imports: [PrismaModule, MailModule, NotificationsModule, CarModule, BusinessAccessModule],
   controllers: [OrganizationController],
   providers: [OrganizationService, OrganizationGuard],
   exports: [OrganizationService, OrganizationGuard],

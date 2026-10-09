@@ -27,6 +27,7 @@ import { ResetLocalPasswordResultDto } from './dto/reset-local-password-result.d
 import { MyOrganizationDto, OrganizationMembershipDto } from './dto/organization.dto';
 import { OrganizationCarDto } from './dto/organization-car.dto';
 import { FeatureAccessService } from '../../common/features/feature-access.service';
+import { BusinessAccessService } from '../business-access/business-access.service';
 
 const BCRYPT_ROUNDS = 10;
 
@@ -58,6 +59,7 @@ export class OrganizationService {
     private readonly notificationsService: NotificationsService,
     private readonly configService: ConfigService,
     private readonly featureAccess: FeatureAccessService,
+    private readonly businessAccessService: BusinessAccessService,
   ) {}
 
   private toMembershipDto(entry: any): OrganizationMembershipDto {
@@ -90,6 +92,10 @@ export class OrganizationService {
 
   /** The creator becomes the organization's first SUPER_ADMIN, accepted immediately. */
   async createOrganization(dto: CreateOrganizationDto, creatorUserId: number): Promise<MyOrganizationDto> {
+    // Business account approval gate — see BusinessAccessService.assertCanCreateOrganization.
+    // Enforced here (service level) so every caller of createOrganization is covered.
+    await this.businessAccessService.assertCanCreateOrganization(creatorUserId);
+
     const organization = await this.prisma.organization.create({
       data: {
         name: dto.name,

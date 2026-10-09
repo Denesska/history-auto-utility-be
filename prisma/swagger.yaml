@@ -2486,6 +2486,115 @@ paths:
         - "vehicle-silhouette"
       security:
         - cookie: []
+  /api/business-access/me:
+    get:
+      operationId: "BusinessAccessController_getMyStatus"
+      summary: "Current user's business access status and whether they can create an organization"
+      parameters: []
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessAccessStatusDto"
+      tags:
+        - "business-access"
+      security:
+        - bearer: []
+  /api/business-access/request:
+    post:
+      operationId: "BusinessAccessController_submitRequest"
+      summary: "Submit a request to be allowed to create an organization (company name + optional note)"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBusinessAccessRequestDto"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessAccessStatusDto"
+      tags:
+        - "business-access"
+      security:
+        - bearer: []
+  /api/admin/business-access-requests:
+    get:
+      operationId: "AdminBusinessAccessController_list"
+      summary: "List business access requests by status (default PENDING), newest first"
+      parameters:
+        - name: "status"
+          required: true
+          in: "query"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/AdminBusinessAccessRequestDto"
+      tags:
+        - "admin"
+      security:
+        - cookie: []
+  /api/admin/business-access-requests/{id}/approve:
+    post:
+      operationId: "AdminBusinessAccessController_approve"
+      summary: "Approve a pending business access request"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminBusinessAccessRequestDto"
+      tags:
+        - "admin"
+      security:
+        - cookie: []
+  /api/admin/business-access-requests/{id}/reject:
+    post:
+      operationId: "AdminBusinessAccessController_reject"
+      summary: "Reject a pending business access request, with an optional reason shown to the requester"
+      parameters:
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectBusinessAccessRequestDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminBusinessAccessRequestDto"
+      tags:
+        - "admin"
+      security:
+        - cookie: []
   /api/organization:
     post:
       operationId: "OrganizationController_createOrganization"
@@ -3144,6 +3253,9 @@ components:
             - "LICENSE_PLATE_CONFLICT"
             - "ORG_INVITED"
             - "ORG_INVITE_ACCEPTED"
+            - "BUSINESS_ACCESS_REQUESTED"
+            - "BUSINESS_ACCESS_APPROVED"
+            - "BUSINESS_ACCESS_REJECTED"
         data:
           type: "object"
         read_at:
@@ -5784,6 +5896,123 @@ components:
     RegenerateSilhouetteDto:
       type: "object"
       properties: {}
+    BusinessAccessRequestSummaryDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+        company_name:
+          type: "string"
+        note:
+          type: "string"
+          nullable: true
+        rejection_reason:
+          type: "string"
+          nullable: true
+        created_at:
+          format: "date-time"
+          type: "string"
+        decided_at:
+          format: "date-time"
+          type: "string"
+          nullable: true
+      required:
+        - "id"
+        - "company_name"
+        - "created_at"
+    BusinessAccessStatusDto:
+      type: "object"
+      properties:
+        status:
+          type: "string"
+          enum:
+            - "NONE"
+            - "PENDING"
+            - "APPROVED"
+            - "REJECTED"
+        canCreateOrganization:
+          type: "boolean"
+        request:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/BusinessAccessRequestSummaryDto"
+      required:
+        - "status"
+        - "canCreateOrganization"
+    CreateBusinessAccessRequestDto:
+      type: "object"
+      properties:
+        company_name:
+          type: "string"
+          example: "Acme Fleet SRL"
+        note:
+          type: "string"
+          example: "We manage a fleet of 12 vans in Bucharest."
+      required:
+        - "company_name"
+    BusinessAccessRequestUserDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+        first_name:
+          type: "string"
+        last_name:
+          type: "string"
+        email:
+          type: "string"
+        picture:
+          type: "string"
+          nullable: true
+      required:
+        - "id"
+        - "first_name"
+        - "last_name"
+        - "email"
+    AdminBusinessAccessRequestDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+        company_name:
+          type: "string"
+        note:
+          type: "string"
+          nullable: true
+        status:
+          type: "string"
+          enum:
+            - "PENDING"
+            - "APPROVED"
+            - "REJECTED"
+        rejection_reason:
+          type: "string"
+          nullable: true
+        created_at:
+          format: "date-time"
+          type: "string"
+        decided_at:
+          format: "date-time"
+          type: "string"
+          nullable: true
+        user:
+          $ref: "#/components/schemas/BusinessAccessRequestUserDto"
+        decided_by:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/BusinessAccessRequestUserDto"
+      required:
+        - "id"
+        - "company_name"
+        - "status"
+        - "created_at"
+        - "user"
+    RejectBusinessAccessRequestDto:
+      type: "object"
+      properties:
+        reason:
+          type: "string"
+          example: "Could not verify the company — please get in touch at office@denhau.ro."
     CreateOrganizationDto:
       type: "object"
       properties:
