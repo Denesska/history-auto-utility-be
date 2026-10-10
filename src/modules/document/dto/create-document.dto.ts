@@ -84,4 +84,9 @@ export class CreateDocumentDto {
     @IsNumber()
     @IsPositive()
     readonly exchange_rate?: number | null;
+
+    @ApiPropertyOptional({ example: 1, nullable: true, description: 'Supplier directory entry this document was issued through (e.g. the broker for a policy). Must be a supplier the caller can see.' })
+    @IsOptional()
+    @IsInt()
+    readonly supplier_id?: number | null;
 }

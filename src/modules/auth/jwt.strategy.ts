@@ -4,6 +4,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtUserPayload } from './dto/jwt-payload.dto';
+import { parseSessionContext } from '../../common/context/session-context';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -27,13 +28,24 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
     const user = await this.prisma.user.findUnique({
       where: { google_id: payload.sub },
-      select: { id: true },
+      select: { id: true, disabled_at: true, must_change_password: true, is_company_managed: true },
     });
 
-    if (!user) {
+    // disabled_at is set when a company removes one of its own managed
+    // accounts (see OrganizationService.removeMember) — a still-valid access
+    // token issued before that must stop working immediately, not just on
+    // its next refresh.
+    if (!user || user.disabled_at) {
       throw new UnauthorizedException('User not found');
     }
 
-    return { id: user.id, google_id: payload.sub, email: payload.email };
+    return {
+      id: user.id,
+      google_id: payload.sub,
+      email: payload.email,
+      must_change_password: user.must_change_password,
+      is_company_managed: user.is_company_managed,
+      ctx: parseSessionContext(payload.ctx),
+    };
   }
 }

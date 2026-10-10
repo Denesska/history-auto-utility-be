@@ -1,3 +1,4 @@
+import { Scope } from '../../common/context/scope.decorator';
 import { Controller, Get, Req, UseGuards } from '@nestjs/common';
 import { ApiCookieAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -8,6 +9,7 @@ import { BootstrapResponseDto } from './dto/bootstrap-response.dto';
 @ApiTags('app-data')
 @ApiCookieAuth()
 @UseGuards(JwtAuthGuard)
+@Scope('personal', 'business')
 @Controller('app-data')
 export class BootstrapController {
   constructor(private readonly bootstrapService: BootstrapService) {}
@@ -16,6 +18,6 @@ export class BootstrapController {
   @ApiOperation({ summary: 'Fetch all initial data needed on app load in a single request' })
   @ApiOkResponse({ type: BootstrapResponseDto })
   getInitialData(@Req() req: RequestWithUser): Promise<BootstrapResponseDto> {
-    return this.bootstrapService.getInitialData(req.user.google_id);
+    return this.bootstrapService.getInitialData(req.user.google_id, (req.user as any).ctx);
   }
 }

@@ -1,3 +1,4 @@
+import { Scope } from '../../common/context/scope.decorator';
 import { BadRequestException, Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -14,6 +15,7 @@ import {
 @ApiTags('upload')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
+@Scope('personal', 'business')
 @Controller('upload')
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}

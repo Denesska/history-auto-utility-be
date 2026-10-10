@@ -1,3 +1,5 @@
+import { Scope } from '../../common/context/scope.decorator';
+import { Feature, NoFeature } from '../../common/features/feature.decorator';
 import {
   BadRequestException,
   Controller,
@@ -45,6 +47,8 @@ const uploadStorage = diskStorage({
 
 @ApiTags('document')
 @UseGuards(JwtAuthGuard)
+@Scope('personal', 'business')
+@Feature('documents')
 @Controller('document')
 export class DocumentController {
   constructor(
@@ -56,37 +60,41 @@ export class DocumentController {
   @ApiOperation({ summary: 'Get all documents for the authenticated user (owned + shared cars)' })
   @ApiResponse({ status: 200, type: [DocumentDto] })
   async getAllDocuments(@Req() req: RequestWithUser): Promise<DocumentDto[]> {
-    return this.documentService.getAllDocumentsByUser(req.user.google_id);
+    return this.documentService.getAllDocumentsByUser(req.user.id);
   }
 
   @Post()
   @ApiOperation({ summary: 'Create a new document' })
   @ApiResponse({ status: 201, type: DocumentDto })
-  async createDocument(@Body() createDocumentDto: CreateDocumentDto): Promise<DocumentDto> {
-    return this.documentService.createDocument(createDocumentDto);
+  async createDocument(@Req() req: RequestWithUser, @Body() createDocumentDto: CreateDocumentDto): Promise<DocumentDto> {
+    return this.documentService.createDocument(createDocumentDto, req.user.id);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get document by ID' })
   @ApiResponse({ status: 200, type: DocumentDto })
   @ApiResponse({ status: 404, description: 'Document not found.' })
-  async getDocument(@Param('id') id: string): Promise<DocumentDto | null> {
-    return this.documentService.getDocument(Number(id));
+  async getDocument(@Req() req: RequestWithUser, @Param('id') id: string): Promise<DocumentDto | null> {
+    return this.documentService.getDocument(Number(id), req.user.id);
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Update a document' })
   @ApiResponse({ status: 200, type: DocumentDto })
   @ApiResponse({ status: 404, description: 'Document not found.' })
-  async updateDocument(@Param('id') id: string, @Body() updateDocumentDto: UpdateDocumentDto): Promise<DocumentDto> {
-    return this.documentService.updateDocument(Number(id), updateDocumentDto);
+  async updateDocument(
+    @Req() req: RequestWithUser,
+    @Param('id') id: string,
+    @Body() updateDocumentDto: UpdateDocumentDto,
+  ): Promise<DocumentDto> {
+    return this.documentService.updateDocument(Number(id), updateDocumentDto, req.user.id);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a document' })
   @ApiResponse({ status: 200, type: DocumentDto })
-  async deleteDocument(@Param('id') id: string): Promise<DocumentDto> {
-    return this.documentService.deleteDocument(Number(id));
+  async deleteDocument(@Req() req: RequestWithUser, @Param('id') id: string): Promise<DocumentDto> {
+    return this.documentService.deleteDocument(Number(id), req.user.id);
   }
 
   @Get(':id/file')
@@ -105,17 +113,18 @@ export class DocumentController {
     @Param('id') id: string,
     @Query('mode') mode?: string,
   ): Promise<DocumentFileLinkDto> {
-    return this.documentService.getFileLink(Number(id), req.user.google_id, mode === 'download');
+    return this.documentService.getFileLink(Number(id), req.user.id, mode === 'download');
   }
 
   @Get('car/:carId')
   @ApiOperation({ summary: 'Get all documents for a specific car' })
   @ApiResponse({ status: 200, type: [DocumentDto] })
-  async getDocumentsByCarId(@Param('carId') carId: string): Promise<DocumentDto[]> {
-    return this.documentService.getDocumentsByCarId(Number(carId));
+  async getDocumentsByCarId(@Req() req: RequestWithUser, @Param('carId') carId: string): Promise<DocumentDto[]> {
+    return this.documentService.getDocumentsByCarId(Number(carId), req.user.id);
   }
 
   @Post('extract')
+  @NoFeature() // shared by documents, car registration (talon scan), sale-contract (ID scan) and photo-scan flows (fuel/charging/odometer) — not gated behind 'documents'
   @ApiOperation({
     summary: 'Extract fields from an uploaded document file (returns suggestions only — does not save)',
     description:
@@ -144,9 +153,10 @@ export class DocumentController {
   @ApiResponse({ status: 201, type: DocumentDto })
   @UseInterceptors(FileInterceptor('file', { storage: uploadStorage, limits: { fileSize: 20 * 1024 * 1024 } }))
   async uploadFile(
+    @Req() req: RequestWithUser,
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
   ): Promise<DocumentDto> {
-    return this.documentService.updateDocumentFile(Number(id), file);
+    return this.documentService.updateDocumentFile(Number(id), file, req.user.id);
   }
 }

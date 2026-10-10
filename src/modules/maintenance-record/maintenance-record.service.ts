@@ -1,9 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { MaintenanceRecord, MaintenancePart, ServiceCategory } from '@prisma/client';
 import {PrismaService} from "../../prisma/prisma.service";
 import {CreateMaintenanceRecordDto} from "./dto/create-maintenance-record.dto";
 import {UpdateMaintenanceRecordDto} from "./dto/update-maintenance-record.dto";
 import { UploadService } from '../upload/upload.service';
+import { CarAccessService } from '../car-access/car-access.service';
+import { SupplierService } from '../supplier/supplier.service';
+import { ExchangeRateService } from '../exchange-rate/exchange-rate.service';
 
 export type MaintenanceRecordWithParts = MaintenanceRecord & { parts: MaintenancePart[] };
 export type MaintenanceRecordWithMeta = MaintenanceRecordWithParts & {
@@ -13,14 +16,27 @@ export type MaintenanceRecordWithMeta = MaintenanceRecordWithParts & {
     consumption_kwh_100km?: number;
 };
 
+/** The four columns that record a maintenance cost's RON equivalent — same shape as Document's. */
+type CostConversion = Pick<MaintenanceRecord, 'cost_ron' | 'exchange_rate' | 'exchange_rate_date' | 'exchange_rate_source'>;
+
+const NO_CONVERSION: CostConversion = { cost_ron: null, exchange_rate: null, exchange_rate_date: null, exchange_rate_source: null };
+
 @Injectable()
 export class MaintenanceRecordService {
+    private readonly logger = new Logger(MaintenanceRecordService.name);
+
     constructor(
         private prisma: PrismaService,
         private uploadService: UploadService,
+        private carAccess: CarAccessService,
+        private supplierService: SupplierService,
+        private exchangeRates: ExchangeRateService,
     ) {}
 
-    async createMaintenanceRecord(data: CreateMaintenanceRecordDto): Promise<MaintenanceRecordWithParts> {
+    async createMaintenanceRecord(data: CreateMaintenanceRecordDto, userId: number): Promise<MaintenanceRecordWithParts> {
+        await this.carAccess.assertHasAccess(data.car_id, userId);
+        const supplierId = (await this.supplierService.resolveLinkedSupplierId(data.supplier_id, userId)) ?? null;
+        const conversion = await this.convertCost(data.cost, data.currency ?? null, new Date(data.service_date));
         const record = await this.prisma.maintenanceRecord.create({
             data: {
                 car_id:           data.car_id,
@@ -30,11 +46,14 @@ export class MaintenanceRecordService {
                 service_type:     data.service_type,
                 service_category: data.service_category ?? ServiceCategory.OTHER,
                 cost:             data.cost,
+                currency:         normalizeCurrency(data.currency),
+                ...conversion,
                 expiry_date:      data.expiry_date ? new Date(data.expiry_date) : null,
                 is_diy:           data.is_diy ?? false,
                 fuel_liters:        data.fuel_liters,
                 energy_kwh:         data.energy_kwh,
                 is_company_expense: data.is_company_expense ?? false,
+                supplier_id:        supplierId,
                 parts: data.parts?.length
                     ? { create: data.parts.map(p => ({ name: p.name, code: p.code, quantity: p.quantity, price: p.price })) }
                     : undefined,
@@ -46,19 +65,28 @@ export class MaintenanceRecordService {
         return this._attachConsumptionSingle(record);
     }
 
-    async getMaintenanceRecord(id: number): Promise<MaintenanceRecordWithParts | null> {
-        return this.prisma.maintenanceRecord.findUnique({
+    async getMaintenanceRecord(id: number, userId: number): Promise<MaintenanceRecordWithParts | null> {
+        const record = await this.prisma.maintenanceRecord.findUnique({
             where: { id },
             include: { parts: true },
         });
+        if (!record) return null;
+        await this.assertAccessOrNotFound(record.car_id, userId);
+        return record;
     }
 
-    async updateMaintenanceRecord(id: number, data: UpdateMaintenanceRecordDto): Promise<MaintenanceRecordWithParts> {
+    async updateMaintenanceRecord(id: number, data: UpdateMaintenanceRecordDto, userId: number): Promise<MaintenanceRecordWithParts> {
+        const existing = await this.prisma.maintenanceRecord.findUnique({ where: { id } });
+        if (!existing) throw new NotFoundException('Maintenance record not found');
+        await this.assertAccessOrNotFound(existing.car_id, userId);
+        const supplierId = await this.supplierService.resolveLinkedSupplierId(data.supplier_id, userId);
+
         // Parts have no stable client-side id to diff against, so an edit replaces
         // the whole set rather than trying to patch individual rows.
         if (data.parts !== undefined) {
             await this.prisma.maintenancePart.deleteMany({ where: { maintenance_record_id: id } });
         }
+        const conversion = await this.recomputeConversionForUpdate(id, data);
         const record = await this.prisma.maintenanceRecord.update({
             where: { id },
             data: {
@@ -69,11 +97,14 @@ export class MaintenanceRecordService {
                 service_type:     data.service_type,
                 service_category: data.service_category,
                 cost:             data.cost,
+                currency:         data.currency !== undefined ? normalizeCurrency(data.currency) : undefined,
+                ...conversion,
                 expiry_date:      data.expiry_date !== undefined ? (data.expiry_date ? new Date(data.expiry_date) : null) : undefined,
                 is_diy:           data.is_diy,
                 fuel_liters:        data.fuel_liters,
                 energy_kwh:         data.energy_kwh,
                 is_company_expense: data.is_company_expense,
+                supplier_id:        supplierId,
                 parts: data.parts !== undefined
                     ? { create: data.parts.map(p => ({ name: p.name, code: p.code, quantity: p.quantity, price: p.price })) }
                     : undefined,
@@ -85,12 +116,27 @@ export class MaintenanceRecordService {
         return this._attachConsumptionSingle(record);
     }
 
-    async deleteMaintenanceRecord(id: number): Promise<MaintenanceRecord> {
+    async deleteMaintenanceRecord(id: number, userId: number): Promise<MaintenanceRecord> {
+        const existing = await this.prisma.maintenanceRecord.findUnique({ where: { id } });
+        if (!existing) throw new NotFoundException('Maintenance record not found');
+        await this.assertAccessOrNotFound(existing.car_id, userId);
+
         const record = await this.prisma.maintenanceRecord.delete({
             where: { id },
         });
         await this._syncLastOilService(record.car_id);
         return record;
+    }
+
+    /** Same access rule as the rest of this service, but Not Found instead of Forbidden — a
+     * maintenance record's existence shouldn't be distinguishable from "no access" to someone
+     * probing ids. */
+    private async assertAccessOrNotFound(carId: number, userId: number): Promise<void> {
+        try {
+            await this.carAccess.assertHasAccess(carId, userId);
+        } catch {
+            throw new NotFoundException('Maintenance record not found');
+        }
     }
 
     // Keeps Car.last_oil_service_mileage/date in sync with the highest-mileage
@@ -128,6 +174,72 @@ export class MaintenanceRecordService {
         }
     }
 
+    /**
+     * RON equivalent of a cost — same idea as document.service.ts's convertPrice. RON (or no
+     * currency) is the identity; any other currency uses the BNR rate in force on the record's
+     * service_date (the day the money was paid). Never throws: if no rate can be obtained the
+     * cost is saved without a conversion (all four columns null).
+     */
+    private async convertCost(cost: number, currency: string | null, serviceDate: Date): Promise<CostConversion> {
+        const code = normalizeCurrency(currency);
+        if (code === 'RON') {
+            return { cost_ron: cost, exchange_rate: 1, exchange_rate_date: null, exchange_rate_source: null };
+        }
+
+        const bnr = await this.exchangeRates.getRonRate(code, serviceDate).catch(() => null);
+        if (!bnr) {
+            this.logger.warn(`No RON exchange rate for ${code}; saving maintenance record cost without conversion`);
+            return NO_CONVERSION;
+        }
+        return {
+            cost_ron: roundMoney(cost * bnr.rate),
+            exchange_rate: bnr.rate,
+            exchange_rate_date: bnr.date,
+            exchange_rate_source: 'BNR',
+        };
+    }
+
+    /**
+     * On update, the RON conversion is only touched when the cost actually changes — `cost`,
+     * `currency` or `service_date` present in the payload AND different from what's stored —
+     * so editing e.g. the description never re-rates an old record to today's rate. Returns
+     * undefined to leave the four columns alone. Mirrors document.service.ts's
+     * recomputeConversionForUpdate; maintenance has no manual exchange_rate override, so this
+     * is the simpler case (cost is required, never cleared).
+     */
+    private async recomputeConversionForUpdate(id: number, data: UpdateMaintenanceRecordDto): Promise<CostConversion | undefined> {
+        if (data.cost === undefined && data.currency === undefined && data.service_date === undefined) {
+            return undefined;
+        }
+
+        const stored = await this.prisma.maintenanceRecord.findUnique({ where: { id } });
+        if (!stored) return undefined; // let the update itself raise not-found
+
+        const cost = data.cost !== undefined ? data.cost : stored.cost;
+        const currency = data.currency !== undefined ? data.currency : stored.currency;
+        const serviceDate = data.service_date !== undefined ? new Date(data.service_date) : stored.service_date;
+
+        const costChanged = data.cost !== undefined && data.cost !== stored.cost;
+        const currencyChanged = data.currency !== undefined && normalizeCurrency(data.currency) !== normalizeCurrency(stored.currency);
+        // The BNR rate depends on the transaction date, so moving service_date re-rates a
+        // BNR conversion. There's no manual override on maintenance records, so unlike
+        // documents there's no "keep a MANUAL rate" case to guard here.
+        const dateChanged = data.service_date !== undefined && dayKey(serviceDate) !== dayKey(stored.service_date);
+
+        if (!costChanged && !currencyChanged && !dateChanged) return undefined;
+
+        if (!currencyChanged && !dateChanged && stored.exchange_rate != null) {
+            return {
+                cost_ron: roundMoney(cost * stored.exchange_rate),
+                exchange_rate: stored.exchange_rate,
+                exchange_rate_date: stored.exchange_rate_date,
+                exchange_rate_source: stored.exchange_rate_source,
+            };
+        }
+
+        return this.convertCost(cost, currency, serviceDate);
+    }
+
     // create/update return the bare Prisma row (no attachment/consumption enrichment, unlike the
     // list endpoints below) — compute consumption for just this one record so it's correct
     // immediately in the response, rather than only after the next full list reload.
@@ -147,7 +259,8 @@ export class MaintenanceRecordService {
         };
     }
 
-    async getMaintenanceRecordsByCarId(carId: number): Promise<MaintenanceRecordWithMeta[]> {
+    async getMaintenanceRecordsByCarId(carId: number, userId: number): Promise<MaintenanceRecordWithMeta[]> {
+        await this.carAccess.assertHasAccess(carId, userId);
         const records = await this.prisma.maintenanceRecord.findMany({
             where: { car_id: carId },
             include: { parts: true },
@@ -155,14 +268,10 @@ export class MaintenanceRecordService {
         return this._withAttachmentMeta(records);
     }
 
-    async getAllByUser(googleId: string): Promise<MaintenanceRecordWithMeta[]> {
+    async getAllByUser(userId: number): Promise<MaintenanceRecordWithMeta[]> {
+        const carIds = await this.carAccess.getAccessibleCarIds(userId);
         const records = await this.prisma.maintenanceRecord.findMany({
-            where: {
-                OR: [
-                    { car: { user: { google_id: googleId } } },
-                    { car: { access_entries: { some: { user: { google_id: googleId }, accepted_at: { not: null } } } } },
-                ],
-            },
+            where: { car_id: { in: carIds } },
             include: { parts: true },
         });
         return this._withAttachmentMeta(records);
@@ -265,4 +374,17 @@ export class MaintenanceRecordService {
 
         return Math.round((record.energy_kwh / distance) * 100 * 10) / 10;
     }
+}
+
+function normalizeCurrency(currency: string | null | undefined): string {
+    return currency?.trim().toUpperCase() || 'RON';
+}
+
+function roundMoney(value: number): number {
+    return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+/** YYYY-MM-DD of a date (or null), for comparing calendar days regardless of time. */
+function dayKey(d: Date | null | undefined): string | null {
+    return d ? d.toISOString().slice(0, 10) : null;
 }

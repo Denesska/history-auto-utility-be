@@ -5,8 +5,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Car, CarAccessRole, NotificationType, User } from '@prisma/client';
+import { Car, CarAccessRole, NotificationType, OrganizationRole, User } from '@prisma/client';
 import { ROLE_RANK } from '../../common/guards/car-access/car-access.guard';
+import { getRequestSessionContext } from '../../common/context/request-context';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { MailLang } from '../mail/templates/base-email.template';
@@ -102,7 +103,10 @@ export class CarAccessService {
     });
 
     const lang: MailLang = target.settings?.language === 'en' ? 'en' : 'ro';
-    const carLabel = car.nickname ?? `${car.make} ${car.model}`.trim();
+    // The recipient here is the invitee, not the owner — their own private
+    // nickname (if any) doesn't exist yet, and the owner's private label for
+    // this car must never be shown to anyone else. Always make+model.
+    const carLabel = `${car.make} ${car.model}`.trim();
 
     // Create the notification first so the WebSocket push to the recipient fires
     // immediately — sending the invitation email is a slower SMTP round-trip and
@@ -144,7 +148,11 @@ export class CarAccessService {
 
     const car = await this.prisma.car.findUnique({ where: { id: carId } });
     if (car) {
-      const carLabel = car.nickname ?? `${car.make} ${car.model}`.trim();
+      // The recipient here IS the owner — safe to show their own private label.
+      const ownerNickname = await this.prisma.carUserNickname.findUnique({
+        where: { car_id_user_id: { car_id: car.id, user_id: car.user_id } },
+      });
+      const carLabel = ownerNickname?.nickname ?? `${car.make} ${car.model}`.trim();
       await this.notificationsService.create(car.user_id, NotificationType.CAR_ACCESS_ACCEPTED, {
         carId: car.id,
         carLabel,
@@ -175,7 +183,9 @@ export class CarAccessService {
       where: { car_id_user_id: { car_id: carId, user_id: targetUserId } },
     });
 
-    const carLabel = car.nickname ?? `${car.make} ${car.model}`.trim();
+    // Recipient is the removed user, not the owner — never show the owner's
+    // private label to them. Always make+model.
+    const carLabel = `${car.make} ${car.model}`.trim();
     await this.notificationsService.create(targetUserId, NotificationType.CAR_ACCESS_REMOVED, {
       carId: car.id,
       carLabel,
@@ -212,7 +222,9 @@ export class CarAccessService {
       include: this.accessInclude,
     });
 
-    const carLabel = car.nickname ?? `${car.make} ${car.model}`.trim();
+    // Recipient is the member whose role changed, not the owner — same rule
+    // as removeAccess above. Always make+model.
+    const carLabel = `${car.make} ${car.model}`.trim();
     await this.notificationsService.create(targetUserId, NotificationType.CAR_ACCESS_ROLE_CHANGED, {
       carId: car.id,
       carLabel,
@@ -255,15 +267,165 @@ export class CarAccessService {
 
   async resolveUserRole(carId: number, googleId: string): Promise<CarAccessRole> {
     const user = await this.resolveUser(googleId);
+    return this.resolveUserRoleById(carId, user.id);
+  }
+
+  /**
+   * Same resolution as `resolveUserRole`, keyed by the already-resolved numeric
+   * user id (every `RequestWithUser` carries one) rather than `google_id` — avoids
+   * a redundant user lookup for callers that already have it from the JWT.
+   */
+  async resolveUserRoleById(carId: number, userId: number): Promise<CarAccessRole> {
     const car = await this.prisma.car.findUnique({ where: { id: carId } });
     if (!car) throw new NotFoundException('Car not found');
-    if (car.user_id === user.id) return CarAccessRole.OWNER;
+
+    // The session context decides which cars exist for this request at all:
+    // personal -> only cars with organization_id NULL; business -> only the
+    // active organization's cars. `undefined` = not inside an HTTP request
+    // (internal/system caller), which is not context-restricted.
+    const ctx = getRequestSessionContext();
+
+    if (ctx?.type === 'business') {
+      if (ctx.orgId == null || car.organization_id !== ctx.orgId) {
+        throw new ForbiddenException('No access to this car');
+      }
+      return this.resolveOrgCarRole(car, userId, ctx.orgRole);
+    }
+    if (ctx?.type === 'personal' && car.organization_id != null) {
+      throw new ForbiddenException('No access to this car');
+    }
+
+    if (car.user_id === userId) return CarAccessRole.OWNER;
 
     const access = await this.prisma.carUserAccess.findUnique({
-      where: { car_id_user_id: { car_id: carId, user_id: user.id } },
+      where: { car_id_user_id: { car_id: carId, user_id: userId } },
     });
-    if (!access || !access.accepted_at) throw new ForbiddenException('No access to this car');
-    return access.role;
+    if (access?.accepted_at) return access.role;
+
+    // No request context (internal caller) on an org-owned car: same membership rule as business.
+    if (!ctx && car.organization_id != null) return this.resolveOrgCarRole(car, userId);
+
+    throw new ForbiddenException('No access to this car');
+  }
+
+  /**
+   * Role on an organization-owned car, for a user acting in that organization.
+   * Any accepted member gets FULL-equivalent car access, *except* a DRIVER —
+   * they're scoped to only the car(s) they're currently assigned to
+   * (CarDriverAssignment, ended_at: null), mapped to MAINTENANCE (their comment
+   * in the OrganizationRole enum: "log fuel/mileage, flag issues"). The car's
+   * creator keeps OWNER unless they are now a DRIVER. Personal `CarUserAccess`
+   * rows are deliberately ignored here: business access comes from membership
+   * only. This only governs car-level CRUD, not organization management.
+   * `knownRole` is the fresh role the request interceptor already loaded.
+   */
+  private async resolveOrgCarRole(car: Car, userId: number, knownRole?: OrganizationRole): Promise<CarAccessRole> {
+    let role = knownRole;
+    if (!role) {
+      const membership = await this.prisma.organizationMembership.findUnique({
+        where: { organization_id_user_id: { organization_id: car.organization_id!, user_id: userId } },
+      });
+      if (!membership?.accepted_at) throw new ForbiddenException('No access to this car');
+      role = membership.role;
+    }
+
+    if (role === OrganizationRole.DRIVER) {
+      const assignment = await this.prisma.carDriverAssignment.findFirst({
+        where: { car_id: car.id, driver_user_id: userId, ended_at: null },
+      });
+      if (assignment) return CarAccessRole.MAINTENANCE;
+      throw new ForbiddenException('No access to this car');
+    }
+    return car.user_id === userId ? CarAccessRole.OWNER : CarAccessRole.FULL;
+  }
+
+  /**
+   * Throws unless the user can access the car in the current session context
+   * (see `resolveUserRoleById`: owner / accepted `CarUserAccess` row of any role
+   * in personal, organization membership in business) — the single check that closes the "any authenticated user can
+   * touch any car-scoped record by guessing its id" gap. No role ranking here:
+   * today every role can read/write a car's notes/wishes/maintenance/documents
+   * once they have *any* accepted access, same as before this check existed —
+   * this only blocks someone with no relationship to the car at all.
+   */
+  async assertHasAccess(carId: number, userId: number): Promise<void> {
+    await this.resolveUserRoleById(carId, userId);
+  }
+
+  /**
+   * All car ids the user can see IN THE CURRENT SESSION CONTEXT — the single
+   * place this is computed; callers must use it instead of re-deriving an
+   * OR-clause locally. Personal: their own cars plus cars shared with them via
+   * an accepted `CarUserAccess` row, restricted to cars with
+   * `organization_id` NULL. Business: only the active organization's cars (a
+   * DRIVER only sees the car(s) they're currently assigned to — see
+   * `resolveOrgCarRole`). Outside an HTTP request (no context) the legacy
+   * union across personal + all accepted organizations is returned.
+   */
+  async getAccessibleCarIds(userId: number): Promise<number[]> {
+    const ctx = getRequestSessionContext();
+
+    if (ctx?.type === 'business') {
+      return ctx.orgId == null ? [] : this.getOrgCarIds(userId, ctx.orgId, ctx.orgRole);
+    }
+    if (ctx?.type === 'personal') {
+      const cars = await this.prisma.car.findMany({
+        where: {
+          organization_id: null,
+          OR: [
+            { user_id: userId },
+            { access_entries: { some: { user_id: userId, accepted_at: { not: null } } } },
+          ],
+        },
+        select: { id: true },
+      });
+      return cars.map(c => c.id);
+    }
+
+    const memberships = await this.prisma.organizationMembership.findMany({
+      where: { user_id: userId, accepted_at: { not: null } },
+      select: { organization_id: true, role: true },
+    });
+    const ids = new Set<number>(await this.getAccessibleCarIdsOutsideRequest(userId));
+    for (const m of memberships) {
+      (await this.getOrgCarIds(userId, m.organization_id, m.role)).forEach(id => ids.add(id));
+    }
+    return [...ids];
+  }
+
+  private async getAccessibleCarIdsOutsideRequest(userId: number): Promise<number[]> {
+    const cars = await this.prisma.car.findMany({
+      where: {
+        OR: [
+          { user_id: userId },
+          { access_entries: { some: { user_id: userId, accepted_at: { not: null } } } },
+        ],
+      },
+      select: { id: true },
+    });
+    return cars.map(c => c.id);
+  }
+
+  /** Cars of one organization visible to a member: everything for non-drivers, only current assignments for a DRIVER. */
+  private async getOrgCarIds(userId: number, organizationId: number, knownRole?: OrganizationRole): Promise<number[]> {
+    let role = knownRole;
+    if (!role) {
+      const membership = await this.prisma.organizationMembership.findUnique({
+        where: { organization_id_user_id: { organization_id: organizationId, user_id: userId } },
+      });
+      if (!membership?.accepted_at) return [];
+      role = membership.role;
+    }
+    const cars = await this.prisma.car.findMany({
+      where: {
+        organization_id: organizationId,
+        ...(role === OrganizationRole.DRIVER
+          ? { driver_assignments: { some: { driver_user_id: userId, ended_at: null } } }
+          : {}),
+      },
+      select: { id: true },
+    });
+    return cars.map(c => c.id);
   }
 
   // ── leave (shared user removes themselves) ─────────────────────────────
@@ -286,14 +448,25 @@ export class CarAccessService {
 
   // ── shared cars ────────────────────────────────────────────────────────
 
+  /**
+   * Every car shared with this user PERSONALLY (accepted + pending invites) —
+   * the Garage's "Shared with me" section. Personal context only: in business
+   * context this is always empty (business access is membership/driver
+   * assignment, shown in the fleet list), and organization-owned cars never
+   * appear here, even if an old `CarUserAccess` row exists for them. The
+   * `organization_id`/`organization_name` fields of SharedCarDto are kept for
+   * API compatibility and are always null now.
+   */
   async getSharedCars(googleId: string): Promise<SharedCarDto[]> {
     const user = await this.resolveUser(googleId);
 
+    if (getRequestSessionContext()?.type === 'business') return [];
+
+    const carSelect = { id: true, make: true, model: true, variant: true, year: true, license_plate: true };
+
     const entries = await this.prisma.carUserAccess.findMany({
-      where: { user_id: user.id },
-      include: {
-        car: { select: { id: true, make: true, model: true, variant: true, year: true, license_plate: true } },
-      },
+      where: { user_id: user.id, car: { organization_id: null } },
+      include: { car: { select: carSelect } },
     });
 
     return entries.map(e => ({
@@ -305,6 +478,19 @@ export class CarAccessService {
       license_plate: e.car.license_plate,
       shared_role: e.role,
       accepted_at: e.accepted_at,
+      organization_id: null,
+      organization_name: null,
     }));
+  }
+
+  // ── organizations (B2B) ────────────────────────────────────────────────
+
+  /** All organization ids a user is an accepted member of — the same resolution other org-scoped modules (suppliers, cost dashboard) should reuse rather than re-querying `OrganizationMembership` themselves. */
+  async getAcceptedOrganizationIds(userId: number): Promise<number[]> {
+    const memberships = await this.prisma.organizationMembership.findMany({
+      where: { user_id: userId, accepted_at: { not: null } },
+      select: { organization_id: true },
+    });
+    return memberships.map(m => m.organization_id);
   }
 }

@@ -37,6 +37,11 @@ export class CreateMaintenanceRecordDto {
     readonly cost: number;
 
     @IsOptional()
+    @IsString()
+    @ApiPropertyOptional({ example: 'RON', description: 'Currency the cost was paid in. Defaults to RON. cost_ron/exchange_rate/exchange_rate_date/exchange_rate_source are always computed server-side.' })
+    readonly currency?: string;
+
+    @IsOptional()
     @IsDateString()
     @ApiPropertyOptional({ example: '2024-01-01' })
     readonly expiry_date?: string;
@@ -67,4 +72,9 @@ export class CreateMaintenanceRecordDto {
     @Type(() => MaintenancePartInputDto)
     @ApiPropertyOptional({ type: [MaintenancePartInputDto] })
     readonly parts?: MaintenancePartInputDto[];
+
+    @IsOptional()
+    @IsInt()
+    @ApiPropertyOptional({ example: 1, nullable: true, description: 'Supplier directory entry (garage/workshop) that carried out this work. Must be a supplier the caller can see.' })
+    readonly supplier_id?: number | null;
 }

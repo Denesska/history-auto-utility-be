@@ -4,9 +4,12 @@ import { MaintenanceRecordService } from './maintenance-record.service';
 import {PrismaModule} from "../../prisma/prisma.module";
 import { UploadModule } from '../upload/upload.module';
 import { CategorySuggestionService } from './category-suggestion.service';
+import { CarAccessModule } from '../car-access/car-access.module';
+import { SupplierModule } from '../supplier/supplier.module';
+import { ExchangeRateModule } from '../exchange-rate/exchange-rate.module';
 
 @Module({
-  imports: [PrismaModule, UploadModule],
+  imports: [PrismaModule, UploadModule, CarAccessModule, SupplierModule, ExchangeRateModule],
   controllers: [MaintenanceRecordController],
   providers: [MaintenanceRecordService, CategorySuggestionService],
   exports: [MaintenanceRecordService],

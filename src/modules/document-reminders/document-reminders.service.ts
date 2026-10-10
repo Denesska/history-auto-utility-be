@@ -6,6 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { MailLang } from '../mail/templates/base-email.template';
 import { MailService } from '../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { FeatureAccessService } from '../../common/features/feature-access.service';
 
 type UserWithSettings = User & { settings: UserSettings | null };
 
@@ -37,11 +38,15 @@ export class DocumentRemindersService {
     private readonly notificationsService: NotificationsService,
     private readonly mailService: MailService,
     private readonly configService: ConfigService,
+    private readonly featureAccess: FeatureAccessService,
   ) {}
 
   @Cron('0 8 * * *')
   async checkExpiringDocuments(): Promise<void> {
-    const cars = (await this.prisma.car.findMany({
+    // Loaded once for the whole run, not per car — orgs with 'documents' off don't get reminded.
+    const disabledOrgIds = await this.featureAccess.disabledOrgIds('documents');
+
+    const allCars = (await this.prisma.car.findMany({
       where: {
         status: CarStatus.ACTIVE,
         OR: [
@@ -59,11 +64,21 @@ export class DocumentRemindersService {
       },
     })) as CarWithRecipients[];
 
+    // Personal cars (organization_id null) are never skipped.
+    const cars = allCars.filter(car => car.organization_id == null || !disabledOrgIds.has(car.organization_id));
+
     const today = startOfDay(new Date());
 
     for (const car of cars) {
-      const carLabel = car.nickname ?? `${car.make} ${car.model}`.trim();
       const recipients = this.uniqueRecipients(car);
+      const carMakeModel = `${car.make} ${car.model}`.trim();
+      // Each recipient sees THEIR OWN private label for this car (or falls back
+      // to make+model) — never a shared value, and never another viewer's label.
+      // See CarUserNickname.
+      const nicknameRows = await this.prisma.carUserNickname.findMany({
+        where: { car_id: car.id, user_id: { in: recipients.map(r => r.id) } },
+      });
+      const nicknameByUserId = new Map(nicknameRows.map(r => [r.user_id, r.nickname]));
 
       for (const { type, field } of DOC_FIELDS) {
         const expiresAt = car[field];
@@ -73,6 +88,7 @@ export class DocumentRemindersService {
         if (daysLeft < 0) continue;
 
         for (const recipient of recipients) {
+          const carLabel = nicknameByUserId.get(recipient.id) ?? carMakeModel;
           await this.maybeSendReminder(recipient, car.id, carLabel, type, expiresAt, daysLeft);
         }
       }

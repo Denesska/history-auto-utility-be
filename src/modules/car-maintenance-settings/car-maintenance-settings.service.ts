@@ -4,10 +4,11 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { DEFAULT_MAINTENANCE_INTERVALS } from '../maintenance-record/maintenance-interval.defaults';
 import { MaintenanceSettingDto } from './dto/maintenance-setting.dto';
 import { UpdateMaintenanceSettingDto } from './dto/update-maintenance-setting.dto';
+import { CarAccessService } from '../car-access/car-access.service';
 
 @Injectable()
 export class CarMaintenanceSettingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly carAccess: CarAccessService) {}
 
   /** Every override the user has across every one of their profiles for this car, resolved against the defaults. */
   async getSettings(carId: number, userId: number, profileId: number): Promise<MaintenanceSettingDto[]> {
@@ -57,14 +58,9 @@ export class CarMaintenanceSettingsService {
 
   /** Sparse — only the categories actually overridden, across every car/profile the user can see. Used by bootstrap. */
   async getAllByUser(userId: number): Promise<Record<number, MaintenanceSettingDto[]>> {
+    const carIds = await this.carAccess.getAccessibleCarIds(userId);
     const rows = await this.prisma.carMaintenanceSetting.findMany({
-      where: {
-        OR: [
-          { car: { user_id: userId } },
-          { car: { access_entries: { some: { user_id: userId, accepted_at: { not: null } } } } },
-        ],
-        user_id: userId,
-      },
+      where: { user_id: userId, car_id: { in: carIds } },
     });
 
     const byCarId: Record<number, CarMaintenanceSetting[]> = {};
@@ -105,18 +101,7 @@ export class CarMaintenanceSettingsService {
    * user with no access to the car must not be able to probe which cars exist.
    */
   private async assertCanSeeCar(carId: number, userId: number): Promise<void> {
-    const car = await this.prisma.car.findUnique({
-      where: { id: carId },
-      select: { user_id: true },
-    });
-    if (!car) throw new NotFoundException('Car not found');
-    if (car.user_id === userId) return;
-
-    const access = await this.prisma.carUserAccess.findUnique({
-      where: { car_id_user_id: { car_id: carId, user_id: userId } },
-      select: { accepted_at: true },
-    });
-    if (!access?.accepted_at) throw new ForbiddenException('No access to this car');
+    await this.carAccess.assertHasAccess(carId, userId);
   }
 
   /** A profile is per (car, user) — must belong to this exact pair, regardless of car access level. */

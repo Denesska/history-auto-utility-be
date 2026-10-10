@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { CarAccessRole } from '@prisma/client';
 import { CarDto } from '../../car/dto/car.dto';
 import { DocumentDto } from '../../document/dto/document.dto';
@@ -6,10 +7,14 @@ import { MaintenanceIntervalDto } from '../../maintenance-record/dto/maintenance
 import { MaintenanceRecordWithMeta } from '../../maintenance-record/maintenance-record.service';
 import { MaintenanceSettingDto } from '../../car-maintenance-settings/dto/maintenance-setting.dto';
 import { MaintenanceProfileDto } from '../../car-maintenance-profiles/dto/maintenance-profile.dto';
+import { NavigationPrefsDto } from '../../user-settings/dto/navigation-prefs.dto';
 
 export class SharedCarEntry {
   car: CarDto;
   role: CarAccessRole;
+  /** Null = shared with you personally. Set = you see this car through an organization, not a personal share. */
+  organizationId: number | null;
+  organizationName: string | null;
 }
 
 export class BootstrapResponseDto {
@@ -22,4 +27,8 @@ export class BootstrapResponseDto {
   maintenanceIntervals: MaintenanceIntervalDto[];
   carMaintenanceSettings: Record<number, MaintenanceSettingDto[]>;
   maintenanceProfiles: Record<number, MaintenanceProfileDto[]>;
+  @ApiProperty({ type: [String], description: "Feature keys switched on for the session's context (all of them in personal sessions)", example: ['supplier', 'fleet_cost', 'sale_contract'] })
+  enabled_features: string[];
+  @ApiProperty({ type: NavigationPrefsDto, description: "The session's navigation preferences (mobile bottom bar, favorite car) for its current context" })
+  navigation: NavigationPrefsDto;
 }

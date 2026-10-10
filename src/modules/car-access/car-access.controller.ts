@@ -1,3 +1,4 @@
+import { Scope } from '../../common/context/scope.decorator';
 import {
   Body,
   Controller,
@@ -28,6 +29,7 @@ import { InviteUserDto } from './dto/invite-user.dto';
 import { ChangeRoleDto } from './dto/change-role.dto';
 import { CarAccessDto, SharedCarDto } from './dto/car-access.dto';
 
+@Scope('personal')
 @Controller('car')
 @ApiTags('car-access')
 @UseGuards(JwtAuthGuard)

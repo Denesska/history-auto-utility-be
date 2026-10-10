@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Notification, NotificationType } from '@prisma/client';
+import { getRequestSessionContext } from '../../common/context/request-context';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsGateway } from './notifications.gateway';
 import { PushService } from './push.service';
@@ -26,18 +27,76 @@ export class NotificationsService {
     return notification;
   }
 
-  async findForUser(userId: number, unreadOnly = false): Promise<Notification[]> {
-    return this.prisma.notification.findMany({
-      where: { user_id: userId, ...(unreadOnly ? { read_at: null } : {}) },
-      orderBy: { created_at: 'desc' },
-      take: 50,
+  /** Upper bound of rows loaded before the per-context filter; the list itself is capped at 50 afterwards. */
+  private static readonly CONTEXT_FILTER_FETCH_LIMIT = 500;
+
+  /**
+   * Notifications have no context column, so they're classified by type (and,
+   * for car-bound types, by the car's `organization_id`):
+   * - ORG_INVITED / ORG_INVITE_ACCEPTED: business only;
+   * - CAR_SHARED / CAR_ACCESS_*: personal only (personal car sharing);
+   * - DOCUMENT_EXPIRING / VIN_CONFLICT / LICENSE_PLATE_CONFLICT: follow their
+   *   car (personal if it has no organization, business if it belongs to the
+   *   session's organization).
+   * - BUSINESS_ACCESS_REQUESTED / BUSINESS_ACCESS_APPROVED / BUSINESS_ACCESS_REJECTED:
+   *   account-level, not org-bound — visible in any context (personal or business).
+   * Outside an HTTP request (no context) nothing is filtered.
+   */
+  private async filterForContext<T extends { type: NotificationType; data: unknown }>(rows: T[]): Promise<T[]> {
+    const ctx = getRequestSessionContext();
+    if (!ctx) return rows;
+
+    const carBound: NotificationType[] = [
+      NotificationType.DOCUMENT_EXPIRING,
+      NotificationType.VIN_CONFLICT,
+      NotificationType.LICENSE_PLATE_CONFLICT,
+    ];
+    const carIdOf = (r: T): number | null => {
+      const id = (r.data as { carId?: unknown } | null)?.carId;
+      return typeof id === 'number' ? id : null;
+    };
+
+    const carIds = [...new Set(rows.filter(r => carBound.includes(r.type)).map(carIdOf).filter((id): id is number => id !== null))];
+    const cars = carIds.length
+      ? await this.prisma.car.findMany({ where: { id: { in: carIds } }, select: { id: true, organization_id: true } })
+      : [];
+    const orgByCar = new Map(cars.map(c => [c.id, c.organization_id]));
+
+    return rows.filter(r => {
+      if (
+        r.type === NotificationType.BUSINESS_ACCESS_REQUESTED ||
+        r.type === NotificationType.BUSINESS_ACCESS_APPROVED ||
+        r.type === NotificationType.BUSINESS_ACCESS_REJECTED
+      ) {
+        return true;
+      }
+      if (r.type === NotificationType.ORG_INVITED || r.type === NotificationType.ORG_INVITE_ACCEPTED) {
+        return ctx.type === 'business';
+      }
+      if (carBound.includes(r.type)) {
+        const carId = carIdOf(r);
+        const carOrg = carId !== null ? orgByCar.get(carId) ?? null : null;
+        return ctx.type === 'business' ? carOrg !== null && carOrg === ctx.orgId : carOrg === null;
+      }
+      return ctx.type === 'personal';
     });
   }
 
-  async countUnread(userId: number): Promise<number> {
-    return this.prisma.notification.count({
-      where: { user_id: userId, read_at: null },
+  async findForUser(userId: number, unreadOnly = false): Promise<Notification[]> {
+    const rows = await this.prisma.notification.findMany({
+      where: { user_id: userId, ...(unreadOnly ? { read_at: null } : {}) },
+      orderBy: { created_at: 'desc' },
+      take: NotificationsService.CONTEXT_FILTER_FETCH_LIMIT,
     });
+    return (await this.filterForContext(rows)).slice(0, 50);
+  }
+
+  async countUnread(userId: number): Promise<number> {
+    const rows = await this.prisma.notification.findMany({
+      where: { user_id: userId, read_at: null },
+      select: { type: true, data: true },
+    });
+    return (await this.filterForContext(rows)).length;
   }
 
   async markAsRead(userId: number, id: number): Promise<Notification> {

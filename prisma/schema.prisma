@@ -17,8 +17,23 @@ model User {
   last_name            String
   picture              String
   created_at           DateTime                @default(now())
+  // Grants access to the /admin stats page. Set by hand in the DB, never via the API.
+  is_admin             Boolean                 @default(false)
+  // Throttled — written by ActivityService's periodic flush, not on every request.
+  last_active_at       DateTime?
+  activity_days        UserActivityDay[]
   cars                 Car[]
   refresh_token        String?
+  /// Set only for `is_company_managed` accounts — Google-identity accounts never have a password, they always log in via OAuth.
+  password_hash        String?
+  /// True right after creation or after a company-triggered reset — the account can only use the default password until it sets its own (see AuthService.changePassword).
+  /// Short globally-unique login name (lowercase [a-z0-9], 3-20) of an `is_company_managed` account, e.g. `gandzde` — see OrganizationService.createLocalMember. Null for Google-identity accounts.
+  username             String?                 @unique
+  must_change_password Boolean                 @default(false)
+  /// True for an account created directly by a company (Director/Owner/Fleet Admin) rather than through Google sign-in — see OrganizationService.createLocalMember. Logs in with username+password (`/auth/local-login`), fully owned by the company that created it: they can reset its password or remove it outright (which also disables the account, see `disabled_at`).
+  is_company_managed   Boolean                 @default(false)
+  /// Set when the owning company removes one of its `is_company_managed` accounts — blocks login immediately (checked in JwtStrategy/AuthService). Never set on a Google-identity account.
+  disabled_at          DateTime?
   car_accesses         CarUserAccess[]         @relation("UserAccesses")
   invitations          CarUserAccess[]         @relation("InvitedBy")
   blog_entries         BlogEntry[]
@@ -32,11 +47,25 @@ model User {
   maintenance_profiles MaintenanceProfile[]
   sale_contracts       SaleContract[]
   identity             UserIdentity?
+  organization_memberships       OrganizationMembership[] @relation("OrganizationMemberships")
+  organization_invitations_sent  OrganizationMembership[] @relation("OrganizationInvitedBy")
+  feature_interests               FeatureInterest[]
+  suppliers                       Supplier[]
+  driver_assignments               CarDriverAssignment[] @relation("DriverAssignments")
+  driver_assignments_made          CarDriverAssignment[] @relation("DriverAssignmentsMadeBy")
+  car_nicknames                    CarUserNickname[]
+  business_access_requests         BusinessAccessRequest[] @relation("BusinessAccessRequests")
+  business_access_decisions        BusinessAccessRequest[] @relation("BusinessAccessDecisions")
 }
 
 model Car {
   id                        Int                     @id @default(autoincrement())
   vin                       String?                 @unique
+  /// DEPRECATED (2026-10-01): superseded by CarUserNickname — a car's name is now
+  /// private per viewing user, not one shared global value. Left in place, unused,
+  /// so the old data isn't destroyed; backfilled once into CarUserNickname for each
+  /// car's original creator (Car.user_id) and never read or written again. Do not
+  /// add new reads/writes of this column — resolve a nickname via CarUserNickname.
   nickname                  String?                 @unique
   make                      String
   model                     String
@@ -63,8 +92,13 @@ model Car {
   // Spending ceiling the wishlist's "budget line" is drawn at. One per car
   // (shared with co-owners), not per user — see CarWish.
   wishlist_budget           Float?
+  created_at                DateTime                @default(now())
   user_id                   Int
   user                      User                    @relation(fields: [user_id], references: [id])
+  // Null = personal B2C car (the default, unchanged behavior). Set only for
+  // a car that belongs to a company tenant — see Organization.
+  organization_id           Int?
+  organization              Organization?           @relation(fields: [organization_id], references: [id])
   maintenanceRecords        MaintenanceRecord[]
   documents                 Document[]
   photos                    CarPhoto[]
@@ -77,6 +111,30 @@ model Car {
   maintenance_profiles      MaintenanceProfile[]
   sale_contracts            SaleContract[]
   wishes                    CarWish[]
+  driver_assignments        CarDriverAssignment[]
+  user_nicknames            CarUserNickname[]
+}
+
+/// A private, per-viewer name for a car — "what I personally call this car",
+/// visible only to the user who set it. Replaces the old global `Car.nickname`
+/// column: an org Director, a co-owner with shared access, and the car's own
+/// creator can each set a completely different label for the same car, and
+/// none of them ever see each other's. No row = that user hasn't set one yet,
+/// and display code falls back to make+model. Deleting the row (rather than
+/// storing an empty string) is how "clear my label" is represented.
+model CarUserNickname {
+  id         Int      @id @default(autoincrement())
+  car_id     Int
+  user_id    Int
+  nickname   String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  car  Car  @relation(fields: [car_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([car_id, user_id])
+  @@index([user_id])
 }
 
 model CarNote {
@@ -171,6 +229,12 @@ enum NotificationType {
   DOCUMENT_EXPIRING
   VIN_CONFLICT
   LICENSE_PLATE_CONFLICT
+  ORG_INVITED
+  ORG_INVITE_ACCEPTED
+  // Account-level (not org-bound) — visible in any session context, see NotificationsService.filterForContext.
+  BUSINESS_ACCESS_REQUESTED
+  BUSINESS_ACCESS_APPROVED
+  BUSINESS_ACCESS_REJECTED
 }
 
 enum DocumentExpiryType {
@@ -249,7 +313,13 @@ model Document {
   exchange_rate_date   DateTime?
   /// 'BNR' when fetched automatically, 'MANUAL' when supplied by the client; null for RON.
   exchange_rate_source String?
+  created_at        DateTime  @default(now())
   car               Car       @relation(fields: [car_id], references: [id], onDelete: Cascade)
+  // Optional link into the supplier directory (e.g. the broker an RCA/CASCO
+  // policy was issued through). `provider` above stays free text — this is
+  // the structured link, independent of it.
+  supplier_id       Int?
+  supplier          Supplier? @relation(fields: [supplier_id], references: [id], onDelete: SetNull)
 }
 
 model MaintenanceRecord {
@@ -261,13 +331,25 @@ model MaintenanceRecord {
   service_type       ServiceType
   service_category   ServiceCategory   @default(OTHER)
   cost               Float
+  // Currency the cost was paid in, and its RON equivalent — same shape as
+  // Document's premium/currency/premium_ron conversion (see document.service.ts).
+  currency           String            @default("RON")
+  cost_ron           Float?
+  exchange_rate      Float?
+  exchange_rate_date DateTime?
+  exchange_rate_source String?
   expiry_date        DateTime?
   is_diy             Boolean           @default(false)
   fuel_liters        Float?
   energy_kwh         Float?
   is_company_expense Boolean           @default(false)
+  created_at         DateTime          @default(now())
   car                Car               @relation(fields: [car_id], references: [id], onDelete: Cascade)
   parts              MaintenancePart[]
+  // Which supplier (garage/workshop) carried out this work — optional, null
+  // for DIY or when the supplier directory isn't used.
+  supplier_id        Int?
+  supplier           Supplier?         @relation(fields: [supplier_id], references: [id], onDelete: SetNull)
 }
 
 model MaintenancePart {
@@ -278,6 +360,59 @@ model MaintenancePart {
   quantity              Float?
   price                 Float?
   maintenanceRecord     MaintenanceRecord @relation(fields: [maintenance_record_id], references: [id], onDelete: Cascade)
+}
+
+enum SupplierType {
+  SERVICE   // garaj / service auto
+  PARTS     // furnizor piese
+  INSURANCE // broker / asigurator
+  FUEL      // furnizor carburant
+  OTHER
+}
+
+// Directory of external parties a car is serviced/insured/supplied through.
+// Personal (user_id only) or shared across an organization's fleet
+// (organization_id set) — same ownership split as Car.
+model Supplier {
+  id               Int                 @id @default(autoincrement())
+  name             String
+  type             SupplierType        @default(OTHER)
+  contact_name     String?
+  phone            String?
+  email            String?
+  address          String?
+  notes            String?
+  is_active        Boolean             @default(true)
+  created_at       DateTime            @default(now())
+  user_id          Int
+  user             User                @relation(fields: [user_id], references: [id])
+  // Null = personal supplier, visible only to its creator (same convention as Car.organization_id).
+  organization_id  Int?
+  organization     Organization?       @relation(fields: [organization_id], references: [id])
+  documents        Document[]
+  maintenance_records MaintenanceRecord[]
+}
+
+/// Who drove an organization-owned car, and when. One row per assignment
+/// period: `ended_at: null` means it's the car's current driver; assigning a
+/// new driver closes the previous row instead of overwriting it, so the full
+/// history survives. Only meaningful for `Car.organization_id != null` — a
+/// personal B2C car has no concept of a driver distinct from its owner.
+model CarDriverAssignment {
+  id                  Int       @id @default(autoincrement())
+  car_id              Int
+  driver_user_id      Int
+  assigned_by_user_id Int
+  started_at          DateTime  @default(now())
+  ended_at            DateTime?
+  notes               String?
+
+  car         Car  @relation(fields: [car_id], references: [id], onDelete: Cascade)
+  driver      User @relation("DriverAssignments", fields: [driver_user_id], references: [id])
+  assigned_by User @relation("DriverAssignmentsMadeBy", fields: [assigned_by_user_id], references: [id])
+
+  @@index([car_id, ended_at])
+  @@index([driver_user_id])
 }
 
 enum CarStatus {
@@ -458,6 +593,7 @@ model UserSettings {
   view_mode                String   @default("cards")
   expiry_reminders_enabled Boolean  @default(true)
   expiry_reminder_days     Int[]    @default([7])
+  navigation_prefs         Json?
   created_at               DateTime @default(now())
   updated_at               DateTime @updatedAt
 }
@@ -708,4 +844,174 @@ model UserIdentity {
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@map("user_identities")
+}
+
+// ---------------------------------------------------------------------------
+// B2B multi-tenant foundation (Organization). Additive only — every car's
+// `organization_id` stays null for personal accounts, so none of this
+// changes behavior for existing B2C users. See /var/www/hau_app/B2B-STRATEGY.md.
+// ---------------------------------------------------------------------------
+
+enum OrganizationRole {
+  /// True account owner — exactly one per organization, in practice. Never
+  /// created, edited or removed through the app itself; assigned directly in
+  /// the database when the business account is sold. Outranks everyone,
+  /// including SUPER_ADMIN/Director — used at its own risk, by design.
+  OWNER
+  /// "Director" in the UI. Can only be created by OWNER, never by another
+  /// Director — Directors can see each other but can't edit or remove one
+  /// another. Otherwise full rights: reports/charts across the whole fleet,
+  /// defines and manages all staff below Director (fleet admins, finance,
+  /// drivers), toggles feature flags for this org.
+  SUPER_ADMIN
+  /// Day-to-day fleet operator: cars, maintenance, documents, suppliers,
+  /// driver assignment — the role matching the fleet-admin job description.
+  /// Can only define/manage DRIVERs (the ones they personally invited); only
+  /// sees the Director who invited them, not the rest of the org.
+  FLEET_ADMIN
+  /// Disabled for now (removed from the active scheme) — kept in the enum so
+  /// no migration is needed if/when it's reintroduced. Not offered anywhere
+  /// in the invite UI or permission matrix.
+  MANAGER
+  /// Restricted to their assigned car(s): can log fuel/mileage, flag issues.
+  /// Doesn't see the organization screen/chip at all.
+  DRIVER
+  /// Costs/reports only (invoices, fuel, charts) — scope still to be defined,
+  /// not a current focus. Read-only for now, no operational access.
+  FINANCE
+}
+
+/// A company-level tenant for B2B fleet customers.
+model Organization {
+  id         Int      @id @default(autoincrement())
+  name       String
+  /// Stable company code used to log in company-managed accounts
+  /// (`<username>@<login_code>` is the stored User.email). Lowercase [a-z0-9-],
+  /// 3-40 chars. Never changes on rename. Nullable only for the push; always set by the app.
+  login_code String?  @unique
+  created_at DateTime @default(now())
+  /// e.g. "starter" | "fleet" | "enterprise" — drives billing & feature gating.
+  plan          String?
+  /// Per-organization feature toggles (e.g. { "sale_contract": false }).
+  /// Reserved now, not yet read anywhere — see B2B-STRATEGY.md section 4.
+  feature_flags Json?
+  /// White-label overrides (logo_url, primary_color, app_name) reserved for a
+  /// future dedicated/branded deployment — see B2B-STRATEGY.md section 3.
+  /// Not yet read anywhere.
+  branding      Json?
+
+  members           OrganizationMembership[]
+  cars              Car[]
+  feature_interests FeatureInterest[]
+  suppliers         Supplier[]
+}
+
+model OrganizationMembership {
+  id                 Int              @id @default(autoincrement())
+  organization_id    Int
+  user_id            Int
+  role               OrganizationRole
+  invited_by_user_id Int
+  accepted_at        DateTime?
+  created_at         DateTime         @default(now())
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  user         User         @relation("OrganizationMemberships", fields: [user_id], references: [id])
+  invited_by   User         @relation("OrganizationInvitedBy", fields: [invited_by_user_id], references: [id])
+
+  @@unique([organization_id, user_id])
+  @@index([user_id])
+  @@index([organization_id])
+}
+
+/// A click of interest on a not-yet-built feature, registered from the
+/// "coming soon" panel. `feature_key` matches the keys used in
+/// Organization.feature_flags, so recorded interest can become an enabled
+/// flag later without re-architecting. One row per (org, user, feature) —
+/// a repeat click is an idempotent no-op, not a new row.
+model FeatureInterest {
+  id              Int      @id @default(autoincrement())
+  organization_id Int
+  user_id         Int
+  feature_key     String
+  created_at      DateTime @default(now())
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([organization_id, user_id, feature_key])
+}
+
+enum BusinessAccessRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// A user's request to be allowed to create an organization (the "business account
+/// approval gate" — see OrganizationService.createOrganization). Reviewed by an
+/// app admin (`User.is_admin`) on the admin page. A user may submit a new request
+/// after a REJECTED one, so several rows can exist per user — only the latest matters.
+model BusinessAccessRequest {
+  id                  Int                         @id @default(autoincrement())
+  user_id             Int
+  company_name        String
+  note                String?
+  status              BusinessAccessRequestStatus @default(PENDING)
+  rejection_reason    String?
+  decided_by_user_id  Int?
+  decided_at          DateTime?
+  created_at          DateTime                    @default(now())
+
+  user        User  @relation("BusinessAccessRequests", fields: [user_id], references: [id], onDelete: Cascade)
+  decided_by  User? @relation("BusinessAccessDecisions", fields: [decided_by_user_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id, created_at])
+  @@index([status])
+}
+
+// One row per user per (Europe/Bucharest) calendar day on which they made at
+// least one authenticated API call. Source for DAU/WAU/MAU, retention cohorts
+// and platform/app-version split on the admin page. Written in batches by
+// ActivityService (buffered in memory, flushed every minute).
+model UserActivityDay {
+  user_id       Int
+  date          DateTime @db.Date
+  platform      String?
+  app_version   String?
+  request_count Int      @default(0)
+  first_seen_at DateTime @default(now())
+  last_seen_at  DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, date])
+  @@index([date])
+  @@map("user_activity_days")
+}
+
+enum VehicleSilhouetteStatus {
+  READY
+  PENDING
+  FAILED
+}
+
+// Global shared asset (not tied to any user or organization): one AI-generated schematic
+// side-profile SVG per make + model, generated once and reused by everyone.
+model VehicleSilhouette {
+  id               Int                     @id @default(autoincrement())
+  make_normalized  String
+  model_normalized String
+  make_display     String
+  model_display    String
+  svg              String?                 @db.Text
+  status           VehicleSilhouetteStatus @default(PENDING)
+  source           String                  @default("gemini")
+  error            String?
+  attempts         Int                     @default(0)
+  created_at       DateTime                @default(now())
+  updated_at       DateTime                @updatedAt
+
+  @@unique([make_normalized, model_normalized])
+  @@map("vehicle_silhouettes")
 }

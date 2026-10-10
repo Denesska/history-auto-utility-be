@@ -1,3 +1,5 @@
+import { Scope } from '../../common/context/scope.decorator';
+import { Feature } from '../../common/features/feature.decorator';
 import {
   Body,
   Controller,
@@ -32,6 +34,8 @@ import {
 @ApiTags('maintenance-record')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
+@Scope('personal', 'business')
+@Feature('maintenance')
 @Controller('maintenance-record')
 export class MaintenanceRecordController {
   constructor(
@@ -69,7 +73,7 @@ export class MaintenanceRecordController {
   @ApiOperation({ summary: 'Get all maintenance records for the authenticated user (owned + shared cars)' })
   @ApiResponse({ status: 200, type: [MaintenanceRecordDto] })
   async getAllMaintenanceRecords(@Req() req: RequestWithUser): Promise<MaintenanceRecordModel[]> {
-    return this.maintenanceRecordService.getAllByUser(req.user.google_id);
+    return this.maintenanceRecordService.getAllByUser(req.user.id);
   }
 
   @Post()
@@ -80,10 +84,12 @@ export class MaintenanceRecordController {
     type: MaintenanceRecordDto,
   })
   async createMaintenanceRecord(
+    @Req() req: RequestWithUser,
     @Body() createMaintenanceRecordDto: CreateMaintenanceRecordDto,
   ): Promise<MaintenanceRecordModel> {
     return this.maintenanceRecordService.createMaintenanceRecord(
       createMaintenanceRecordDto,
+      req.user.id,
     );
   }
 
@@ -96,9 +102,10 @@ export class MaintenanceRecordController {
   })
   @ApiResponse({ status: 404, description: 'Maintenance record not found.' })
   async getMaintenanceRecord(
+    @Req() req: RequestWithUser,
     @Param('id') id: string,
   ): Promise<MaintenanceRecordModel | null> {
-    return this.maintenanceRecordService.getMaintenanceRecord(Number(id));
+    return this.maintenanceRecordService.getMaintenanceRecord(Number(id), req.user.id);
   }
 
   @Put(':id')
@@ -110,12 +117,14 @@ export class MaintenanceRecordController {
   })
   @ApiResponse({ status: 404, description: 'Maintenance record not found.' })
   async updateMaintenanceRecord(
+    @Req() req: RequestWithUser,
     @Param('id') id: string,
     @Body() updateMaintenanceRecordDto: UpdateMaintenanceRecordDto,
   ): Promise<MaintenanceRecordModel> {
     return this.maintenanceRecordService.updateMaintenanceRecord(
       Number(id),
       updateMaintenanceRecordDto,
+      req.user.id,
     );
   }
 
@@ -128,9 +137,10 @@ export class MaintenanceRecordController {
   })
   @ApiResponse({ status: 404, description: 'Maintenance record not found.' })
   async deleteMaintenanceRecord(
+    @Req() req: RequestWithUser,
     @Param('id') id: string,
   ): Promise<MaintenanceRecordModel> {
-    return this.maintenanceRecordService.deleteMaintenanceRecord(Number(id));
+    return this.maintenanceRecordService.deleteMaintenanceRecord(Number(id), req.user.id);
   }
 
   @Get('car/:carId')
@@ -141,10 +151,12 @@ export class MaintenanceRecordController {
     type: [MaintenanceRecordDto],
   })
   async getMaintenanceRecordsByCarId(
+    @Req() req: RequestWithUser,
     @Param('carId') carId: string,
   ): Promise<MaintenanceRecordModel[]> {
     return this.maintenanceRecordService.getMaintenanceRecordsByCarId(
       Number(carId),
+      req.user.id,
     );
   }
 }

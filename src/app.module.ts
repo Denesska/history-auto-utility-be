@@ -1,4 +1,5 @@
-import { Logger, Module } from '@nestjs/common';
+import { Logger, MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CarModule } from './modules/car/car.module';
 import { CarAccessModule } from './modules/car-access/car-access.module';
@@ -23,6 +24,16 @@ import { CarNoteModule } from './modules/car-note/car-note.module';
 import { CarWishModule } from './modules/car-wish/car-wish.module';
 import { NavRelayModule } from './modules/nav-relay/nav-relay.module';
 import { CockpitProfileModule } from './modules/cockpit-profile/cockpit-profile.module';
+import { ActivityModule } from './modules/activity/activity.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { VehicleSilhouetteModule } from './modules/vehicle-silhouette/vehicle-silhouette.module';
+import { OrganizationModule } from './modules/organization/organization.module';
+import { BusinessAccessModule } from './modules/business-access/business-access.module';
+import { SupplierModule } from './modules/supplier/supplier.module';
+import { DriverAssignmentModule } from './modules/driver-assignment/driver-assignment.module';
+import { FleetCostModule } from './modules/fleet-cost/fleet-cost.module';
+import { ContextEnforcementInterceptor, RequestContextMiddleware } from './common/context';
+import { FeatureEnforcementInterceptor, FeaturesModule } from './common/features';
 
 @Module({
   imports: [
@@ -51,6 +62,15 @@ import { CockpitProfileModule } from './modules/cockpit-profile/cockpit-profile.
     CarWishModule,
     NavRelayModule,
     CockpitProfileModule,
+    ActivityModule,
+    AdminModule,
+    VehicleSilhouetteModule,
+    BusinessAccessModule,
+    OrganizationModule,
+    FeaturesModule,
+    SupplierModule,
+    DriverAssignmentModule,
+    FleetCostModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: process.env.ENV_FILE ?? '.env',
@@ -59,7 +79,20 @@ import { CockpitProfileModule } from './modules/cockpit-profile/cockpit-profile.
     ScheduleModule.forRoot(),
   ],
   controllers: [],
-  providers: [Logger],
+  providers: [
+    Logger,
+    // Enforces @Scope(...) on every authenticated route. An interceptor, not an
+    // APP_GUARD: global guards run before the per-controller JwtAuthGuard, so
+    // req.user would not exist yet. See ContextEnforcementInterceptor.
+    { provide: APP_INTERCEPTOR, useClass: ContextEnforcementInterceptor },
+    // Must stay AFTER the context interceptor: enforces @Feature(...) on the verified context.
+    { provide: APP_INTERCEPTOR, useClass: FeatureEnforcementInterceptor },
+  ],
   exports: [Logger],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    // Makes the request (and thus its session context) reachable from services via AsyncLocalStorage.
+    consumer.apply(RequestContextMiddleware).forRoutes('*');
+  }
+}

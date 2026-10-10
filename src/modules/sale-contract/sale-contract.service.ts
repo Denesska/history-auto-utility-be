@@ -1,7 +1,8 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma, SaleContract, SaleContractParty, SaleContractPartySide, SaleContractStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { getRequestSessionContext } from '../../common/context/request-context';
 import { FieldEncryptionService } from '../../common/crypto/field-encryption.service';
 import { StorageService } from '../storage/storage.service';
 import { SaleContractPdfService } from './pdf/sale-contract-pdf.service';
@@ -37,9 +38,21 @@ export class SaleContractService {
     // Reads
     // -----------------------------------------------------------------------
 
+    /**
+     * Contracts carry no organization column, so the context is derived from
+     * the contract's car: business -> contracts of the active organization's
+     * cars; personal -> contracts with no car, or with a personal car. (Only
+     * the creator ever sees a contract either way — see `loadOwned`.)
+     */
+    private contextWhere(): Prisma.SaleContractWhereInput {
+        const ctx = getRequestSessionContext();
+        if (ctx?.type === 'business') return { car: { organization_id: ctx.orgId ?? -1 } };
+        return { OR: [{ car_id: null }, { car: { organization_id: null } }] };
+    }
+
     async list(googleId: string): Promise<SaleContractSummaryDto[]> {
         const rows = await this.prisma.saleContract.findMany({
-            where: { user: { google_id: googleId } },
+            where: { user: { google_id: googleId }, ...this.contextWhere() },
             orderBy: { created_at: 'desc' },
         });
         return rows.map((row) => this.toSummary(row));
@@ -56,6 +69,9 @@ export class SaleContractService {
 
     async create(googleId: string, dto: CreateSaleContractDto): Promise<SaleContractDto> {
         const user = await this.requireUser(googleId);
+        if (getRequestSessionContext()?.type === 'business' && dto.car_id === undefined) {
+            throw new BadRequestException('A company contract must be tied to one of the organization\'s cars.');
+        }
         if (dto.car_id !== undefined) await this.assertCarBelongsToUser(googleId, dto.car_id);
 
         const created = await this.prisma.saleContract.create({
@@ -250,7 +266,7 @@ export class SaleContractService {
      */
     private async loadOwned(googleId: string, id: number): Promise<ContractWithParties> {
         const contract = await this.prisma.saleContract.findFirst({
-            where: { id, user: { google_id: googleId } },
+            where: { id, user: { google_id: googleId }, ...this.contextWhere() },
             include: { parties: true },
         });
         if (!contract) throw new NotFoundException('Sale contract not found.');
@@ -258,10 +274,13 @@ export class SaleContractService {
     }
 
     private async assertCarBelongsToUser(googleId: string, carId: number): Promise<void> {
-        const car = await this.prisma.car.findFirst({
-            where: { id: carId, user: { google_id: googleId } },
-            select: { id: true },
-        });
+        const ctx = getRequestSessionContext();
+        // Business: any car of the active organization (the route is already limited to the
+        // roles allowed to sell company cars). Personal: the user's own car, never a fleet car.
+        const carWhere: Prisma.CarWhereInput = ctx?.type === 'business'
+            ? { id: carId, organization_id: ctx.orgId ?? -1 }
+            : { id: carId, user: { google_id: googleId }, organization_id: null };
+        const car = await this.prisma.car.findFirst({ where: carWhere, select: { id: true } });
         if (!car) throw new ForbiddenException('That car does not belong to you.');
     }
 

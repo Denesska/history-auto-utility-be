@@ -28,4 +28,7 @@ export class SharedCarDto {
   @ApiProperty() license_plate: string;
   @ApiProperty({ enum: CarAccessRole }) shared_role: CarAccessRole;
   @ApiPropertyOptional() accepted_at: Date | null;
+  /** Null = shared with you personally. Set = you see this car through an organization, not a personal share. */
+  @ApiPropertyOptional({ nullable: true }) organization_id: number | null;
+  @ApiPropertyOptional({ nullable: true }) organization_name: string | null;
 }

@@ -8,6 +8,8 @@ import { StorageService } from '../storage/storage.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { ExchangeRateService } from '../exchange-rate/exchange-rate.service';
+import { CarAccessService } from '../car-access/car-access.service';
+import { SupplierService } from '../supplier/supplier.service';
 
 /** The four columns that record a document price's RON equivalent. */
 type PriceConversion = Pick<Document, 'premium_ron' | 'exchange_rate' | 'exchange_rate_date' | 'exchange_rate_source'>;
@@ -24,13 +26,17 @@ export class DocumentService {
         private prisma: PrismaService,
         private storage: StorageService,
         private exchangeRates: ExchangeRateService,
+        private carAccess: CarAccessService,
+        private supplierService: SupplierService,
         config: ConfigService,
     ) {
         this.signedUrlExpiry = Number(config.get<string>('R2_SIGNED_URL_EXPIRY') ?? '3600');
         this.apiBaseUrl = (config.get<string>('API_BASE_URL') ?? '').replace(/\/+$/, '');
     }
 
-    async createDocument(data: CreateDocumentDto): Promise<DocumentDto> {
+    async createDocument(data: CreateDocumentDto, userId: number): Promise<DocumentDto> {
+        await this.carAccess.assertHasAccess(data.car_id, userId);
+        const supplierId = (await this.supplierService.resolveLinkedSupplierId(data.supplier_id, userId)) ?? null;
         const conversion = await this.convertPrice(
             data.premium ?? null, data.currency ?? null, data.exchange_rate ?? null,
             data.issue_date ? new Date(data.issue_date) : null,
@@ -52,18 +58,26 @@ export class DocumentService {
                 cnp_id: data.cnp_id ?? null,
                 is_active: data.is_active ?? true,
                 country: data.country ?? null,
+                supplier_id: supplierId,
                 ...conversion,
             },
         });
         return await this.toDocumentDto(document);
     }
 
-    async getDocument(id: number): Promise<DocumentDto | null> {
+    async getDocument(id: number, userId: number): Promise<DocumentDto | null> {
         const document = await this.prisma.document.findUnique({ where: { id } });
-        return document ? await this.toDocumentDto(document) : null;
+        if (!document) return null;
+        await this.assertAccessOrNotFound(document.car_id, userId);
+        return await this.toDocumentDto(document);
     }
 
-    async updateDocument(id: number, data: UpdateDocumentDto): Promise<DocumentDto> {
+    async updateDocument(id: number, data: UpdateDocumentDto, userId: number): Promise<DocumentDto> {
+        const existing = await this.prisma.document.findUnique({ where: { id } });
+        if (!existing) throw new NotFoundException('Document not found');
+        await this.assertAccessOrNotFound(existing.car_id, userId);
+        const supplierId = await this.supplierService.resolveLinkedSupplierId(data.supplier_id, userId);
+
         const conversion = await this.recomputeConversionForUpdate(id, data);
         const document = await this.prisma.document.update({
             where: { id },
@@ -83,35 +97,51 @@ export class DocumentService {
                 ...(data.cnp_id !== undefined && { cnp_id: data.cnp_id }),
                 ...(data.is_active !== undefined && { is_active: data.is_active }),
                 ...(data.country !== undefined && { country: data.country }),
+                ...(supplierId !== undefined && { supplier_id: supplierId }),
                 ...conversion,
             },
         });
         return await this.toDocumentDto(document);
     }
 
-    async deleteDocument(id: number): Promise<DocumentDto> {
+    async deleteDocument(id: number, userId: number): Promise<DocumentDto> {
+        const existing = await this.prisma.document.findUnique({ where: { id } });
+        if (!existing) throw new NotFoundException('Document not found');
+        await this.assertAccessOrNotFound(existing.car_id, userId);
+
         const document = await this.prisma.document.delete({ where: { id } });
         return await this.toDocumentDto(document);
     }
 
-    async getDocumentsByCarId(carId: number): Promise<DocumentDto[]> {
+    async getDocumentsByCarId(carId: number, userId: number): Promise<DocumentDto[]> {
+        await this.carAccess.assertHasAccess(carId, userId);
         const documents = await this.prisma.document.findMany({ where: { car_id: carId } });
         return Promise.all(documents.map(d => this.toDocumentDto(d)));
     }
 
-    async getAllDocumentsByUser(googleId: string): Promise<DocumentDto[]> {
+    async getAllDocumentsByUser(userId: number): Promise<DocumentDto[]> {
+        const carIds = await this.carAccess.getAccessibleCarIds(userId);
         const documents = await this.prisma.document.findMany({
-            where: {
-                OR: [
-                    { car: { user: { google_id: googleId } } },
-                    { car: { access_entries: { some: { user: { google_id: googleId }, accepted_at: { not: null } } } } },
-                ],
-            },
+            where: { car_id: { in: carIds } },
         });
         return Promise.all(documents.map(d => this.toDocumentDto(d)));
     }
 
-    async updateDocumentFile(id: number, file: Express.Multer.File): Promise<DocumentDto> {
+    /** Same access rule as the rest of this service, but Not Found instead of Forbidden — a
+     * document's existence shouldn't be distinguishable from "no access" to someone probing ids. */
+    private async assertAccessOrNotFound(carId: number, userId: number): Promise<void> {
+        try {
+            await this.carAccess.assertHasAccess(carId, userId);
+        } catch {
+            throw new NotFoundException('Document not found');
+        }
+    }
+
+    async updateDocumentFile(id: number, file: Express.Multer.File, userId: number): Promise<DocumentDto> {
+        const existing = await this.prisma.document.findUnique({ where: { id } });
+        if (!existing) throw new NotFoundException('Document not found');
+        await this.assertAccessOrNotFound(existing.car_id, userId);
+
         const document = await this.prisma.document.update({
             where: { id },
             data: {
@@ -132,18 +162,10 @@ export class DocumentService {
      * Access is checked against the car: the owner, or someone the car has been
      * shared with and who accepted the invitation.
      */
-    async getFileLink(id: number, googleId: string, download: boolean): Promise<DocumentFileLinkDto> {
-        const document = await this.prisma.document.findFirst({
-            where: {
-                id,
-                OR: [
-                    { car: { user: { google_id: googleId } } },
-                    { car: { access_entries: { some: { user: { google_id: googleId }, accepted_at: { not: null } } } } },
-                ],
-            },
-        });
-
+    async getFileLink(id: number, userId: number, download: boolean): Promise<DocumentFileLinkDto> {
+        const document = await this.prisma.document.findUnique({ where: { id } });
         if (!document) throw new NotFoundException('Document not found');
+        await this.assertAccessOrNotFound(document.car_id, userId);
         if (!document.file_url) throw new NotFoundException('This document has no file attached');
 
         const fileName = document.file_name ?? document.file_url.split('/').pop() ?? 'document';
@@ -181,6 +203,7 @@ export class DocumentService {
             exchange_rate: document.exchange_rate,
             exchange_rate_date: document.exchange_rate_date,
             exchange_rate_source: document.exchange_rate_source,
+            supplier_id: document.supplier_id,
         };
     }
 

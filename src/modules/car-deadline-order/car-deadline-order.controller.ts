@@ -1,3 +1,4 @@
+import { Scope } from '../../common/context/scope.decorator';
 import { Body, Controller, Get, Param, ParseIntPipe, Put, Req, UseGuards } from '@nestjs/common';
 import { ApiCookieAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CarDeadlineOrderService } from './car-deadline-order.service';
@@ -10,6 +11,7 @@ import { RequestWithUser } from '../auth/express-request.interface';
 @ApiTags('car-deadline-order')
 @UseGuards(JwtAuthGuard)
 @ApiCookieAuth()
+@Scope('personal', 'business')
 @Controller('car/:carId/deadline-order')
 export class CarDeadlineOrderController {
   constructor(private readonly service: CarDeadlineOrderService) {}
