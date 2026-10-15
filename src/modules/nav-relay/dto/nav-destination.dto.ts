@@ -20,3 +20,9 @@ export class NavDestinationDto {
   @ApiPropertyOptional({ example: 1721400000, description: 'Unix seconds when it was shared.' })
   readonly ts?: number;
 }
+
+/** Recent destination events on one relay channel. */
+export class NavDestinationHistoryDto {
+  @ApiProperty({ type: [NavDestinationDto] })
+  readonly items: NavDestinationDto[];
+}
