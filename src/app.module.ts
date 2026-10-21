@@ -34,6 +34,8 @@ import { DriverAssignmentModule } from './modules/driver-assignment/driver-assig
 import { FleetCostModule } from './modules/fleet-cost/fleet-cost.module';
 import { ContextEnforcementInterceptor, RequestContextMiddleware } from './common/context';
 import { FeatureEnforcementInterceptor, FeaturesModule } from './common/features';
+import { LegalEnforcementInterceptor, LegalModule } from './modules/legal';
+import { AccountModule } from './modules/account/account.module';
 
 @Module({
   imports: [
@@ -71,6 +73,8 @@ import { FeatureEnforcementInterceptor, FeaturesModule } from './common/features
     SupplierModule,
     DriverAssignmentModule,
     FleetCostModule,
+    LegalModule,
+    AccountModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: process.env.ENV_FILE ?? '.env',
@@ -85,6 +89,10 @@ import { FeatureEnforcementInterceptor, FeaturesModule } from './common/features
     // APP_GUARD: global guards run before the per-controller JwtAuthGuard, so
     // req.user would not exist yet. See ContextEnforcementInterceptor.
     { provide: APP_INTERCEPTOR, useClass: ContextEnforcementInterceptor },
+    // Enforces GDPR terms/privacy acceptance (@SkipLegalConsent() exempts a route). Independent
+    // of context/feature checks, but kept after the context interceptor for the same "req.user
+    // must already be known" reasoning.
+    { provide: APP_INTERCEPTOR, useClass: LegalEnforcementInterceptor },
     // Must stay AFTER the context interceptor: enforces @Feature(...) on the verified context.
     { provide: APP_INTERCEPTOR, useClass: FeatureEnforcementInterceptor },
   ],
@@ -96,3 +104,4 @@ export class AppModule implements NestModule {
     consumer.apply(RequestContextMiddleware).forRoutes('*');
   }
 }
+

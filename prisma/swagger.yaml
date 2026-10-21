@@ -405,6 +405,46 @@ paths:
           description: "Not authenticated."
       tags:
         - "auth"
+  /api/legal/status:
+    get:
+      operationId: "LegalController_getStatus"
+      summary: "Current user's legal-acceptance status (current vs. accepted terms/privacy versions)"
+      parameters: []
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegalStatusDto"
+      tags:
+        - "legal"
+      security:
+        - bearer: []
+  /api/legal/accept:
+    post:
+      operationId: "LegalController_accept"
+      summary: "Accept the current terms + privacy policy versions"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcceptLegalDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegalStatusDto"
+        409:
+          description: "LEGAL_VERSION_OUTDATED — the accepted version is no longer current."
+      tags:
+        - "legal"
+      security:
+        - bearer: []
   /api/car/{carId}/deadline-order:
     get:
       operationId: "CarDeadlineOrderController_getOrder"
@@ -3095,6 +3135,42 @@ paths:
         - "fleet-cost"
       security:
         - bearer: []
+  /api/account/export:
+    get:
+      operationId: "AccountController_exportMyData"
+      summary: "Download all personal data held about the calling user (GDPR Art. 15/20)"
+      parameters: []
+      responses:
+        200:
+          description: "A JSON file download."
+      tags:
+        - "account"
+      security:
+        - bearer: []
+  /api/account:
+    delete:
+      operationId: "AccountController_deleteMyAccount"
+      summary: "Permanently delete the calling user's account and personal data (GDPR Art. 17)"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteAccountDto"
+      responses:
+        200:
+          description: "Account deleted."
+        400:
+          description: "ACCOUNT_DELETE_CONFIRMATION_MISMATCH"
+        403:
+          description: "ACCOUNT_COMPANY_MANAGED"
+        409:
+          description: "ACCOUNT_OWNS_ORGANIZATION"
+      tags:
+        - "account"
+      security:
+        - bearer: []
 info:
   title: "History Auto Utility API"
   description: "API documentation for History Auto Utility"
@@ -3331,6 +3407,47 @@ components:
       required:
         - "currentPassword"
         - "newPassword"
+    LegalStatusDto:
+      type: "object"
+      properties:
+        termsVersion:
+          type: "string"
+          example: "2026-10-10"
+          description: "Current terms version (CURRENT_TERMS_VERSION)."
+        privacyVersion:
+          type: "string"
+          example: "2026-10-10"
+          description: "Current privacy policy version (CURRENT_PRIVACY_VERSION)."
+        acceptedTermsVersion:
+          type: "string"
+          nullable: true
+        acceptedPrivacyVersion:
+          type: "string"
+          nullable: true
+        acceptedAt:
+          type: "string"
+          nullable: true
+        needsAcceptance:
+          type: "boolean"
+          description: "True unless the accepted terms AND privacy versions both equal the current ones."
+      required:
+        - "termsVersion"
+        - "privacyVersion"
+        - "needsAcceptance"
+    AcceptLegalDto:
+      type: "object"
+      properties:
+        termsVersion:
+          type: "string"
+          example: "2026-10-10"
+          description: "Must equal the current terms version (CURRENT_TERMS_VERSION) or the request is rejected."
+        privacyVersion:
+          type: "string"
+          example: "2026-10-10"
+          description: "Must equal the current privacy policy version (CURRENT_PRIVACY_VERSION) or the request is rejected."
+      required:
+        - "termsVersion"
+        - "privacyVersion"
     DeadlineOrderDto:
       type: "object"
       properties:
@@ -6459,3 +6576,11 @@ components:
         - "carCount"
         - "byMonth"
         - "byCar"
+    DeleteAccountDto:
+      type: "object"
+      properties:
+        confirmation:
+          type: "string"
+          description: "Must equal the account's own email address (case-insensitive), to confirm an irreversible deletion."
+      required:
+        - "confirmation"

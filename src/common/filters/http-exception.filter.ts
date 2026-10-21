@@ -20,6 +20,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
                 message: exceptionResponse?.message ?? exception.message,
                 error: exceptionResponse?.error ?? 'Error',
                 ...(exceptionResponse?.code ? { code: exceptionResponse.code } : {}),
+                // Structured detail for coded errors, e.g. ACCOUNT_OWNS_ORGANIZATION.
+                ...(exceptionResponse?.organizations ? { organizations: exceptionResponse.organizations } : {}),
             });
         } else {
             this.logger.error(`Unhandled exception on ${request.method} ${request.url}`, exception instanceof Error ? exception.stack : String(exception));

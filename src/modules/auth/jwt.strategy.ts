@@ -28,7 +28,18 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
     const user = await this.prisma.user.findUnique({
       where: { google_id: payload.sub },
-      select: { id: true, disabled_at: true, must_change_password: true, is_company_managed: true },
+      select: {
+        id: true,
+        disabled_at: true,
+        must_change_password: true,
+        is_company_managed: true,
+        // Loaded here (not a separate query) so LegalEnforcementInterceptor and
+        // AuthController.getProfile (`/auth/me`) can read them straight off
+        // req.user — see ACCOUNT-CONTEXT.md-style reasoning in that interceptor.
+        terms_accepted_version: true,
+        privacy_accepted_version: true,
+        legal_accepted_at: true,
+      },
     });
 
     // disabled_at is set when a company removes one of its own managed
@@ -45,6 +56,9 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       email: payload.email,
       must_change_password: user.must_change_password,
       is_company_managed: user.is_company_managed,
+      terms_accepted_version: user.terms_accepted_version,
+      privacy_accepted_version: user.privacy_accepted_version,
+      legal_accepted_at: user.legal_accepted_at,
       ctx: parseSessionContext(payload.ctx),
     };
   }

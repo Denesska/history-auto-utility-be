@@ -10,6 +10,7 @@ import { UpdateUserSettingsDto } from './dto/update-user-settings.dto';
 import { UserSettingsDto } from './dto/user-settings.dto';
 import { UpdateNavigationPrefsDto } from './dto/update-navigation-prefs.dto';
 import { NavigationPrefsDto } from './dto/navigation-prefs.dto';
+import { SkipLegalConsent } from '../legal/skip-legal-consent.decorator';
 
 @ApiTags('user-settings')
 @ApiBearerAuth()
@@ -19,7 +20,10 @@ import { NavigationPrefsDto } from './dto/navigation-prefs.dto';
 export class UserSettingsController {
     constructor(private readonly userSettingsService: UserSettingsService) {}
 
+    // Exempted from the legal-acceptance gate: the consent screen itself may need to
+    // change the user's language before they've accepted (see LegalEnforcementInterceptor).
     @Get()
+    @SkipLegalConsent()
     @ApiOperation({ summary: 'Get the current user settings' })
     @ApiResponse({ status: 200, type: UserSettingsDto })
     getSettings(@Req() req: RequestWithUser): Promise<UserSettingsDto> {
@@ -27,6 +31,7 @@ export class UserSettingsController {
     }
 
     @Put()
+    @SkipLegalConsent()
     @ApiOperation({ summary: 'Update the current user settings' })
     @ApiResponse({ status: 200, type: UserSettingsDto })
     updateSettings(
