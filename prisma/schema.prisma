@@ -56,6 +56,27 @@ model User {
   car_nicknames                    CarUserNickname[]
   business_access_requests         BusinessAccessRequest[] @relation("BusinessAccessRequests")
   business_access_decisions        BusinessAccessRequest[] @relation("BusinessAccessDecisions")
+  /// Version string the user last accepted (see src/modules/legal/legal-versions.ts). Null = never accepted.
+  terms_accepted_version    String?
+  privacy_accepted_version  String?
+  /// When the (current) terms_accepted_version/privacy_accepted_version pair was last accepted.
+  legal_accepted_at         DateTime?
+  legal_consents            UserLegalConsent[]
+}
+
+/// Append-only proof-of-consent log — one row per acceptance (see POST /legal/accept). The
+/// User.*_accepted_version columns hold only the latest state; this table is the audit trail.
+model UserLegalConsent {
+  id             Int      @id @default(autoincrement())
+  user_id        Int
+  user           User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  terms_version  String
+  privacy_version String
+  accepted_at    DateTime @default(now())
+  ip             String?
+  user_agent     String?
+
+  @@index([user_id])
 }
 
 model Car {

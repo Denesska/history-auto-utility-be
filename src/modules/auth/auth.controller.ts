@@ -13,6 +13,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { FeatureAccessService } from '../../common/features/feature-access.service';
+import { LegalService } from '../legal/legal.service';
+import { SkipLegalConsent } from '../legal/skip-legal-consent.decorator';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { Response } from 'express';
@@ -33,6 +35,11 @@ import {
 import { Scope } from '../../common/context/scope.decorator';
 import { SessionContext } from '../../common/context/session-context';
 
+// Every handler here must stay reachable by a user who hasn't accepted the current
+// terms/privacy yet — login, refresh, logout, context switch, change-password (forced
+// right after a local login) and /auth/me itself (which is how the frontend learns
+// acceptance is needed). See LegalEnforcementInterceptor.
+@SkipLegalConsent()
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
@@ -43,6 +50,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
     private readonly featureAccess: FeatureAccessService,
+    private readonly legalService: LegalService,
   ) {
     this.cookieConfig = {
       httpOnly: true,
@@ -299,7 +307,12 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid or missing access token.' })
   async getProfile(@Req() req): Promise<any> {
     const ctx: SessionContext = req.user.ctx ?? { type: 'personal' };
-    return { ...req.user, ctx: await this.authService.enrichContext(ctx), enabled_features: await this.featureAccess.enabledFeatures(ctx) };
+    return {
+      ...req.user,
+      ctx: await this.authService.enrichContext(ctx),
+      enabled_features: await this.featureAccess.enabledFeatures(ctx),
+      legal: this.legalService.buildStatus(req.user),
+    };
   }
 
   @Post('logout')
