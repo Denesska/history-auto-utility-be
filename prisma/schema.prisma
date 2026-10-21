@@ -41,6 +41,8 @@ model User {
   settings             UserSettings?
   deadline_orders      CarDeadlineOrder[]
   notifications        Notification[]
+  ai_usages            AiUsage[]
+  ai_user_limit        AiUserLimit?
   push_tokens          PushToken[]
   reminders_sent       DocumentReminderSent[]
   maintenance_settings CarMaintenanceSetting[]
@@ -256,6 +258,8 @@ enum NotificationType {
   BUSINESS_ACCESS_REQUESTED
   BUSINESS_ACCESS_APPROVED
   BUSINESS_ACCESS_REJECTED
+  // App-admin only: a user (or the global cap) hit the AI usage guard. Account-level, see AiUsageService.
+  AI_QUOTA_BLOCKED
 }
 
 enum DocumentExpiryType {
@@ -1035,4 +1039,59 @@ model VehicleSilhouette {
 
   @@unique([make_normalized, model_normalized])
   @@map("vehicle_silhouettes")
+}
+
+model AiUsage {
+  id              Int      @id @default(autoincrement())
+  user_id         Int?
+  organization_id Int?
+  feature         String   // 'document_extract' | 'identity_extract' | 'maintenance_category' | 'vehicle_silhouette'
+  provider        String   // 'gemini' | 'anthropic' | 'cloudflare' | 'cache' | 'none'
+  model           String?
+  input_tokens    Int      @default(0)
+  output_tokens   Int      @default(0)
+  cost_usd        Decimal  @default(0) @db.Decimal(12, 6)
+  status          String   // 'ok' | 'error' | 'cached' | 'blocked'
+  blocked_reason  String?  // 'burst' | 'daily' | 'monthly' | 'blocked' | 'global'
+  created_at      DateTime @default(now())
+  user            User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id, created_at])
+  @@index([created_at])
+  @@index([feature, created_at])
+}
+
+// Per-user admin override; absent row = use global defaults.
+model AiUserLimit {
+  user_id            Int      @id
+  daily_budget_usd   Decimal? @db.Decimal(10, 4)
+  monthly_budget_usd Decimal? @db.Decimal(10, 4)
+  blocked            Boolean  @default(false)
+  note               String?
+  updated_at         DateTime @updatedAt
+  updated_by         Int?
+  user               User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+// Single row, id = 1, created lazily with defaults.
+model AiSettings {
+  id                      Int      @id @default(1)
+  limits_enabled          Boolean  @default(true)
+  burst_per_minute        Int      @default(10)
+  user_daily_budget_usd   Decimal  @default(0.50) @db.Decimal(10, 4)
+  user_monthly_budget_usd Decimal  @default(5.00) @db.Decimal(10, 4)
+  global_daily_budget_usd Decimal  @default(10.00) @db.Decimal(10, 4)
+  warn_percent            Int      @default(80)
+  updated_at              DateTime @updatedAt
+}
+
+model AiResultCache {
+  id           Int      @id @default(autoincrement())
+  user_id      Int
+  feature      String
+  content_hash String   // sha256 hex of the uploaded file bytes
+  result       Json
+  created_at   DateTime @default(now())
+
+  @@unique([user_id, feature, content_hash])
 }

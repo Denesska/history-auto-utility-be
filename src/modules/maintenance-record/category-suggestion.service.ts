@@ -2,6 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ServiceCategory } from '../document/enum/service-category.enum';
+import { AiUsageService } from '../ai-usage/ai-usage.service';
+import { getRequestSessionContext } from '../../common/context/request-context';
+
+// Output is a tiny JSON ({category, confidence}); the headroom is for thinking models, which count
+// their reasoning tokens against maxOutputTokens (a cap that is too tight would cut off the JSON).
+const MAX_OUTPUT_TOKENS = 1024;
 
 const CATEGORY_VALUES = Object.values(ServiceCategory).filter(
     (value) => value !== ServiceCategory.COMBUSTIBIL && value !== ServiceCategory.OTHER,
@@ -61,7 +67,10 @@ export class CategorySuggestionService {
     private readonly client: GoogleGenAI | null;
     private readonly model: string;
 
-    constructor(private readonly config: ConfigService) {
+    constructor(
+        private readonly config: ConfigService,
+        private readonly aiUsage: AiUsageService,
+    ) {
         const apiKey = this.config.get<string>('GEMINI_API_KEY');
         this.model = this.config.get<string>('GEMINI_MODEL') || 'gemini-3.6-flash';
         this.client = apiKey ? new GoogleGenAI({ apiKey }) : null;
@@ -71,30 +80,47 @@ export class CategorySuggestionService {
         }
     }
 
-    async suggest(description: string, partNames: string[]): Promise<CategorySuggestion | null> {
+    async suggest(description: string, partNames: string[], userId: number | null = null): Promise<CategorySuggestion | null> {
         if (!this.client) return null;
         if (!description?.trim() && !partNames.length) return null;
 
         try {
-            const response = await this.client.models.generateContent({
-                model: this.model,
-                contents: [
-                    {
-                        role: 'user',
-                        parts: [
+            const client = this.client;
+            const ctx = getRequestSessionContext();
+            const orgId = ctx?.type === 'business' ? ctx.orgId : null;
+            // Over quota: behave exactly like "AI had no suggestion" (run(skip) returns null and records the blocked row).
+            const response = await this.aiUsage.run(
+                { feature: 'maintenance_category', userId, orgId, provider: 'gemini', model: this.model, onLimit: 'skip' },
+                async () => {
+                    const res = await client.models.generateContent({
+                        model: this.model,
+                        contents: [
                             {
-                                text: `${PROMPT}\n\nTitle: ${description || '(none)'}\nParts: ${partNames.length ? partNames.join(', ') : '(none)'}`,
+                                role: 'user',
+                                parts: [
+                                    {
+                                        text: `${PROMPT}\n\nTitle: ${description || '(none)'}\nParts: ${partNames.length ? partNames.join(', ') : '(none)'}`,
+                                    },
+                                ],
                             },
                         ],
-                    },
-                ],
-                config: {
-                    responseMimeType: 'application/json',
-                    responseSchema: RESPONSE_SCHEMA,
-                    temperature: 0,
-                    httpOptions: { timeout: 30_000 },
+                        config: {
+                            responseMimeType: 'application/json',
+                            responseSchema: RESPONSE_SCHEMA,
+                            temperature: 0,
+                            maxOutputTokens: MAX_OUTPUT_TOKENS,
+                            httpOptions: { timeout: 30_000 },
+                        },
+                    });
+                    const usage = res.usageMetadata;
+                    return {
+                        result: res,
+                        inputTokens: usage?.promptTokenCount ?? 0,
+                        outputTokens: (usage?.candidatesTokenCount ?? 0) + (usage?.thoughtsTokenCount ?? 0),
+                    };
                 },
-            });
+            );
+            if (!response) return null;
 
             const parsed = JSON.parse(response.text ?? '');
             const category = CATEGORY_VALUES.includes(parsed?.category) ? (parsed.category as ServiceCategory) : null;

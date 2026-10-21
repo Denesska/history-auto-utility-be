@@ -1,3 +1,4 @@
+import { AiCallReporter } from '../../../common/ai/ai-call-report';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
@@ -63,7 +64,7 @@ export class ClaudeIdentityProvider implements IdentityExtractionProvider {
         return this.client !== null;
     }
 
-    async extract(image: Buffer, mimeType: string): Promise<IdentityExtractionResult | null> {
+    async extract(image: Buffer, mimeType: string, onUsage?: AiCallReporter): Promise<IdentityExtractionResult | null> {
         if (!this.client) return null;
 
         const mediaType = toSupportedMimeType(mimeType);
@@ -72,6 +73,7 @@ export class ClaudeIdentityProvider implements IdentityExtractionProvider {
             return notAnIdentityDocument(this.name, UNSUPPORTED_IMAGE_WARNING);
         }
 
+        let reported = false;
         try {
             const response = await this.client.messages.create({
                 model: this.model,
@@ -89,6 +91,14 @@ export class ClaudeIdentityProvider implements IdentityExtractionProvider {
                         ],
                     },
                 ],
+            });
+
+            reported = true;
+            onUsage?.({
+                model: this.model,
+                inputTokens: response.usage?.input_tokens ?? 0,
+                outputTokens: response.usage?.output_tokens ?? 0,
+                status: 'ok',
             });
 
             if (response.stop_reason === 'refusal') {
@@ -120,6 +130,7 @@ export class ClaudeIdentityProvider implements IdentityExtractionProvider {
             this.logger.log(`[${this.name}] extraction finished: detected=${payload.detected} confidence=${payload.confidence} fields=${Object.keys(payload.fields).length} warnings=${payload.warnings.length}`);
             return toResult(payload, this.name);
         } catch (err) {
+            if (!reported) onUsage?.({ model: this.model, inputTokens: 0, outputTokens: 0, status: 'error' });
             if (this.isTransient(err)) {
                 this.logger.error(`[${this.name}] provider unavailable (${this.describeCategory(err)}).`);
                 throw new IdentityExtractionUnavailableError(this.name);

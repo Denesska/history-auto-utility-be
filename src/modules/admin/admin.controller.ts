@@ -1,10 +1,12 @@
 import { Scope } from '../../common/context/scope.decorator';
-import { BadRequestException, Body, Controller, Get, Param, ParseIntPipe, Patch, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Put, Param, ParseIntPipe, Patch, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RequestWithUser } from '../auth/express-request.interface';
 import { AdminGuard } from './admin.guard';
 import { AdminService } from './admin.service';
+import { AdminAiUsageService } from './admin-ai-usage.service';
+import { AiSettingsDto, AiUsageStatsDto, AiUserLimitDto, UpdateAiSettingsDto, UpdateAiUserLimitDto } from './dto/admin-ai.dto';
 import { ADMIN_RANGES, AdminRange, AdminStatsDto, AdminUserRow } from './dto/admin-stats.dto';
 import {
   AdminOrganizationDto,
@@ -17,7 +19,10 @@ import {
 @Scope('personal')
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly adminAiUsage: AdminAiUsageService,
+  ) {}
 
   /** Open to every signed-in user — the frontend uses it to decide whether to show the Admin entry. */
   @Get('me')
@@ -66,5 +71,53 @@ export class AdminController {
     @Body() dto: UpdateOrganizationFeaturesDto,
   ): Promise<AdminOrganizationDto> {
     return this.adminService.updateOrganizationFeatures(id, dto);
+  }
+
+  @Get('ai-usage')
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'AI usage and cost statistics for the admin page' })
+  aiUsage(@Query('days', new ParseIntPipe({ optional: true })) days = 30): Promise<AiUsageStatsDto> {
+    if (days < 1 || days > 365) throw new BadRequestException('days must be between 1 and 365');
+    return this.adminAiUsage.getStats(days);
+  }
+
+  @Get('ai-settings')
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Global AI limit settings' })
+  aiSettings(): Promise<AiSettingsDto> {
+    return this.adminAiUsage.getSettings();
+  }
+
+  @Put('ai-settings')
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Update global AI limit settings' })
+  updateAiSettings(@Body() dto: UpdateAiSettingsDto): Promise<AiSettingsDto> {
+    return this.adminAiUsage.updateSettings(dto);
+  }
+
+  @Get('ai-users/:userId/limit')
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Per-user AI limit override (null when using defaults)' })
+  aiUserLimit(@Param('userId', ParseIntPipe) userId: number): Promise<AiUserLimitDto | null> {
+    return this.adminAiUsage.getUserLimit(userId);
+  }
+
+  @Put('ai-users/:userId/limit')
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Create/replace a per-user AI limit override' })
+  setAiUserLimit(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Body() dto: UpdateAiUserLimitDto,
+    @Req() req: RequestWithUser,
+  ): Promise<AiUserLimitDto> {
+    return this.adminAiUsage.setUserLimit(userId, dto, req.user.id);
+  }
+
+  @Delete('ai-users/:userId/limit')
+  @HttpCode(204)
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Remove a per-user AI limit override (back to defaults)' })
+  deleteAiUserLimit(@Param('userId', ParseIntPipe) userId: number): Promise<void> {
+    return this.adminAiUsage.deleteUserLimit(userId);
   }
 }

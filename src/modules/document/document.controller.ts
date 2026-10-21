@@ -140,10 +140,11 @@ export class DocumentController {
   @ApiResponse({ status: 503, description: 'AI extraction service is temporarily unavailable (high demand).' })
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } }))
   async extractDocument(
+    @Req() req: RequestWithUser,
     @UploadedFile() file: Express.Multer.File,
   ): Promise<ExtractionResultDto> {
     if (!file) throw new BadRequestException('No file uploaded. Please attach a file with the field name "file".');
-    return this.extractionService.extract(file.buffer, file.mimetype);
+    return this.extractionService.extract(file.buffer, file.mimetype, req.user.id);
   }
 
   @Post(':id/upload')

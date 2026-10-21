@@ -51,12 +51,14 @@ export class MaintenanceRecordController {
   @ApiResponse({ status: 200, type: SuggestedCategoryDto })
   @ApiResponse({ status: 503, description: 'The category suggestion service is temporarily unavailable.' })
   async suggestCategory(
+    @Req() req: RequestWithUser,
     @Body() suggestCategoryDto: SuggestCategoryDto,
   ): Promise<SuggestedCategoryDto> {
     try {
       const result = await this.categorySuggestionService.suggest(
         suggestCategoryDto.description,
         suggestCategoryDto.part_names ?? [],
+        req.user.id,
       );
       return result ?? { category: null, confidence: 'low' };
     } catch (err) {

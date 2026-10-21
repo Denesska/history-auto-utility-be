@@ -40,6 +40,7 @@ export class NotificationsService {
    *   session's organization).
    * - BUSINESS_ACCESS_REQUESTED / BUSINESS_ACCESS_APPROVED / BUSINESS_ACCESS_REJECTED:
    *   account-level, not org-bound — visible in any context (personal or business).
+   * - AI_QUOTA_BLOCKED: app-admin only, account-level — visible in any context.
    * Outside an HTTP request (no context) nothing is filtered.
    */
   private async filterForContext<T extends { type: NotificationType; data: unknown }>(rows: T[]): Promise<T[]> {
@@ -66,7 +67,8 @@ export class NotificationsService {
       if (
         r.type === NotificationType.BUSINESS_ACCESS_REQUESTED ||
         r.type === NotificationType.BUSINESS_ACCESS_APPROVED ||
-        r.type === NotificationType.BUSINESS_ACCESS_REJECTED
+        r.type === NotificationType.BUSINESS_ACCESS_REJECTED ||
+        r.type === NotificationType.AI_QUOTA_BLOCKED
       ) {
         return true;
       }

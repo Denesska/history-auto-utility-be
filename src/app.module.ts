@@ -36,6 +36,7 @@ import { ContextEnforcementInterceptor, RequestContextMiddleware } from './commo
 import { FeatureEnforcementInterceptor, FeaturesModule } from './common/features';
 import { LegalEnforcementInterceptor, LegalModule } from './modules/legal';
 import { AccountModule } from './modules/account/account.module';
+import { AiUsageModule } from './modules/ai-usage/ai-usage.module';
 
 @Module({
   imports: [
@@ -75,6 +76,7 @@ import { AccountModule } from './modules/account/account.module';
     FleetCostModule,
     LegalModule,
     AccountModule,
+    AiUsageModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: process.env.ENV_FILE ?? '.env',

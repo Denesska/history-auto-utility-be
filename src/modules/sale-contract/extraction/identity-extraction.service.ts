@@ -6,6 +6,9 @@ import { ClaudeIdentityProvider } from './claude-identity.provider';
 import { CloudflareIdentityProvider } from './cloudflare-identity.provider';
 import { describeCnpProblem, isValidCnp } from '../../../common/crypto/cnp.util';
 import { redactText } from '../../../common/crypto/redact.util';
+import { AiCallReport } from '../../../common/ai/ai-call-report';
+import { AiUsageService } from '../../ai-usage/ai-usage.service';
+import { getRequestSessionContext } from '../../../common/context/request-context';
 
 const CNP_FALLBACK_WARNING = 'CNP-ul citit pare gresit. Verifica-l cifra cu cifra inainte de a continua.';
 
@@ -46,6 +49,7 @@ export class IdentityExtractionService {
         private readonly config: ConfigService,
         private readonly claude: ClaudeIdentityProvider,
         private readonly cloudflare: CloudflareIdentityProvider,
+        private readonly aiUsage: AiUsageService,
     ) {
         this.provider = this.selectProvider();
     }
@@ -59,19 +63,28 @@ export class IdentityExtractionService {
         return this.provider !== null;
     }
 
-    async extract(image: Buffer, mimeType: string): Promise<IdentityExtractionResult | null> {
+    async extract(image: Buffer, mimeType: string, userId: number | null = null): Promise<IdentityExtractionResult | null> {
         if (!this.provider) {
             this.logger.warn('Identity extraction is disabled — no provider is configured.');
             return null;
         }
 
+        // Quota check up front (throws 429 when over quota). No result caching on purpose: ID-card PII.
+        const ctx = getRequestSessionContext();
+        const orgId = ctx?.type === 'business' ? ctx.orgId : null;
+        await this.aiUsage.assertQuota('identity_extract', userId, orgId);
+
         const startedAt = Date.now();
         const { buffer: preparedImage, mimeType: preparedMimeType } = await this.prepareImage(image, mimeType);
         let result: IdentityExtractionResult | null;
 
+        // Providers report each vendor request (tokens, status) through this callback; recorded below.
+        const reports: AiCallReport[] = [];
         try {
-            result = await this.provider.extract(preparedImage, preparedMimeType);
+            result = await this.provider.extract(preparedImage, preparedMimeType, (r) => reports.push(r));
+            await this.recordReports(reports, userId, orgId);
         } catch (err) {
+            await this.recordReports(reports, userId, orgId);
             const elapsed = Date.now() - startedAt;
             if (err instanceof IdentityExtractionUnavailableError) {
                 this.logger.error(`[${this.provider.name}] unavailable after ${elapsed}ms.`);
@@ -91,6 +104,13 @@ export class IdentityExtractionService {
         const processed = this.postProcess(result);
         this.logger.log(`[${this.provider.name}] identity extraction done in ${elapsed}ms: detected=${processed.detected} confidence=${processed.confidence} fields=${Object.keys(processed.fields).length} warnings=${processed.warnings.length}`);
         return processed;
+    }
+
+    private async recordReports(reports: AiCallReport[], userId: number | null, orgId: number | null): Promise<void> {
+        const provider = this.provider?.name === 'claude' ? 'anthropic' : 'cloudflare';
+        for (const r of reports.splice(0)) {
+            await this.aiUsage.record({ feature: 'identity_extract', userId, orgId, provider, ...r });
+        }
     }
 
     // -----------------------------------------------------------------------

@@ -80,6 +80,7 @@ export class SaleContractController {
         FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: IDENTITY_UPLOAD_LIMIT_BYTES } }),
     )
     async extractIdentity(
+        @Req() req: RequestWithUser,
         @UploadedFile() file: Express.Multer.File,
         @Body('consent_version') consentVersion: string,
     ): Promise<IdentityExtractionResultDto> {
@@ -91,7 +92,7 @@ export class SaleContractController {
         }
 
         try {
-            const result = await this.identityExtraction.extract(file.buffer, file.mimetype);
+            const result = await this.identityExtraction.extract(file.buffer, file.mimetype, req.user.id);
             if (!result) {
                 return {
                     detected: false,

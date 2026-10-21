@@ -3,6 +3,9 @@ import { ExtractedFieldsDto, ExtractionResultDto } from './dto/extraction-result
 import { DocumentParser } from './parsers/document-parser.interface';
 import { RcaParser } from './parsers/rca.parser';
 import { GeminiExtractionService, GeminiServiceUnavailableError } from './gemini-extraction.service';
+import { AiUsageService } from '../ai-usage/ai-usage.service';
+import { AiCallReport } from '../../common/ai/ai-call-report';
+import { getRequestSessionContext } from '../../common/context/request-context';
 import { CloudflareExtractionService, CloudflareExtractionUnavailableError } from './cloudflare-extraction.service';
 
 const SUPPORTED_MIME_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']);
@@ -46,9 +49,10 @@ export class DocumentExtractionService {
     constructor(
         private readonly geminiExtractionService: GeminiExtractionService,
         private readonly cloudflareExtractionService: CloudflareExtractionService,
+        private readonly aiUsage: AiUsageService,
     ) {}
 
-    async extract(buffer: Buffer, mimeType: string): Promise<ExtractionResultDto> {
+    async extract(buffer: Buffer, mimeType: string, userId: number | null = null): Promise<ExtractionResultDto> {
         if (!SUPPORTED_MIME_TYPES.has(mimeType)) {
             throw new UnsupportedMediaTypeException(
                 `File type "${mimeType}" is not supported for extraction. Supported formats: PDF, JPEG, PNG, WEBP.`,
@@ -87,9 +91,24 @@ export class DocumentExtractionService {
         }
 
         // Fallback (or primary path for images / scanned PDFs / non-RCA document types): AI extraction.
+        // Everything above (pdf-parse + regex parsers) is free and is neither counted nor limited.
+        const ctx = getRequestSessionContext();
+        const orgId = ctx?.type === 'business' ? ctx.orgId : null;
+        const contentHash = this.aiUsage.hashBuffer(buffer);
+        if (userId !== null) {
+            // A repeat upload of the same file is free: serve the stored result, no quota check.
+            const cached = await this.aiUsage.getCached<ExtractionResultDto>(userId, 'document_extract', contentHash);
+            if (cached) return cached;
+        }
+        // One quota check per request (throws 429); each provider call is then recorded separately.
+        await this.aiUsage.assertQuota('document_extract', userId, orgId);
+
+        const record = (provider: 'gemini' | 'cloudflare') => (r: AiCallReport) =>
+            void this.aiUsage.record({ feature: 'document_extract', userId, orgId, provider, ...r });
+
         let aiResult;
         try {
-            aiResult = await this.geminiExtractionService.extract(buffer, mimeType);
+            aiResult = await this.geminiExtractionService.extract(buffer, mimeType, record('gemini'));
         } catch (err) {
             if (!(err instanceof GeminiServiceUnavailableError)) throw err;
 
@@ -100,7 +119,7 @@ export class DocumentExtractionService {
             // "not detected, fill in manually" response below is the right outcome.
             this.logger.warn('Gemini unavailable — retrying extraction via Cloudflare fallback.');
             try {
-                aiResult = await this.cloudflareExtractionService.extract(buffer, mimeType);
+                aiResult = await this.cloudflareExtractionService.extract(buffer, mimeType, record('cloudflare'));
             } catch (fallbackErr) {
                 if (fallbackErr instanceof CloudflareExtractionUnavailableError) {
                     throw new ServiceUnavailableException(
@@ -112,7 +131,7 @@ export class DocumentExtractionService {
         }
         if (aiResult) {
             sanitizeVin(aiResult.fields, aiResult.warnings);
-            return {
+            const result: ExtractionResultDto = {
                 detected: aiResult.detected,
                 document_type: aiResult.document_type,
                 confidence: aiResult.confidence,
@@ -120,6 +139,11 @@ export class DocumentExtractionService {
                 warnings: aiResult.warnings,
                 raw_text: rawText ? rawText.slice(0, MAX_RAW_TEXT_CHARS) : undefined,
             };
+            // Only successful extractions that actually found something are cached.
+            if (userId !== null && result.detected && Object.keys(result.fields ?? {}).length > 0) {
+                await this.aiUsage.setCached(userId, 'document_extract', contentHash, result);
+            }
+            return result;
         }
 
         return {

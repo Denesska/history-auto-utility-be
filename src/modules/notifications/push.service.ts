@@ -130,6 +130,13 @@ export class PushService {
       };
     }
 
+    if (notification.type === 'AI_QUOTA_BLOCKED') {
+      return {
+        title: 'Limită AI atinsă',
+        body: `${notification.data?.userName || notification.data?.userEmail || 'Un utilizator'} a fost blocat (${notification.data?.reason}) la ${notification.data?.feature}`,
+      };
+    }
+
     return { title: 'Notificare nouă', body: '' };
   }
 }

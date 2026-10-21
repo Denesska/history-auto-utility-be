@@ -3,6 +3,7 @@ import sharp = require('sharp');
 import { IdentityExtractionService } from './identity-extraction.service';
 import { ClaudeIdentityProvider } from './claude-identity.provider';
 import { CloudflareIdentityProvider } from './cloudflare-identity.provider';
+import { AiUsageService } from '../../ai-usage/ai-usage.service';
 import { IdentityExtractionProvider, IdentityExtractionResult, IdentityExtractionUnavailableError } from '../sale-contract.types';
 
 /**
@@ -42,8 +43,11 @@ function configOf(values: Record<string, string | undefined>): ConfigService {
     return { get: (key: string) => values[key] } as unknown as ConfigService;
 }
 
+// Quota guard stub: always allows, records nothing.
+const aiUsageStub = { assertQuota: async () => undefined, record: async () => undefined } as unknown as AiUsageService;
+
 function buildService(values: Record<string, string | undefined>, claude: IdentityExtractionProvider, cloudflare: IdentityExtractionProvider): IdentityExtractionService {
-    return new IdentityExtractionService(configOf(values), claude as unknown as ClaudeIdentityProvider, cloudflare as unknown as CloudflareIdentityProvider);
+    return new IdentityExtractionService(configOf(values), claude as unknown as ClaudeIdentityProvider, cloudflare as unknown as CloudflareIdentityProvider, aiUsageStub);
 }
 
 function resultWith(provider: string, fields: IdentityExtractionResult['fields'], warnings: string[] = []): IdentityExtractionResult {

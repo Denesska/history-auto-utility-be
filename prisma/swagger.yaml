@@ -2486,6 +2486,102 @@ paths:
         - "admin"
       security:
         - cookie: []
+  /api/admin/ai-usage:
+    get:
+      operationId: "AdminController_aiUsage"
+      summary: "AI usage and cost statistics for the admin page"
+      parameters: []
+      responses:
+        200:
+          description: ""
+      tags:
+        - "admin"
+      security:
+        - cookie: []
+  /api/admin/ai-settings:
+    get:
+      operationId: "AdminController_aiSettings"
+      summary: "Global AI limit settings"
+      parameters: []
+      responses:
+        200:
+          description: ""
+      tags:
+        - "admin"
+      security:
+        - cookie: []
+    put:
+      operationId: "AdminController_updateAiSettings"
+      summary: "Update global AI limit settings"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAiSettingsDto"
+      responses:
+        200:
+          description: ""
+      tags:
+        - "admin"
+      security:
+        - cookie: []
+  /api/admin/ai-users/{userId}/limit:
+    get:
+      operationId: "AdminController_aiUserLimit"
+      summary: "Per-user AI limit override (null when using defaults)"
+      parameters:
+        - name: "userId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: ""
+      tags:
+        - "admin"
+      security:
+        - cookie: []
+    put:
+      operationId: "AdminController_setAiUserLimit"
+      summary: "Create/replace a per-user AI limit override"
+      parameters:
+        - name: "userId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAiUserLimitDto"
+      responses:
+        200:
+          description: ""
+      tags:
+        - "admin"
+      security:
+        - cookie: []
+    delete:
+      operationId: "AdminController_deleteAiUserLimit"
+      summary: "Remove a per-user AI limit override (back to defaults)"
+      parameters:
+        - name: "userId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        204:
+          description: ""
+      tags:
+        - "admin"
+      security:
+        - cookie: []
   /api/vehicle-silhouette:
     get:
       operationId: "VehicleSilhouetteController_get"
@@ -3171,6 +3267,18 @@ paths:
         - "account"
       security:
         - bearer: []
+  /api/ai-usage/me:
+    get:
+      operationId: "AiUsageController_me"
+      summary: "Current user's AI usage against daily/monthly budgets"
+      parameters: []
+      responses:
+        200:
+          description: ""
+      tags:
+        - "ai-usage"
+      security:
+        - cookie: []
 info:
   title: "History Auto Utility API"
   description: "API documentation for History Auto Utility"
@@ -3332,6 +3440,7 @@ components:
             - "BUSINESS_ACCESS_REQUESTED"
             - "BUSINESS_ACCESS_APPROVED"
             - "BUSINESS_ACCESS_REJECTED"
+            - "AI_QUOTA_BLOCKED"
         data:
           type: "object"
         read_at:
@@ -6010,6 +6119,35 @@ components:
           type: "boolean"
         driver_assignment:
           type: "boolean"
+    UpdateAiSettingsDto:
+      type: "object"
+      properties:
+        limitsEnabled:
+          type: "boolean"
+        burstPerMinute:
+          type: "number"
+        userDailyBudgetUsd:
+          type: "number"
+        userMonthlyBudgetUsd:
+          type: "number"
+        globalDailyBudgetUsd:
+          type: "number"
+        warnPercent:
+          type: "number"
+    UpdateAiUserLimitDto:
+      type: "object"
+      properties:
+        dailyBudgetUsd:
+          type: "number"
+          nullable: true
+        monthlyBudgetUsd:
+          type: "number"
+          nullable: true
+        blocked:
+          type: "boolean"
+        note:
+          type: "string"
+          nullable: true
     RegenerateSilhouetteDto:
       type: "object"
       properties: {}
