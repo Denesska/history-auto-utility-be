@@ -41,8 +41,13 @@ model User {
   settings             UserSettings?
   deadline_orders      CarDeadlineOrder[]
   notifications        Notification[]
+  ai_usages            AiUsage[]
+  ai_user_limit        AiUserLimit?
   push_tokens          PushToken[]
   reminders_sent       DocumentReminderSent[]
+  maintenance_reminders_sent MaintenanceReminderSent[]
+  reminder_snoozes     ReminderSnooze[]
+  car_reminder_mutes   CarReminderMute[]
   maintenance_settings CarMaintenanceSetting[]
   maintenance_profiles MaintenanceProfile[]
   sale_contracts       SaleContract[]
@@ -56,6 +61,27 @@ model User {
   car_nicknames                    CarUserNickname[]
   business_access_requests         BusinessAccessRequest[] @relation("BusinessAccessRequests")
   business_access_decisions        BusinessAccessRequest[] @relation("BusinessAccessDecisions")
+  /// Version string the user last accepted (see src/modules/legal/legal-versions.ts). Null = never accepted.
+  terms_accepted_version    String?
+  privacy_accepted_version  String?
+  /// When the (current) terms_accepted_version/privacy_accepted_version pair was last accepted.
+  legal_accepted_at         DateTime?
+  legal_consents            UserLegalConsent[]
+}
+
+/// Append-only proof-of-consent log — one row per acceptance (see POST /legal/accept). The
+/// User.*_accepted_version columns hold only the latest state; this table is the audit trail.
+model UserLegalConsent {
+  id             Int      @id @default(autoincrement())
+  user_id        Int
+  user           User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  terms_version  String
+  privacy_version String
+  accepted_at    DateTime @default(now())
+  ip             String?
+  user_agent     String?
+
+  @@index([user_id])
 }
 
 model Car {
@@ -74,6 +100,10 @@ model Car {
   license_plate             String?
   fuel_type                 FuelType?
   transmission              TransmissionType?
+  // Which axles are driven — decides whether a differential-oil Plan item applies.
+  drivetrain                DrivetrainType?
+  // One of OIL_VISCOSITIES (plan-item.catalog.ts) — drives the engine-oil km interval.
+  engine_oil_viscosity      String?
   engine                    String?
   color                     String?
   current_mileage           Int?
@@ -106,6 +136,9 @@ model Car {
   blog_entries              BlogEntry[]
   deadline_orders           CarDeadlineOrder[]
   reminders_sent            DocumentReminderSent[]
+  maintenance_reminders_sent MaintenanceReminderSent[]
+  reminder_snoozes          ReminderSnooze[]
+  car_reminder_mutes        CarReminderMute[]
   notes                     CarNote[]
   maintenance_settings      CarMaintenanceSetting[]
   maintenance_profiles      MaintenanceProfile[]
@@ -227,6 +260,7 @@ enum NotificationType {
   CAR_ACCESS_ROLE_CHANGED
   CAR_ACCESS_ACCEPTED
   DOCUMENT_EXPIRING
+  MAINTENANCE_DUE
   VIN_CONFLICT
   LICENSE_PLATE_CONFLICT
   ORG_INVITED
@@ -235,6 +269,8 @@ enum NotificationType {
   BUSINESS_ACCESS_REQUESTED
   BUSINESS_ACCESS_APPROVED
   BUSINESS_ACCESS_REJECTED
+  // App-admin only: a user (or the global cap) hit the AI usage guard. Account-level, see AiUsageService.
+  AI_QUOTA_BLOCKED
 }
 
 enum DocumentExpiryType {
@@ -247,15 +283,81 @@ model DocumentReminderSent {
   id          Int                @id @default(autoincrement())
   user_id     Int
   car_id      Int
-  doc_type    DocumentExpiryType
+  /// Document.document_type ('RCA', 'ITP', 'ROV', 'CASCO', ...); a non-home vignette is 'ROV:<country>'.
+  doc_type    String
   expiry_date DateTime
+  /// Days before expiry the reminder is for (7, 3, 1, 0); -1 = the "expired yesterday" reminder.
   days_before Int
   sent_at     DateTime           @default(now())
+  /// The in-app notification + push went out when the row was written; false = email still to retry.
+  email_sent  Boolean            @default(true)
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
   car  Car  @relation(fields: [car_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id, car_id, doc_type, expiry_date, days_before])
+}
+
+/// Dedup + email-retry ledger of the maintenance-due reminder job (MaintenanceRemindersService).
+model MaintenanceReminderSent {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  car_id     Int
+  /// What was sent. Plan items: 'plan:<CATEGORY>:<lastRecordId>:SOON' | ':DUE' | ':OVERDUE:<30-day step>'
+  /// (a newer record of the category = a new cycle). User-set record dates: 'rec:<recordId>:<daysLeft>' (-1 = day after).
+  key        String
+  /// The notification payload, kept so a failed email can be retried without recomputing the plan.
+  data       Json?
+  created_at DateTime @default(now())
+  /// The in-app notification + push went out when the row was written; false = email still to retry.
+  email_sent Boolean  @default(true)
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  car  Car  @relation(fields: [car_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, car_id, key])
+}
+
+enum ReminderSnoozeKind {
+  DOCUMENT
+  MAINTENANCE_PLAN
+  MAINTENANCE_RECORD
+}
+
+/// A user silencing the reminders of one item (per user: a co-owner is unaffected). The item key makes it
+/// reset by itself: a renewed document has a new id, a new service of a category a new last-record id.
+model ReminderSnooze {
+  id              Int                  @id @default(autoincrement())
+  user_id         Int
+  car_id          Int
+  kind            ReminderSnoozeKind
+  /// DOCUMENT: Document.id. MAINTENANCE_PLAN: '<CATEGORY>:<last record id>'. MAINTENANCE_RECORD: MaintenanceRecord.id.
+  item_key        String
+  /// Silent until this moment; null = silent for the rest of this cycle ("don't remind me again").
+  until           DateTime?
+  /// When the single "snooze ended" reminder went out (null = still due to send). Reset by a re-snooze.
+  end_notified_at DateTime?
+  created_at      DateTime             @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  car  Car  @relation(fields: [car_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, kind, item_key])
+}
+
+/// A user silencing ALL reminders (documents, maintenance plan, record dates) of one car, for themselves only.
+/// A timed mute simply ends (no catch-up); `until` null = muted until the user turns it back on.
+model CarReminderMute {
+  id         Int       @id @default(autoincrement())
+  user_id    Int
+  car_id     Int
+  until      DateTime?
+  created_at DateTime  @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  car  Car  @relation(fields: [car_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, car_id])
 }
 
 model PushToken {
@@ -339,17 +441,33 @@ model MaintenanceRecord {
   exchange_rate_date DateTime?
   exchange_rate_source String?
   expiry_date        DateTime?
+  // Optional name the user gives the reminder date ("custom reminder"); cleared with expiry_date.
+  reminder_title     String?
   is_diy             Boolean           @default(false)
   fuel_liters        Float?
   energy_kwh         Float?
   is_company_expense Boolean           @default(false)
+  // Labor (manoperă) part of the cost, in the record's `currency`; notes = free
+  // multi-line description of the work (`description` is the short title).
+  labor_cost         Float?
+  // User override of the parts total (both null = automatic sum of parts, computed on the FE).
+  parts_cost          Float?
+  parts_cost_currency String?
+  notes              String?           @db.Text
   created_at         DateTime          @default(now())
   car                Car               @relation(fields: [car_id], references: [id], onDelete: Cascade)
   parts              MaintenancePart[]
+  // Plan items this record resets (oil change + air filter in one visit, ...).
+  plan_items         MaintenanceRecordPlanItem[]
+  // Free-text work items typed by the user ("Replaced wiper blades"); max 10, 1-60 chars each.
+  custom_items       String[]          @default([])
   // Which supplier (garage/workshop) carried out this work — optional, null
   // for DIY or when the supplier directory isn't used.
   supplier_id        Int?
   supplier           Supplier?         @relation(fields: [supplier_id], references: [id], onDelete: SetNull)
+  // Free-text workshop name for personal records (the supplier directory is business-only).
+  // Always null when supplier_id is set.
+  service_name       String?
 }
 
 model MaintenancePart {
@@ -359,7 +477,19 @@ model MaintenancePart {
   code                  String?
   quantity              Float?
   price                 Float?
+  // null = same currency as the record
+  currency              String?
   maintenanceRecord     MaintenanceRecord @relation(fields: [maintenance_record_id], references: [id], onDelete: Cascade)
+}
+
+model MaintenanceRecordPlanItem {
+  id                    Int               @id @default(autoincrement())
+  maintenance_record_id Int
+  item                  PlanItemKey
+  maintenanceRecord     MaintenanceRecord @relation(fields: [maintenance_record_id], references: [id], onDelete: Cascade)
+
+  @@unique([maintenance_record_id, item])
+  @@index([item])
 }
 
 enum SupplierType {
@@ -449,6 +579,36 @@ enum ServiceType {
   IMPROVEMENT
   PASSION
   ALIMENTARE
+}
+
+enum PlanItemKey {
+  ENGINE_OIL
+  AIR_FILTER
+  CABIN_FILTER
+  FUEL_FILTER
+  GEARBOX_OIL
+  DIFFERENTIAL_OIL
+  BRAKE_FLUID
+  COOLANT
+  POWER_STEERING_FLUID
+  AC_SERVICE
+  TIRES
+  INSPECTION
+  TIMING_BELT
+  // Work items: no interval, never on Plan bars or in settings
+  BRAKE_PARTS
+  BATTERY
+  LIGHTS
+  SUSPENSION
+  ENGINE_REPAIR
+  BODYWORK
+  ELECTRICAL
+}
+
+enum DrivetrainType {
+  FRONT
+  REAR
+  ALL_WHEEL
 }
 
 enum ServiceCategory {
@@ -592,7 +752,8 @@ model UserSettings {
   theme                    String   @default("auto")
   view_mode                String   @default("cards")
   expiry_reminders_enabled Boolean  @default(true)
-  expiry_reminder_days     Int[]    @default([7])
+  expiry_reminder_days     Int[]    @default([7, 3, 1, 0])
+  maintenance_reminders_enabled Boolean @default(true)
   navigation_prefs         Json?
   created_at               DateTime @default(now())
   updated_at               DateTime @updatedAt
@@ -664,19 +825,20 @@ model MaintenanceProfile {
 
 /// A per-user override of a maintenance category on one car, scoped to a specific
 /// MaintenanceProfile: whether the user wants it tracked (progress bar shown) and/or
-/// a custom interval instead of the global default from DEFAULT_MAINTENANCE_INTERVALS.
+/// a custom interval instead of the catalog default (plan-item.catalog.ts).
 /// Sparse on purpose — a row only exists when the user deviates from the neutral state
-/// (tracked=true, no custom interval) within that profile; resetting back to neutral
+/// (tracked = the car's catalog default, no custom interval) within that profile; resetting back to neutral
 /// deletes the row rather than storing a no-op override.
 model CarMaintenanceSetting {
   id                     Int             @id @default(autoincrement())
   car_id                 Int
   user_id                Int
   profile_id             Int
-  category               ServiceCategory
+  item                   PlanItemKey
   tracked                Boolean         @default(true)
   custom_interval_km     Int?
   custom_interval_months Int?
+  custom_interval_oil_changes Int?
   created_at             DateTime        @default(now())
   updated_at             DateTime        @updatedAt
 
@@ -684,7 +846,7 @@ model CarMaintenanceSetting {
   user    User               @relation(fields: [user_id], references: [id], onDelete: Cascade)
   profile MaintenanceProfile @relation(fields: [profile_id], references: [id], onDelete: Cascade)
 
-  @@unique([car_id, user_id, profile_id, category])
+  @@unique([car_id, user_id, profile_id, item])
 }
 
 // A destination shared from a phone (Google Maps) to be picked up by the car head unit
@@ -1014,4 +1176,59 @@ model VehicleSilhouette {
 
   @@unique([make_normalized, model_normalized])
   @@map("vehicle_silhouettes")
+}
+
+model AiUsage {
+  id              Int      @id @default(autoincrement())
+  user_id         Int?
+  organization_id Int?
+  feature         String   // 'document_extract' | 'identity_extract' | 'maintenance_category' | 'maintenance_invoice_extract' | 'vehicle_silhouette'
+  provider        String   // 'gemini' | 'anthropic' | 'cloudflare' | 'cache' | 'none'
+  model           String?
+  input_tokens    Int      @default(0)
+  output_tokens   Int      @default(0)
+  cost_usd        Decimal  @default(0) @db.Decimal(12, 6)
+  status          String   // 'ok' | 'error' | 'cached' | 'blocked'
+  blocked_reason  String?  // 'burst' | 'daily' | 'monthly' | 'blocked' | 'global'
+  created_at      DateTime @default(now())
+  user            User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id, created_at])
+  @@index([created_at])
+  @@index([feature, created_at])
+}
+
+// Per-user admin override; absent row = use global defaults.
+model AiUserLimit {
+  user_id            Int      @id
+  daily_budget_usd   Decimal? @db.Decimal(10, 4)
+  monthly_budget_usd Decimal? @db.Decimal(10, 4)
+  blocked            Boolean  @default(false)
+  note               String?
+  updated_at         DateTime @updatedAt
+  updated_by         Int?
+  user               User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+// Single row, id = 1, created lazily with defaults.
+model AiSettings {
+  id                      Int      @id @default(1)
+  limits_enabled          Boolean  @default(true)
+  burst_per_minute        Int      @default(10)
+  user_daily_budget_usd   Decimal  @default(0.50) @db.Decimal(10, 4)
+  user_monthly_budget_usd Decimal  @default(5.00) @db.Decimal(10, 4)
+  global_daily_budget_usd Decimal  @default(10.00) @db.Decimal(10, 4)
+  warn_percent            Int      @default(80)
+  updated_at              DateTime @updatedAt
+}
+
+model AiResultCache {
+  id           Int      @id @default(autoincrement())
+  user_id      Int
+  feature      String
+  content_hash String   // sha256 hex of the uploaded file bytes
+  result       Json
+  created_at   DateTime @default(now())
+
+  @@unique([user_id, feature, content_hash])
 }

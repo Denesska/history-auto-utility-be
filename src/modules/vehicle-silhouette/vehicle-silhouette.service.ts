@@ -4,6 +4,8 @@ import { GoogleGenAI } from '@google/genai';
 import { Prisma, VehicleSilhouetteStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { extractSvg, sanitizeSvg } from './svg-sanitizer';
+import { AiUsageService } from '../ai-usage/ai-usage.service';
+import { getRequestSessionContext } from '../../common/context/request-context';
 
 export interface VehicleSilhouetteResult {
   status: VehicleSilhouetteStatus;
@@ -16,6 +18,10 @@ const STALE_PENDING_MS = 5 * 60 * 1000;
 const NEW_GENERATIONS_PER_USER_PER_HOUR = 20;
 const HOUR_MS = 60 * 60 * 1000;
 const MAX_NAME_LENGTH = 60;
+// A hard cap on billed output. Generous on purpose: the SVG itself is a few KB (~1-2k tokens), but
+// thinking models count their reasoning tokens against maxOutputTokens, and a truncated SVG is useless.
+const MAX_OUTPUT_TOKENS = 16384;
+const QUOTA_SKIPPED = 'ai_quota';
 
 const PROMPT = (make: string, model: string) => `Output ONLY a single SVG, no prose and no code fences: a minimal schematic side-profile silhouette of a ${make} ${model}, facing left.
 
@@ -47,6 +53,7 @@ export class VehicleSilhouetteService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly aiUsage: AiUsageService,
   ) {
     const apiKey = this.config.get<string>('GEMINI_API_KEY');
     this.model = this.config.get<string>('GEMINI_MODEL') || 'gemini-3.6-flash';
@@ -74,7 +81,7 @@ export class VehicleSilhouetteService {
           },
         });
         this.recordTrigger(userId);
-        this.runInBackground(created.id, make, model);
+        this.runInBackground(created.id, make, model, userId);
         return { status: 'PENDING', svg: null };
       } catch (err) {
         // Lost the race to a concurrent request: the unique row exists now, just report it.
@@ -102,13 +109,13 @@ export class VehicleSilhouetteService {
     });
     if (claimed.count === 1) {
       this.recordTrigger(userId);
-      this.runInBackground(existing.id, existing.make_display, existing.model_display);
+      this.runInBackground(existing.id, existing.make_display, existing.model_display, userId);
     }
     return { status: 'PENDING', svg: null };
   }
 
   /** Admin: throw away the current silhouette and generate a fresh one (old one stays if the new attempt fails). */
-  async regenerate(makeRaw: string, modelRaw: string): Promise<VehicleSilhouetteResult> {
+  async regenerate(makeRaw: string, modelRaw: string, userId: number | null = null): Promise<VehicleSilhouetteResult> {
     const { make, model, makeKey, modelKey } = this.parseNames(makeRaw, modelRaw);
     const row = await this.prisma.vehicleSilhouette.upsert({
       where: { make_normalized_model_normalized: { make_normalized: makeKey, model_normalized: modelKey } },
@@ -122,20 +129,34 @@ export class VehicleSilhouetteService {
       },
       update: { status: 'PENDING', attempts: 1, error: null },
     });
-    this.runInBackground(row.id, row.make_display, row.model_display);
+    this.runInBackground(row.id, row.make_display, row.model_display, userId);
     return { status: 'PENDING', svg: null };
   }
 
   /** Runs generation to completion and persists the outcome. Awaitable for scripts/tests. */
-  async generate(id: number, make: string, model: string): Promise<void> {
+  async generate(id: number, make: string, model: string, userId: number | null = null, orgId: number | null = null): Promise<void> {
     try {
       if (!this.client) throw new Error('GEMINI_API_KEY is not configured');
-      const response = await this.client.models.generateContent({
-        model: this.model,
-        contents: [{ role: 'user', parts: [{ text: PROMPT(make, model) }] }],
-        config: { temperature: 0.4, httpOptions: { timeout: 60_000 } },
-      });
-      const raw = extractSvg(response.text ?? '');
+      const client = this.client;
+      // Over quota: skip silently (null) — the row goes back to FAILED below and is retried later.
+      const text = await this.aiUsage.run(
+        { feature: 'vehicle_silhouette', userId, orgId, provider: 'gemini', model: this.model, onLimit: 'skip' },
+        async () => {
+          const response = await client.models.generateContent({
+            model: this.model,
+            contents: [{ role: 'user', parts: [{ text: PROMPT(make, model) }] }],
+            config: { temperature: 0.4, maxOutputTokens: MAX_OUTPUT_TOKENS, httpOptions: { timeout: 60_000 } },
+          });
+          const usage = response.usageMetadata;
+          return {
+            result: response.text ?? '',
+            inputTokens: usage?.promptTokenCount ?? 0,
+            outputTokens: (usage?.candidatesTokenCount ?? 0) + (usage?.thoughtsTokenCount ?? 0),
+          };
+        },
+      );
+      if (text === null) throw new Error(QUOTA_SKIPPED);
+      const raw = extractSvg(text);
       if (!raw) throw new Error('Model response contained no <svg>');
       const svg = sanitizeSvg(raw);
       await this.prisma.vehicleSilhouette.update({
@@ -144,7 +165,13 @@ export class VehicleSilhouetteService {
       });
     } catch (err) {
       const message = (err instanceof Error ? err.message : String(err)).slice(0, 500);
-      this.logger.error(`Silhouette generation failed for ${make} ${model}: ${message}`);
+      if (message === QUOTA_SKIPPED) {
+        // Not a real attempt: hand the attempt back so a later request can retry once the quota resets.
+        this.logger.warn(`Silhouette generation for ${make} ${model} skipped: AI quota reached.`);
+        await this.prisma.vehicleSilhouette.updateMany({ where: { id, attempts: { gt: 0 } }, data: { attempts: { decrement: 1 } } }).catch(() => undefined);
+      } else {
+        this.logger.error(`Silhouette generation failed for ${make} ${model}: ${message}`);
+      }
       // A failed regeneration must not blank out a previously good silhouette.
       const current = await this.prisma.vehicleSilhouette.findUnique({ where: { id }, select: { svg: true } });
       await this.prisma.vehicleSilhouette
@@ -153,8 +180,11 @@ export class VehicleSilhouetteService {
     }
   }
 
-  private runInBackground(id: number, make: string, model: string): void {
-    void this.generate(id, make, model);
+  private runInBackground(id: number, make: string, model: string, userId: number | null): void {
+    // Capture the org now: the background job outlives the request's async context.
+    const ctx = getRequestSessionContext();
+    const orgId = ctx?.type === 'business' ? ctx.orgId : null;
+    void this.generate(id, make, model, userId, orgId);
   }
 
   private toResult(row: { status: VehicleSilhouetteStatus; svg: string | null } | null): VehicleSilhouetteResult {

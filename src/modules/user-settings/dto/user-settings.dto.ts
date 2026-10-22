@@ -15,4 +15,7 @@ export class UserSettingsDto {
 
     @ApiProperty({ example: [7], isArray: true })
     expiry_reminder_days: number[];
+
+    @ApiProperty({ example: true })
+    maintenance_reminders_enabled: boolean;
 }

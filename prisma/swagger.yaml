@@ -405,6 +405,46 @@ paths:
           description: "Not authenticated."
       tags:
         - "auth"
+  /api/legal/status:
+    get:
+      operationId: "LegalController_getStatus"
+      summary: "Current user's legal-acceptance status (current vs. accepted terms/privacy versions)"
+      parameters: []
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegalStatusDto"
+      tags:
+        - "legal"
+      security:
+        - bearer: []
+  /api/legal/accept:
+    post:
+      operationId: "LegalController_accept"
+      summary: "Accept the current terms + privacy policy versions"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcceptLegalDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegalStatusDto"
+        409:
+          description: "LEGAL_VERSION_OUTDATED — the accepted version is no longer current."
+      tags:
+        - "legal"
+      security:
+        - bearer: []
   /api/car/{carId}/deadline-order:
     get:
       operationId: "CarDeadlineOrderController_getOrder"
@@ -507,17 +547,17 @@ paths:
         - "car-maintenance-settings"
       security:
         - cookie: []
-  /api/car/{carId}/maintenance-settings/{category}:
+  /api/car/{carId}/maintenance-settings/{item}:
     put:
       operationId: "CarMaintenanceSettingsController_setSetting"
-      summary: "Update this user's tracked flag and/or custom interval for one category, within one maintenance profile, on a car"
+      summary: "Update this user's tracked flag and/or custom interval for one Plan item, within one maintenance profile, on a car"
       parameters:
         - name: "carId"
           required: true
           in: "path"
           schema:
             type: "number"
-        - name: "category"
+        - name: "item"
           required: true
           in: "path"
           schema:
@@ -918,6 +958,56 @@ paths:
                   $ref: "#/components/schemas/YearResponseDto"
       tags:
         - "vehicle-catalog"
+  /api/maintenance-record/extract-invoice:
+    post:
+      operationId: "MaintenanceRecordController_extractInvoice"
+      summary: "Extract one reconciled maintenance entry from 1-3 invoice / service report photos or PDFs (suggestion only, does not save)"
+      description: "All files must belong to ONE intervention (e.g. a parts invoice plus the workshop work order). Parts repeated across documents are counted once; totals are computed server-side. The user must review before saving."
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: "object"
+              required:
+                - "files"
+              properties:
+                files:
+                  type: "array"
+                  items:
+                    type: "string"
+                    format: "binary"
+                  maxItems: 3
+                car_id:
+                  type: "integer"
+                  description: "Optional: gives the model vehicle context."
+                lang:
+                  type: "string"
+                  enum:
+                    - "ro"
+                    - "en"
+                    - "ru"
+                  default: "ro"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceExtractionResultDto"
+        400:
+          description: "No files, too many files, or invalid car_id/lang."
+        415:
+          description: "Unsupported file type."
+        429:
+          description: "AI quota exceeded."
+        503:
+          description: "AI extraction service is temporarily unavailable."
+      tags:
+        - "maintenance-record"
+      security:
+        - bearer: []
   /api/maintenance-record/suggest-category:
     post:
       operationId: "MaintenanceRecordController_suggestCategory"
@@ -1140,6 +1230,11 @@ paths:
           in: "path"
           schema:
             type: "number"
+        - name: "download"
+          required: true
+          in: "query"
+          schema:
+            type: "string"
       responses:
         200:
           description: ""
@@ -2044,6 +2139,106 @@ paths:
         - "app-data"
       security:
         - cookie: []
+  /api/reminders/snooze:
+    post:
+      operationId: "ReminderSnoozeController_snooze"
+      summary: "Snooze the reminders of the item behind a notification (3 or 7 days, or null = do not remind again)"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SnoozeReminderDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SnoozeResultDto"
+      tags:
+        - "reminders"
+      security:
+        - cookie: []
+  /api/reminders/snooze/{notificationId}:
+    delete:
+      operationId: "ReminderSnoozeController_unsnooze"
+      summary: "Remove the snooze of the item behind a notification"
+      parameters:
+        - name: "notificationId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        204:
+          description: ""
+      tags:
+        - "reminders"
+      security:
+        - cookie: []
+  /api/reminders/car-mute/{carId}:
+    put:
+      operationId: "ReminderSnoozeController_muteCar"
+      summary: "Mute all reminders of a car for the current user (months 1|3|6, or null = until turned back on)"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MuteCarDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarMuteDto"
+      tags:
+        - "reminders"
+      security:
+        - cookie: []
+    delete:
+      operationId: "ReminderSnoozeController_unmuteCar"
+      summary: "Turn the reminders of a car back on for the current user"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        204:
+          description: ""
+      tags:
+        - "reminders"
+      security:
+        - cookie: []
+  /api/reminders/car-mutes:
+    get:
+      operationId: "ReminderSnoozeController_carMutes"
+      summary: "The current user's active car-level mutes"
+      parameters: []
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/CarMuteDto"
+      tags:
+        - "reminders"
+      security:
+        - cookie: []
   /api/car-note:
     post:
       operationId: "CarNoteController_createCarNote"
@@ -2330,6 +2525,49 @@ paths:
                 $ref: "#/components/schemas/NavDestinationDto"
       tags:
         - "nav-relay"
+  /api/n/{slug}/history:
+    get:
+      operationId: "NavRelayController_history"
+      summary: "Recent destinations shared on this channel"
+      parameters:
+        - name: "slug"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NavDestinationHistoryDto"
+      tags:
+        - "nav-relay"
+  /api/n/{slug}/history/{id}/resend:
+    post:
+      operationId: "NavRelayController_resend"
+      summary: "Resend a previous destination to the car"
+      parameters:
+        - name: "slug"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NavDestinationDto"
+      tags:
+        - "nav-relay"
   /api/p/{slug}:
     get:
       operationId: "CockpitProfileController_get"
@@ -2439,6 +2677,126 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/UpdateOrganizationFeaturesDto"
+      responses:
+        200:
+          description: ""
+      tags:
+        - "admin"
+      security:
+        - cookie: []
+  /api/admin/ai-usage:
+    get:
+      operationId: "AdminController_aiUsage"
+      summary: "AI usage and cost statistics for the admin page"
+      parameters: []
+      responses:
+        200:
+          description: ""
+      tags:
+        - "admin"
+      security:
+        - cookie: []
+  /api/admin/ai-settings:
+    get:
+      operationId: "AdminController_aiSettings"
+      summary: "Global AI limit settings"
+      parameters: []
+      responses:
+        200:
+          description: ""
+      tags:
+        - "admin"
+      security:
+        - cookie: []
+    put:
+      operationId: "AdminController_updateAiSettings"
+      summary: "Update global AI limit settings"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAiSettingsDto"
+      responses:
+        200:
+          description: ""
+      tags:
+        - "admin"
+      security:
+        - cookie: []
+  /api/admin/ai-users/{userId}/limit:
+    get:
+      operationId: "AdminController_aiUserLimit"
+      summary: "Per-user AI limit override (null when using defaults)"
+      parameters:
+        - name: "userId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        200:
+          description: ""
+      tags:
+        - "admin"
+      security:
+        - cookie: []
+    put:
+      operationId: "AdminController_setAiUserLimit"
+      summary: "Create/replace a per-user AI limit override"
+      parameters:
+        - name: "userId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAiUserLimitDto"
+      responses:
+        200:
+          description: ""
+      tags:
+        - "admin"
+      security:
+        - cookie: []
+    delete:
+      operationId: "AdminController_deleteAiUserLimit"
+      summary: "Remove a per-user AI limit override (back to defaults)"
+      parameters:
+        - name: "userId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        204:
+          description: ""
+      tags:
+        - "admin"
+      security:
+        - cookie: []
+  /api/admin/document-reminders/dry-run:
+    post:
+      operationId: "AdminController_documentRemindersDryRun"
+      summary: "Dry-run the document expiry reminder job (optionally for a simulated date) and list who would be notified"
+      parameters: []
+      responses:
+        200:
+          description: ""
+      tags:
+        - "admin"
+      security:
+        - cookie: []
+  /api/admin/maintenance-reminders/dry-run:
+    post:
+      operationId: "AdminController_maintenanceRemindersDryRun"
+      summary: "Dry-run the maintenance-due reminder job (optionally for a simulated date) and list who would be notified"
+      parameters: []
       responses:
         200:
           description: ""
@@ -3095,6 +3453,54 @@ paths:
         - "fleet-cost"
       security:
         - bearer: []
+  /api/account/export:
+    get:
+      operationId: "AccountController_exportMyData"
+      summary: "Download all personal data held about the calling user (GDPR Art. 15/20)"
+      parameters: []
+      responses:
+        200:
+          description: "A JSON file download."
+      tags:
+        - "account"
+      security:
+        - bearer: []
+  /api/account:
+    delete:
+      operationId: "AccountController_deleteMyAccount"
+      summary: "Permanently delete the calling user's account and personal data (GDPR Art. 17)"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteAccountDto"
+      responses:
+        200:
+          description: "Account deleted."
+        400:
+          description: "ACCOUNT_DELETE_CONFIRMATION_MISMATCH"
+        403:
+          description: "ACCOUNT_COMPANY_MANAGED"
+        409:
+          description: "ACCOUNT_OWNS_ORGANIZATION"
+      tags:
+        - "account"
+      security:
+        - bearer: []
+  /api/ai-usage/me:
+    get:
+      operationId: "AiUsageController_me"
+      summary: "Current user's AI usage against daily/monthly budgets"
+      parameters: []
+      responses:
+        200:
+          description: ""
+      tags:
+        - "ai-usage"
+      security:
+        - cookie: []
 info:
   title: "History Auto Utility API"
   description: "API documentation for History Auto Utility"
@@ -3249,6 +3655,7 @@ components:
             - "CAR_ACCESS_ROLE_CHANGED"
             - "CAR_ACCESS_ACCEPTED"
             - "DOCUMENT_EXPIRING"
+            - "MAINTENANCE_DUE"
             - "VIN_CONFLICT"
             - "LICENSE_PLATE_CONFLICT"
             - "ORG_INVITED"
@@ -3256,6 +3663,7 @@ components:
             - "BUSINESS_ACCESS_REQUESTED"
             - "BUSINESS_ACCESS_APPROVED"
             - "BUSINESS_ACCESS_REJECTED"
+            - "AI_QUOTA_BLOCKED"
         data:
           type: "object"
         read_at:
@@ -3331,6 +3739,47 @@ components:
       required:
         - "currentPassword"
         - "newPassword"
+    LegalStatusDto:
+      type: "object"
+      properties:
+        termsVersion:
+          type: "string"
+          example: "2026-10-10"
+          description: "Current terms version (CURRENT_TERMS_VERSION)."
+        privacyVersion:
+          type: "string"
+          example: "2026-10-10"
+          description: "Current privacy policy version (CURRENT_PRIVACY_VERSION)."
+        acceptedTermsVersion:
+          type: "string"
+          nullable: true
+        acceptedPrivacyVersion:
+          type: "string"
+          nullable: true
+        acceptedAt:
+          type: "string"
+          nullable: true
+        needsAcceptance:
+          type: "boolean"
+          description: "True unless the accepted terms AND privacy versions both equal the current ones."
+      required:
+        - "termsVersion"
+        - "privacyVersion"
+        - "needsAcceptance"
+    AcceptLegalDto:
+      type: "object"
+      properties:
+        termsVersion:
+          type: "string"
+          example: "2026-10-10"
+          description: "Must equal the current terms version (CURRENT_TERMS_VERSION) or the request is rejected."
+        privacyVersion:
+          type: "string"
+          example: "2026-10-10"
+          description: "Must equal the current privacy policy version (CURRENT_PRIVACY_VERSION) or the request is rejected."
+      required:
+        - "termsVersion"
+        - "privacyVersion"
     DeadlineOrderDto:
       type: "object"
       properties:
@@ -3383,6 +3832,30 @@ components:
             type: "string"
       required:
         - "dismissed"
+    PlanItemKey:
+      type: "string"
+      description: "Plan items this record resets"
+      enum:
+        - "ENGINE_OIL"
+        - "AIR_FILTER"
+        - "CABIN_FILTER"
+        - "FUEL_FILTER"
+        - "GEARBOX_OIL"
+        - "DIFFERENTIAL_OIL"
+        - "BRAKE_FLUID"
+        - "COOLANT"
+        - "POWER_STEERING_FLUID"
+        - "AC_SERVICE"
+        - "TIRES"
+        - "INSPECTION"
+        - "TIMING_BELT"
+        - "BRAKE_PARTS"
+        - "BATTERY"
+        - "LIGHTS"
+        - "SUSPENSION"
+        - "ENGINE_REPAIR"
+        - "BODYWORK"
+        - "ELECTRICAL"
     MaintenanceSettingDto:
       type: "object"
       properties:
@@ -3390,26 +3863,13 @@ components:
           type: "number"
           example: 1
           description: "Which MaintenanceProfile this override belongs to"
-        category:
-          type: "string"
-          example: "OIL_CHANGE"
-          enum:
-            - "OIL_CHANGE"
-            - "BRAKE_SERVICE"
-            - "TRANSMISSION_SERVICE"
-            - "TIRE_SERVICE"
-            - "FLUID_SERVICE"
-            - "ENGINE_SERVICE"
-            - "INSPECTION"
-            - "BATTERY_SERVICE"
-            - "FILTER_SERVICE"
-            - "LIGHT_SERVICE"
-            - "COMBUSTIBIL"
-            - "OTHER"
+        item:
+          example: "ENGINE_OIL"
+          $ref: "#/components/schemas/PlanItemKey"
         tracked:
           type: "boolean"
           example: true
-          description: "Whether this category should show a progress bar / notify the user"
+          description: "Whether this item should show a progress bar / notify the user"
         interval_km:
           type: "number"
           nullable: true
@@ -3420,6 +3880,11 @@ components:
           nullable: true
           example: 12
           description: "Resolved interval: custom value if set, otherwise the global default"
+        interval_oil_changes:
+          type: "number"
+          nullable: true
+          example: 2
+          description: "Resolved interval in engine-oil changes (e.g. diesel fuel filter): custom value if set, otherwise the catalog default"
         is_custom_km:
           type: "boolean"
           example: false
@@ -3428,12 +3893,17 @@ components:
           type: "boolean"
           example: false
           description: "True if interval_months came from a user override rather than the global default"
+        is_custom_oil_changes:
+          type: "boolean"
+          example: false
+          description: "True if interval_oil_changes came from a user override rather than the catalog default"
       required:
         - "profile_id"
-        - "category"
+        - "item"
         - "tracked"
         - "is_custom_km"
         - "is_custom_months"
+        - "is_custom_oil_changes"
     UpdateMaintenanceSettingDto:
       type: "object"
       properties:
@@ -3449,6 +3919,11 @@ components:
           type: "number"
           nullable: true
           example: 12
+          description: "Send null to clear the override and fall back to the default"
+        custom_interval_oil_changes:
+          type: "number"
+          nullable: true
+          example: 2
           description: "Send null to clear the override and fall back to the default"
     MaintenanceProfileDto:
       type: "object"
@@ -3483,6 +3958,12 @@ components:
           example: "Iarnă"
       required:
         - "name"
+    DrivetrainType:
+      type: "string"
+      enum:
+        - "FRONT"
+        - "REAR"
+        - "ALL_WHEEL"
     AddCarDto:
       type: "object"
       properties:
@@ -3527,6 +4008,27 @@ components:
             - "MANUAL"
             - "AUTOMATIC"
             - "SEMI_AUTOMATIC"
+        drivetrain:
+          example: "FRONT"
+          nullable: true
+          $ref: "#/components/schemas/DrivetrainType"
+        engine_oil_viscosity:
+          type: "string"
+          example: "5W-30"
+          enum:
+            - "0W-16"
+            - "0W-20"
+            - "0W-30"
+            - "0W-40"
+            - "5W-20"
+            - "5W-30"
+            - "5W-40"
+            - "10W-40"
+            - "10W-60"
+            - "15W-40"
+            - "20W-50"
+          nullable: true
+          description: "Engine oil viscosity grade; sets the engine-oil change interval in the Plan"
         engine:
           type: "string"
           example: "2.0L Turbo"
@@ -3651,6 +4153,14 @@ components:
             - "MANUAL"
             - "AUTOMATIC"
             - "SEMI_AUTOMATIC"
+        drivetrain:
+          example: "FRONT"
+          nullable: true
+          $ref: "#/components/schemas/DrivetrainType"
+        engine_oil_viscosity:
+          type: "string"
+          example: "5W-30"
+          nullable: true
         engine:
           type: "string"
           example: "2.0L Turbo"
@@ -3774,6 +4284,221 @@ components:
         - "id"
         - "modelId"
         - "year"
+    InvoicePartDto:
+      type: "object"
+      properties:
+        name:
+          type: "string"
+        code:
+          type: "string"
+          nullable: true
+        quantity:
+          type: "number"
+        unit_price:
+          type: "number"
+          nullable: true
+        total:
+          type: "number"
+          nullable: true
+        source:
+          type: "number"
+          description: "0-based index of the uploaded file this line comes from."
+      required:
+        - "name"
+        - "code"
+        - "quantity"
+        - "unit_price"
+        - "total"
+        - "source"
+    InvoiceLaborDto:
+      type: "object"
+      properties:
+        description:
+          type: "string"
+        amount:
+          type: "number"
+        source:
+          type: "number"
+      required:
+        - "description"
+        - "amount"
+        - "source"
+    InvoiceTotalsDto:
+      type: "object"
+      properties:
+        parts:
+          type: "number"
+        labor:
+          type: "number"
+        other:
+          type: "number"
+        discount:
+          type: "number"
+          description: "Positive number; subtracted in grand_total."
+        grand_total:
+          type: "number"
+          description: "parts + labor + other - discount, 2 decimals. This is the cost for the form."
+        documents_total:
+          type: "number"
+          nullable: true
+          description: "Sum of the documents' own printed grand totals (deduplicated)."
+      required:
+        - "parts"
+        - "labor"
+        - "other"
+        - "discount"
+        - "grand_total"
+        - "documents_total"
+    InvoiceDocumentDto:
+      type: "object"
+      properties:
+        index:
+          type: "number"
+        kind:
+          type: "string"
+          enum:
+            - "parts_invoice"
+            - "service_report"
+            - "receipt"
+            - "other"
+            - "unreadable"
+        supplier_name:
+          type: "string"
+          nullable: true
+        number:
+          type: "string"
+          nullable: true
+        date:
+          type: "string"
+          nullable: true
+          description: "YYYY-MM-DD"
+        total:
+          type: "number"
+          nullable: true
+        currency:
+          type: "string"
+          nullable: true
+      required:
+        - "index"
+        - "kind"
+        - "supplier_name"
+        - "number"
+        - "date"
+        - "total"
+        - "currency"
+    InvoiceWarningDto:
+      type: "object"
+      properties:
+        code:
+          type: "string"
+          enum:
+            - "TOTAL_MISMATCH"
+            - "MIXED_CURRENCY"
+            - "DUPLICATES_MERGED"
+            - "UNREADABLE_DOCUMENT"
+            - "MISSING_PRICES"
+            - "VAT_UNCLEAR"
+        params:
+          type: "object"
+          additionalProperties: true
+      required:
+        - "code"
+    InvoiceExtractionResultDto:
+      type: "object"
+      properties:
+        detected:
+          type: "boolean"
+        service_type:
+          type: "string"
+          enum:
+            - "REPAIR"
+            - "MAINTENANCE"
+            - "IMPROVEMENT"
+            - "PASSION"
+          nullable: true
+        service_category:
+          type: "string"
+          enum:
+            - "OIL_CHANGE"
+            - "BRAKE_SERVICE"
+            - "TRANSMISSION_SERVICE"
+            - "TIRE_SERVICE"
+            - "FLUID_SERVICE"
+            - "ENGINE_SERVICE"
+            - "INSPECTION"
+            - "BATTERY_SERVICE"
+            - "FILTER_SERVICE"
+            - "LIGHT_SERVICE"
+            - "OTHER"
+          nullable: true
+        plan_items:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/PlanItemKey"
+        custom_items:
+          description: "Short free-text labels for work that maps to no plan item (max 5, each <= 40 chars; empty when none)."
+          type: "array"
+          items:
+            type: "string"
+        title:
+          type: "string"
+          nullable: true
+        notes:
+          type: "string"
+          nullable: true
+          description: "Plain text, newline-separated lines."
+        service_date:
+          type: "string"
+          nullable: true
+          description: "YYYY-MM-DD"
+        mileage:
+          type: "number"
+          nullable: true
+        supplier_name:
+          type: "string"
+          nullable: true
+        currency:
+          type: "string"
+          enum:
+            - "RON"
+            - "EUR"
+            - "USD"
+            - "MDL"
+        parts:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/InvoicePartDto"
+        labor:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/InvoiceLaborDto"
+        totals:
+          $ref: "#/components/schemas/InvoiceTotalsDto"
+        documents:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/InvoiceDocumentDto"
+        warnings:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/InvoiceWarningDto"
+      required:
+        - "detected"
+        - "service_type"
+        - "service_category"
+        - "plan_items"
+        - "custom_items"
+        - "title"
+        - "notes"
+        - "service_date"
+        - "mileage"
+        - "supplier_name"
+        - "currency"
+        - "parts"
+        - "labor"
+        - "totals"
+        - "documents"
+        - "warnings"
     SuggestCategoryDto:
       type: "object"
       properties:
@@ -3836,6 +4561,11 @@ components:
         price:
           type: "number"
           example: 76
+        currency:
+          type: "string"
+          nullable: true
+          example: "EUR"
+          description: "Currency of the price; null/omitted = same as the record currency"
       required:
         - "id"
         - "name"
@@ -3915,6 +4645,10 @@ components:
           format: "date-time"
           type: "string"
           example: "Insurance"
+        reminder_title:
+          type: "string"
+          example: "Tire swap"
+          nullable: true
         is_diy:
           type: "boolean"
           example: false
@@ -3938,10 +4672,32 @@ components:
           type: "number"
           example: 18.2
           description: "Computed energy consumption (kWh/100km) vs. the previous ALIMENTARE charging record for the same car, when available"
+        parts_cost:
+          type: "number"
+          nullable: true
+          example: 300
+          description: "User override of the parts total; null = automatic sum"
+        parts_cost_currency:
+          type: "string"
+          nullable: true
+          example: "RON"
         parts:
           type: "array"
           items:
             $ref: "#/components/schemas/MaintenancePartDto"
+        plan_items:
+          type: "array"
+          example:
+            - "ENGINE_OIL"
+          items:
+            $ref: "#/components/schemas/PlanItemKey"
+        custom_items:
+          example:
+            - "Replaced wiper blades"
+          description: "Free-text work items typed by the user"
+          type: "array"
+          items:
+            type: "string"
         attachmentsCount:
           type: "number"
           example: 2
@@ -3953,6 +4709,11 @@ components:
           example: 1
           nullable: true
           description: "Supplier directory entry (garage/workshop) that carried out this work"
+        service_name:
+          type: "string"
+          example: "Auto Service Popescu"
+          nullable: true
+          description: "Free-text workshop name (personal records)"
       required:
         - "id"
         - "car_id"
@@ -3963,9 +4724,12 @@ components:
         - "cost"
         - "currency"
         - "expiry_date"
+        - "reminder_title"
         - "is_diy"
         - "is_company_expense"
         - "parts"
+        - "plan_items"
+        - "custom_items"
         - "attachmentsCount"
     MaintenancePartInputDto:
       type: "object"
@@ -3983,6 +4747,11 @@ components:
         price:
           type: "number"
           example: 76
+        currency:
+          type: "string"
+          nullable: true
+          example: "EUR"
+          description: "Currency of the price; null/omitted = same as the record currency"
       required:
         - "name"
     CreateMaintenanceRecordDto:
@@ -4025,6 +4794,21 @@ components:
             - "LIGHT_SERVICE"
             - "COMBUSTIBIL"
             - "OTHER"
+        plan_items:
+          type: "array"
+          example:
+            - "ENGINE_OIL"
+            - "AIR_FILTER"
+          items:
+            $ref: "#/components/schemas/PlanItemKey"
+        custom_items:
+          example:
+            - "Replaced wiper blades"
+          maxItems: 10
+          description: "Free-text work items typed by the user (max 10, 1-60 chars each, trimmed, deduped case-insensitively). On update, when provided it replaces the whole array; when omitted it is left unchanged."
+          type: "array"
+          items:
+            type: "string"
         cost:
           type: "number"
           example: 250
@@ -4035,6 +4819,12 @@ components:
         expiry_date:
           type: "string"
           example: "2024-01-01"
+        reminder_title:
+          type: "string"
+          example: "Tire swap"
+          nullable: true
+          maxLength: 80
+          description: "Name of the reminder date; cleared server-side when expiry_date is cleared."
         is_diy:
           type: "boolean"
           example: false
@@ -4050,6 +4840,26 @@ components:
           type: "boolean"
           example: false
           description: "Whether this expense is a company expense (reimbursable)"
+        labor_cost:
+          type: "number"
+          example: 150
+          nullable: true
+          description: "Labor (manopera) amount, in the record currency"
+        parts_cost:
+          type: "number"
+          example: 300
+          nullable: true
+          description: "User override of the parts total. null/omitted (with parts_cost_currency null) = automatic sum of the parts."
+        parts_cost_currency:
+          type: "string"
+          example: "RON"
+          nullable: true
+          description: "Currency of parts_cost; stored null whenever parts_cost is null."
+        notes:
+          type: "string"
+          example: "Changed oil and filters, checked brakes"
+          nullable: true
+          description: "Free multi-line description of the work done"
         parts:
           type: "array"
           items:
@@ -4059,6 +4869,12 @@ components:
           example: 1
           nullable: true
           description: "Supplier directory entry (garage/workshop) that carried out this work. Must be a supplier the caller can see."
+        service_name:
+          type: "string"
+          example: "Auto Service Popescu"
+          nullable: true
+          maxLength: 80
+          description: "Free-text workshop name (personal context). Ignored and stored as null when supplier_id is set."
       required:
         - "car_id"
         - "service_date"
@@ -4089,6 +4905,7 @@ components:
           enum:
             - "car"
             - "maintenance"
+            - "maintenance_invoice"
             - "document"
             - "inspection"
             - "journal"
@@ -5411,12 +6228,16 @@ components:
           type: "array"
           items:
             type: "array"
+        maintenance_reminders_enabled:
+          type: "boolean"
+          example: true
       required:
         - "language"
         - "theme"
         - "view_mode"
         - "expiry_reminders_enabled"
         - "expiry_reminder_days"
+        - "maintenance_reminders_enabled"
     UpdateUserSettingsDto:
       type: "object"
       properties:
@@ -5426,6 +6247,7 @@ components:
           enum:
             - "en"
             - "ro"
+            - "ru"
         theme:
           type: "string"
           example: "auto"
@@ -5446,13 +6268,21 @@ components:
           type: "array"
           example:
             - 7
+            - 3
+            - 1
+            - 0
           items:
             type: "number"
             enum:
+              - 0
               - 1
+              - 3
               - 7
               - 14
               - 30
+        maintenance_reminders_enabled:
+          type: "boolean"
+          example: true
     NavigationPrefsDto:
       type: "object"
       properties:
@@ -5513,6 +6343,57 @@ components:
       required:
         - "enabled_features"
         - "navigation"
+    SnoozeReminderDto:
+      type: "object"
+      properties:
+        notificationId:
+          type: "number"
+          description: "A DOCUMENT_EXPIRING or MAINTENANCE_DUE notification of the current user"
+        days:
+          type: "number"
+          nullable: true
+          enum:
+            - 7
+            - 30
+          description: "Days to stay silent; null = do not remind again for this item/cycle"
+      required:
+        - "notificationId"
+        - "days"
+    SnoozeResultDto:
+      type: "object"
+      properties:
+        until:
+          format: "date-time"
+          type: "string"
+          nullable: true
+      required:
+        - "until"
+    MuteCarDto:
+      type: "object"
+      properties:
+        months:
+          type: "number"
+          nullable: true
+          enum:
+            - 1
+            - 3
+            - 6
+          description: "Months to mute the car for; null = until turned back on"
+      required:
+        - "months"
+    CarMuteDto:
+      type: "object"
+      properties:
+        carId:
+          type: "number"
+        until:
+          format: "date-time"
+          type: "string"
+          nullable: true
+          description: "Muted until this moment; null = until turned back on"
+      required:
+        - "carId"
+        - "until"
     CarNoteChecklistItemDto:
       type: "object"
       properties:
@@ -5828,6 +6709,15 @@ components:
           type: "number"
           example: 1721400000
           description: "Unix seconds when it was shared."
+    NavDestinationHistoryDto:
+      type: "object"
+      properties:
+        items:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/NavDestinationDto"
+      required:
+        - "items"
     CockpitProfileDto:
       type: "object"
       properties:
@@ -5893,6 +6783,35 @@ components:
           type: "boolean"
         driver_assignment:
           type: "boolean"
+    UpdateAiSettingsDto:
+      type: "object"
+      properties:
+        limitsEnabled:
+          type: "boolean"
+        burstPerMinute:
+          type: "number"
+        userDailyBudgetUsd:
+          type: "number"
+        userMonthlyBudgetUsd:
+          type: "number"
+        globalDailyBudgetUsd:
+          type: "number"
+        warnPercent:
+          type: "number"
+    UpdateAiUserLimitDto:
+      type: "object"
+      properties:
+        dailyBudgetUsd:
+          type: "number"
+          nullable: true
+        monthlyBudgetUsd:
+          type: "number"
+          nullable: true
+        blocked:
+          type: "boolean"
+        note:
+          type: "string"
+          nullable: true
     RegenerateSilhouetteDto:
       type: "object"
       properties: {}
@@ -6459,3 +7378,11 @@ components:
         - "carCount"
         - "byMonth"
         - "byCar"
+    DeleteAccountDto:
+      type: "object"
+      properties:
+        confirmation:
+          type: "string"
+          description: "Must equal the account's own email address (case-insensitive), to confirm an irreversible deletion."
+      required:
+        - "confirmation"

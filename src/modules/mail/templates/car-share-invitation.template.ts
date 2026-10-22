@@ -13,15 +13,32 @@ export interface RenderedEmail {
 }
 
 const ROLE_LABELS: Record<string, Record<MailLang, string>> = {
-  OWNER: { ro: 'Proprietar', en: 'Owner' },
-  FULL: { ro: 'acces complet', en: 'full access' },
-  USER: { ro: 'acces utilizator', en: 'user access' },
-  MAINTENANCE: { ro: 'acces mentenanță', en: 'maintenance access' },
-  VIEWER: { ro: 'acces de vizualizare', en: 'view access' },
+  OWNER: { ro: 'Proprietar', en: 'Owner', ru: 'Владелец' },
+  FULL: { ro: 'acces complet', en: 'full access', ru: 'полным доступом' },
+  USER: { ro: 'acces utilizator', en: 'user access', ru: 'доступом пользователя' },
+  MAINTENANCE: { ro: 'acces mentenanță', en: 'maintenance access', ru: 'доступом к обслуживанию' },
+  VIEWER: { ro: 'acces de vizualizare', en: 'view access', ru: 'доступом для просмотра' },
 };
 
 export function carShareInvitationEmail(lang: MailLang, data: CarShareInvitationData): RenderedEmail {
   const roleLabel = ROLE_LABELS[data.role]?.[lang] ?? data.role;
+
+  if (lang === 'ru') {
+    return {
+      subject: `${data.inviterName} поделился(-ась) с вами автомобилем в HAU App`,
+      html: renderEmailLayout(
+        'ru',
+        `
+        <p>Здравствуйте!</p>
+        <p><strong>${data.inviterName}</strong> поделился(-ась) с вами автомобилем <strong>${data.carLabel}</strong> в HAU App: ${roleLabel}.</p>
+        <p>Войдите в свой аккаунт, чтобы просмотреть и принять приглашение.</p>
+        <p style="margin-top:24px;">
+          <a href="${data.appUrl}" style="background:#2563eb;color:#ffffff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Открыть HAU App</a>
+        </p>
+        `,
+      ),
+    };
+  }
 
   if (lang === 'en') {
     return {

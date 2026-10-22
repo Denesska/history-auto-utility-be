@@ -94,9 +94,13 @@ export class UploadService {
     };
   }
 
-  async getReadUrl(userId: number, fileId: number): Promise<ReadUrlResponseDto> {
+  async getReadUrl(userId: number, fileId: number, download = false): Promise<ReadUrlResponseDto> {
     const record = await this.findOwnedRecord(userId, fileId);
-    const readUrl = await this.storage.createPresignedGetUrl(record.file_key, this.expiresIn);
+    const readUrl = await this.storage.createPresignedGetUrl(
+      record.file_key,
+      this.expiresIn,
+      download ? record.original_file_name : undefined,
+    );
     return { readUrl, expiresIn: this.expiresIn };
   }
 

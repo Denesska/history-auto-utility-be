@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
-import { CarStatus, FuelType, TransmissionType } from '@prisma/client';
+import { CarStatus, DrivetrainType, FuelType, TransmissionType } from '@prisma/client';
 
 export class CarPhotoDto {
   @ApiProperty({ example: 1 })
@@ -51,6 +51,14 @@ export class CarDto {
   @ApiProperty({ example: 'MANUAL', enum: TransmissionType })
   @IsOptional()
   transmission?: TransmissionType | null;
+
+  @ApiProperty({ example: 'FRONT', enum: DrivetrainType, enumName: 'DrivetrainType', required: false, nullable: true })
+  @IsOptional()
+  drivetrain?: DrivetrainType | null;
+
+  @ApiProperty({ example: '5W-30', required: false, nullable: true })
+  @IsOptional()
+  engine_oil_viscosity?: string | null;
 
   @ApiProperty({ example: '2.0L Turbo' })
   @IsOptional()

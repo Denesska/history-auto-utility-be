@@ -1,3 +1,4 @@
+import { AiCallReporter } from '../../common/ai/ai-call-report';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ParseResult } from './parsers/document-parser.interface';
@@ -68,13 +69,14 @@ export class CloudflareExtractionService {
         return Boolean(this.token && (this.accountId || this.gatewayUrl));
     }
 
-    async extract(buffer: Buffer, mimeType: string): Promise<ParseResult | null> {
+    async extract(buffer: Buffer, mimeType: string, onUsage?: AiCallReporter): Promise<ParseResult | null> {
         if (!this.isConfigured()) return null;
         if (!SUPPORTED_IMAGE_MIME_TYPES.has(mimeType)) return null;
 
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
+        let reported = false;
         try {
             const response = await fetch(this.endpoint(), {
                 method: 'POST',
@@ -101,6 +103,8 @@ export class CloudflareExtractionService {
             });
 
             if (!response.ok) {
+                reported = true;
+                onUsage?.({ model: this.model, inputTokens: 0, outputTokens: 0, status: 'error' });
                 if (response.status === 429 || response.status >= 500) {
                     this.logger.error(`Cloudflare document extraction unavailable (http_${response.status}).`);
                     throw new CloudflareExtractionUnavailableError();
@@ -110,6 +114,13 @@ export class CloudflareExtractionService {
             }
 
             const body = (await response.json()) as CloudflareAiResponse;
+            reported = true;
+            onUsage?.({
+                model: this.model,
+                inputTokens: body?.result?.usage?.prompt_tokens ?? body?.usage?.prompt_tokens ?? 0,
+                outputTokens: body?.result?.usage?.completion_tokens ?? body?.usage?.completion_tokens ?? 0,
+                status: body?.success === false ? 'error' : 'ok',
+            });
             if (body?.success === false) {
                 const codes = (body.errors ?? []).map((e) => e?.code ?? 'unknown').join(',');
                 this.logger.error(`Cloudflare document extraction failed (api_error codes=${codes || 'none'}).`);
@@ -130,6 +141,7 @@ export class CloudflareExtractionService {
                 warnings: Array.isArray(parsed.warnings) ? (parsed.warnings as string[]) : [],
             };
         } catch (err) {
+            if (!reported) onUsage?.({ model: this.model, inputTokens: 0, outputTokens: 0, status: 'error' });
             if (err instanceof CloudflareExtractionUnavailableError) throw err;
             if (this.isTransient(err)) {
                 this.logger.error(`Cloudflare document extraction unreachable (${err instanceof Error ? err.name : 'unknown'}).`);
@@ -182,6 +194,12 @@ interface CloudflareAiChoice {
 interface CloudflareAiResponse {
     success?: boolean;
     errors?: { code?: number | string; message?: string }[];
-    result?: { response?: string; choices?: CloudflareAiChoice[] };
+    result?: { response?: string; choices?: CloudflareAiChoice[]; usage?: CloudflareAiUsage };
     choices?: CloudflareAiChoice[];
+    usage?: CloudflareAiUsage;
+}
+
+interface CloudflareAiUsage {
+    prompt_tokens?: number;
+    completion_tokens?: number;
 }

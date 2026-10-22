@@ -12,7 +12,7 @@ import { NotificationType, OrganizationRole, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CarService } from '../car/car.service';
 import { MailService } from '../mail/mail.service';
-import { MailLang } from '../mail/templates/base-email.template';
+import { MailLang, resolveMailLang } from '../mail/templates/base-email.template';
 import { NotificationsService } from '../notifications/notifications.service';
 import { INVITABLE_ROLES, canAssignRole, canManageMember, canSeeMember } from '../../common/guards/organization/organization-roles';
 import { loginCodeBase } from '../../common/util/slugify.util';
@@ -193,7 +193,7 @@ export class OrganizationService {
       invitedByName: `${inviter.first_name} ${inviter.last_name}`.trim(),
     });
 
-    const lang: MailLang = target.settings?.language === 'en' ? 'en' : 'ro';
+    const lang: MailLang = resolveMailLang(target.settings?.language);
     await this.mailService.sendOrganizationInvitation(target.email, lang, {
       inviterName: `${inviter.first_name} ${inviter.last_name}`.trim(),
       organizationName: organization.name,

@@ -1,10 +1,15 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NavLinkResolver } from './nav-link.resolver';
 import { NavDestinationDto } from './dto/nav-destination.dto';
 
 // The slug stands in for authentication, so it must be long enough not to be guessed or scanned.
 const MIN_SLUG_LENGTH = 16;
+const MAX_DESTINATION_ID = 2_147_483_647;
 
 @Injectable()
 export class NavRelayService {
@@ -44,6 +49,49 @@ export class NavRelayService {
       orderBy: { id: 'desc' },
     });
     return row ? this.toDto(row) : {};
+  }
+
+  /** Recent share events for this channel, newest first. */
+  async history(slug: string): Promise<{ items: NavDestinationDto[] }> {
+    this.assertSlug(slug);
+    const rows = await this.prisma.navDestination.findMany({
+      where: { slug },
+      orderBy: { id: 'desc' },
+      take: 100,
+    });
+    return { items: rows.map((row) => this.toDto(row)) };
+  }
+
+  /** Resends a previous share as a new event so the car's increasing-id poll sees it. */
+  async resend(slug: string, id: number): Promise<NavDestinationDto> {
+    this.assertSlug(slug);
+    if (
+      !Number.isSafeInteger(id) ||
+      id <= 0 ||
+      id > MAX_DESTINATION_ID
+    ) {
+      throw new BadRequestException(
+        'Destination id must be a positive 32-bit integer',
+      );
+    }
+
+    const previous = await this.prisma.navDestination.findFirst({
+      where: { id, slug },
+    });
+    if (!previous) {
+      throw new NotFoundException('Destination not found');
+    }
+
+    const row = await this.prisma.navDestination.create({
+      data: {
+        slug,
+        name: previous.name,
+        lat: previous.lat,
+        lon: previous.lon,
+        raw_url: previous.raw_url,
+      },
+    });
+    return this.toDto(row);
   }
 
   private assertSlug(slug: string): void {

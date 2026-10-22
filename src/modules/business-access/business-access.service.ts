@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { BusinessAccessRequest, BusinessAccessRequestStatus, NotificationType, OrganizationRole } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
-import { MailLang } from '../mail/templates/base-email.template';
+import { MailLang, resolveMailLang } from '../mail/templates/base-email.template';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateBusinessAccessRequestDto } from './dto/create-business-access-request.dto';
 import { RejectBusinessAccessRequestDto } from './dto/reject-business-access-request.dto';
@@ -147,9 +147,16 @@ export class BusinessAccessService {
       .split(',')
       .map(s => s.trim())
       .filter(Boolean);
+    // Each recipient gets the alert in their own language: looked up by email, en when the address isn't a user (e.g. a shared inbox).
+    const recipientUsers = await this.prisma.user.findMany({
+      where: { email: { in: recipients } },
+      select: { email: true, settings: { select: { language: true } } },
+    });
+    const langByEmail = new Map(recipientUsers.map(u => [u.email.toLowerCase(), resolveMailLang(u.settings?.language)]));
+    const adminRecipients = recipients.map(to => ({ to, lang: langByEmail.get(to.toLowerCase()) ?? resolveMailLang(null) }));
     await Promise.all(
-      recipients.map(to =>
-        this.mailService.sendBusinessAccessRequested(to, 'ro', {
+      adminRecipients.map(({ to, lang }) =>
+        this.mailService.sendBusinessAccessRequested(to, lang, {
           requesterName,
           requesterEmail: user.email,
           companyName: request.company_name,
@@ -199,7 +206,7 @@ export class BusinessAccessService {
       company_name: request.company_name,
     });
 
-    const lang: MailLang = request.user.settings?.language === 'en' ? 'en' : 'ro';
+    const lang: MailLang = resolveMailLang(request.user.settings?.language);
     await this.mailService.sendBusinessAccessApproved(request.user.email, lang, {
       companyName: request.company_name,
       appUrl: this.configService.get<string>('FE_BASE_URL', 'http://localhost:4200'),
@@ -228,7 +235,7 @@ export class BusinessAccessService {
       reason,
     });
 
-    const lang: MailLang = request.user.settings?.language === 'en' ? 'en' : 'ro';
+    const lang: MailLang = resolveMailLang(request.user.settings?.language);
     await this.mailService.sendBusinessAccessRejected(request.user.email, lang, {
       companyName: request.company_name,
       reason,

@@ -1,99 +1,121 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { CarMaintenanceSetting, ServiceCategory } from '@prisma/client';
+import { CarMaintenanceSetting, PlanItemKey } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { DEFAULT_MAINTENANCE_INTERVALS } from '../maintenance-record/maintenance-interval.defaults';
+import { getPlanItemDefinitions, PlanItemCarInfo, PlanItemDefinition } from '../maintenance-record/plan-item.catalog';
 import { MaintenanceSettingDto } from './dto/maintenance-setting.dto';
 import { UpdateMaintenanceSettingDto } from './dto/update-maintenance-setting.dto';
 import { CarAccessService } from '../car-access/car-access.service';
+
+const CAR_INFO_SELECT = { fuel_type: true, transmission: true, drivetrain: true, engine_oil_viscosity: true } as const;
 
 @Injectable()
 export class CarMaintenanceSettingsService {
   constructor(private readonly prisma: PrismaService, private readonly carAccess: CarAccessService) {}
 
-  /** Every override the user has across every one of their profiles for this car, resolved against the defaults. */
+  /** Every item that applies to the car, with the user's overrides for this profile resolved against the catalog. */
   async getSettings(carId: number, userId: number, profileId: number): Promise<MaintenanceSettingDto[]> {
     await this.assertCanSeeCar(carId, userId);
     await this.assertCanSeeProfile(carId, userId, profileId);
 
+    const car = await this.getCarInfo(carId);
     const rows = await this.prisma.carMaintenanceSetting.findMany({ where: { car_id: carId, user_id: userId, profile_id: profileId } });
-    return this.mergeWithDefaults(profileId, rows);
+    return this.mergeWithDefaults(profileId, car, rows);
   }
 
   async setSetting(
     carId: number,
     userId: number,
     profileId: number,
-    category: ServiceCategory,
+    item: PlanItemKey,
     dto: UpdateMaintenanceSettingDto,
   ): Promise<MaintenanceSettingDto> {
     await this.assertCanSeeCar(carId, userId);
     await this.assertCanSeeProfile(carId, userId, profileId);
 
+    const car = await this.getCarInfo(carId);
+    const def = this.definitionFor(car, item);
+
     const existing = await this.prisma.carMaintenanceSetting.findUnique({
-      where: { car_id_user_id_profile_id_category: { car_id: carId, user_id: userId, profile_id: profileId, category } },
+      where: { car_id_user_id_profile_id_item: { car_id: carId, user_id: userId, profile_id: profileId, item } },
     });
 
-    const tracked = dto.tracked ?? existing?.tracked ?? true;
+    const defaultTracked = def?.trackedByDefault ?? true;
+    const tracked = dto.tracked ?? existing?.tracked ?? defaultTracked;
     const customKm = dto.custom_interval_km !== undefined ? dto.custom_interval_km : existing?.custom_interval_km ?? null;
     const customMonths = dto.custom_interval_months !== undefined ? dto.custom_interval_months : existing?.custom_interval_months ?? null;
+    const customOilChanges = dto.custom_interval_oil_changes !== undefined ? dto.custom_interval_oil_changes : existing?.custom_interval_oil_changes ?? null;
 
-    // Neutral state (nothing overridden) doesn't need a row at all — delete it
-    // rather than storing a no-op, so a reset leaves no stale state behind.
-    const isNeutral = tracked === true && customKm === null && customMonths === null;
+    // Neutral state (the car's catalog default, nothing overridden) doesn't need a row at
+    // all — delete it rather than storing a no-op, so a reset leaves no stale state behind.
+    const isNeutral = tracked === defaultTracked && customKm === null && customMonths === null && customOilChanges === null;
 
     let row: CarMaintenanceSetting | null;
     if (isNeutral) {
       if (existing) await this.prisma.carMaintenanceSetting.delete({ where: { id: existing.id } });
       row = null;
     } else {
+      const values = { tracked, custom_interval_km: customKm, custom_interval_months: customMonths, custom_interval_oil_changes: customOilChanges };
       row = await this.prisma.carMaintenanceSetting.upsert({
-        where: { car_id_user_id_profile_id_category: { car_id: carId, user_id: userId, profile_id: profileId, category } },
-        create: { car_id: carId, user_id: userId, profile_id: profileId, category, tracked, custom_interval_km: customKm, custom_interval_months: customMonths },
-        update: { tracked, custom_interval_km: customKm, custom_interval_months: customMonths },
+        where: { car_id_user_id_profile_id_item: { car_id: carId, user_id: userId, profile_id: profileId, item } },
+        create: { car_id: carId, user_id: userId, profile_id: profileId, item, ...values },
+        update: values,
       });
     }
 
-    return this.toDto(profileId, category, row);
+    return this.toDto(profileId, item, def, row);
   }
 
-  /** Sparse — only the categories actually overridden, across every car/profile the user can see. Used by bootstrap. */
+  /** Sparse — only the items actually overridden, across every car/profile the user can see. Used by bootstrap. */
   async getAllByUser(userId: number): Promise<Record<number, MaintenanceSettingDto[]>> {
     const carIds = await this.carAccess.getAccessibleCarIds(userId);
     const rows = await this.prisma.carMaintenanceSetting.findMany({
       where: { user_id: userId, car_id: { in: carIds } },
     });
+    if (!rows.length) return {};
 
-    const byCarId: Record<number, CarMaintenanceSetting[]> = {};
-    rows.forEach(r => {
-      if (!byCarId[r.car_id]) byCarId[r.car_id] = [];
-      byCarId[r.car_id].push(r);
+    const cars = await this.prisma.car.findMany({
+      where: { id: { in: [...new Set(rows.map(r => r.car_id))] } },
+      select: { id: true, ...CAR_INFO_SELECT },
     });
+    const carById = new Map(cars.map(c => [c.id, c]));
 
     const result: Record<number, MaintenanceSettingDto[]> = {};
-    Object.entries(byCarId).forEach(([carId, carRows]) => {
-      result[Number(carId)] = carRows.map(r => this.toDto(r.profile_id, r.category, r));
+    rows.forEach(r => {
+      const car = carById.get(r.car_id);
+      if (!car) return;
+      (result[r.car_id] ??= []).push(this.toDto(r.profile_id, r.item, this.definitionFor(car, r.item), r));
     });
     return result;
   }
 
-  private mergeWithDefaults(profileId: number, rows: CarMaintenanceSetting[]): MaintenanceSettingDto[] {
-    const byCategory = new Map(rows.map(r => [r.category, r]));
-    return (Object.keys(DEFAULT_MAINTENANCE_INTERVALS) as ServiceCategory[]).map(category =>
-      this.toDto(profileId, category, byCategory.get(category) ?? null),
-    );
+  private mergeWithDefaults(profileId: number, car: PlanItemCarInfo, rows: CarMaintenanceSetting[]): MaintenanceSettingDto[] {
+    const byItem = new Map(rows.map(r => [r.item, r]));
+    return getPlanItemDefinitions(car).map(def => this.toDto(profileId, def.key, def, byItem.get(def.key) ?? null));
   }
 
-  private toDto(profileId: number, category: ServiceCategory, row: CarMaintenanceSetting | null): MaintenanceSettingDto {
-    const def = DEFAULT_MAINTENANCE_INTERVALS[category];
+  /** `def` is undefined when the item doesn't apply to the car (stale override) — falls back to "no default interval". */
+  private toDto(profileId: number, item: PlanItemKey, def: PlanItemDefinition | undefined, row: CarMaintenanceSetting | null): MaintenanceSettingDto {
     return {
       profile_id: profileId,
-      category,
-      tracked: row?.tracked ?? true,
-      interval_km: row?.custom_interval_km ?? def.interval_km,
-      interval_months: row?.custom_interval_months ?? def.interval_months,
+      item,
+      tracked: row?.tracked ?? def?.trackedByDefault ?? true,
+      interval_km: row?.custom_interval_km ?? def?.km ?? null,
+      interval_months: row?.custom_interval_months ?? def?.months ?? null,
+      interval_oil_changes: row?.custom_interval_oil_changes ?? def?.oilChanges ?? null,
       is_custom_km: row?.custom_interval_km != null,
       is_custom_months: row?.custom_interval_months != null,
+      is_custom_oil_changes: row?.custom_interval_oil_changes != null,
     };
+  }
+
+  private definitionFor(car: PlanItemCarInfo, item: PlanItemKey): PlanItemDefinition | undefined {
+    return getPlanItemDefinitions(car).find(d => d.key === item);
+  }
+
+  private async getCarInfo(carId: number): Promise<PlanItemCarInfo> {
+    const car = await this.prisma.car.findUnique({ where: { id: carId }, select: CAR_INFO_SELECT });
+    if (!car) throw new NotFoundException('Car not found');
+    return car;
   }
 
   /**

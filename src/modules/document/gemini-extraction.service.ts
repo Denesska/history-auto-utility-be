@@ -1,3 +1,4 @@
+import { AiCallReporter } from '../../common/ai/ai-call-report';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI, Type } from '@google/genai';
@@ -5,6 +6,10 @@ import { ParseResult } from './parsers/document-parser.interface';
 import { DOCUMENT_EXTRACTION_PROMPT, DOCUMENT_TYPE_VALUES, KNOWN_DOCUMENT_TYPES } from './document-extraction.prompt';
 
 const PROMPT = DOCUMENT_EXTRACTION_PROMPT;
+
+// The JSON answer is ~1-2k tokens at most, but thinking models count their reasoning tokens against
+// maxOutputTokens, so a tight cap would truncate the JSON mid-way and lose the whole extraction.
+const MAX_OUTPUT_TOKENS = 8192;
 
 const EXTRACTED_FIELDS_SCHEMA = {
     type: Type.OBJECT,
@@ -105,9 +110,10 @@ export class GeminiExtractionService {
         }
     }
 
-    async extract(buffer: Buffer, mimeType: string): Promise<ParseResult | null> {
+    async extract(buffer: Buffer, mimeType: string, onUsage?: AiCallReporter): Promise<ParseResult | null> {
         if (!this.client) return null;
 
+        let reported = false;
         try {
             const response = await this.client.models.generateContent({
                 model: this.model,
@@ -121,8 +127,17 @@ export class GeminiExtractionService {
                     responseMimeType: 'application/json',
                     responseSchema: RESPONSE_SCHEMA,
                     temperature: 0,
+                    maxOutputTokens: MAX_OUTPUT_TOKENS,
                     httpOptions: { timeout: 90_000 },
                 },
+            });
+            reported = true;
+            const usage = response.usageMetadata;
+            onUsage?.({
+                model: this.model,
+                inputTokens: usage?.promptTokenCount ?? 0,
+                outputTokens: (usage?.candidatesTokenCount ?? 0) + (usage?.thoughtsTokenCount ?? 0),
+                status: 'ok',
             });
 
             const parsed = JSON.parse(response.text ?? '');
@@ -138,6 +153,7 @@ export class GeminiExtractionService {
                 warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
             };
         } catch (err) {
+            if (!reported) onUsage?.({ model: this.model, inputTokens: 0, outputTokens: 0, status: 'error' });
             const message = err instanceof Error ? err.message : String(err);
             this.logger.error(`Gemini extraction failed: ${message}`);
             if (this.isServiceUnavailable(err, message)) {

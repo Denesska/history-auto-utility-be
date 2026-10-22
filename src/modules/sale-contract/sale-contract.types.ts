@@ -1,3 +1,4 @@
+import { AiCallReporter } from '../../common/ai/ai-call-report';
 /**
  * Shared shapes for the sale-contract feature (ITL 054, Anexa nr. 2).
  *
@@ -150,7 +151,8 @@ export interface IdentityExtractionProvider {
     /** False when the provider's key isn't configured — treated as "disabled",
      *  never as a startup failure, matching GeminiExtractionService. */
     isConfigured(): boolean;
-    extract(image: Buffer, mimeType: string): Promise<IdentityExtractionResult | null>;
+    /** `onUsage` is called once per vendor request with its real token usage (AI usage accounting). */
+    extract(image: Buffer, mimeType: string, onUsage?: AiCallReporter): Promise<IdentityExtractionResult | null>;
 }
 
 /** Thrown when the chosen vendor is reachable but overloaded, so the API can

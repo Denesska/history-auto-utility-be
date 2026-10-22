@@ -10,7 +10,7 @@ import { ROLE_RANK } from '../../common/guards/car-access/car-access.guard';
 import { getRequestSessionContext } from '../../common/context/request-context';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
-import { MailLang } from '../mail/templates/base-email.template';
+import { MailLang, resolveMailLang } from '../mail/templates/base-email.template';
 import { NotificationsService } from '../notifications/notifications.service';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { ChangeRoleDto } from './dto/change-role.dto';
@@ -102,7 +102,7 @@ export class CarAccessService {
       include: this.accessInclude,
     });
 
-    const lang: MailLang = target.settings?.language === 'en' ? 'en' : 'ro';
+    const lang: MailLang = resolveMailLang(target.settings?.language);
     // The recipient here is the invitee, not the owner — their own private
     // nickname (if any) doesn't exist yet, and the owner's private label for
     // this car must never be shown to anyone else. Always make+model.

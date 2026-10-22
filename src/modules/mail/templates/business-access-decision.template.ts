@@ -13,6 +13,23 @@ export interface BusinessAccessRejectedData {
 }
 
 export function businessAccessApprovedEmail(lang: MailLang, data: BusinessAccessApprovedData): RenderedEmail {
+  if (lang === 'ru') {
+    return {
+      subject: 'Ваша заявка на бизнес-аккаунт одобрена',
+      html: renderEmailLayout(
+        'ru',
+        `
+        <p>Здравствуйте!</p>
+        <p>Ваша заявка на создание компании <strong>${data.companyName}</strong> в HAU App одобрена.</p>
+        <p>Теперь вы можете войти на вкладку Business и создать свою компанию.</p>
+        <p style="margin-top:24px;">
+          <a href="${data.appUrl}" style="background:#2563eb;color:#ffffff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Открыть HAU App</a>
+        </p>
+        `,
+      ),
+    };
+  }
+
   if (lang === 'en') {
     return {
       subject: 'Your business account request was approved',
@@ -47,6 +64,24 @@ export function businessAccessApprovedEmail(lang: MailLang, data: BusinessAccess
 }
 
 export function businessAccessRejectedEmail(lang: MailLang, data: BusinessAccessRejectedData): RenderedEmail {
+  if (lang === 'ru') {
+    return {
+      subject: 'Ваша заявка на бизнес-аккаунт не одобрена',
+      html: renderEmailLayout(
+        'ru',
+        `
+        <p>Здравствуйте!</p>
+        <p>Ваша заявка на создание компании <strong>${data.companyName}</strong> в HAU App не была одобрена.</p>
+        ${data.reason ? `<p><strong>Причина:</strong> ${data.reason}</p>` : ''}
+        <p>Вы можете отправить новую заявку в любое время.</p>
+        <p style="margin-top:24px;">
+          <a href="${data.appUrl}" style="background:#2563eb;color:#ffffff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Открыть HAU App</a>
+        </p>
+        `,
+      ),
+    };
+  }
+
   if (lang === 'en') {
     return {
       subject: 'Your business account request was not approved',

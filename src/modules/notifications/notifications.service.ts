@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Notification, NotificationType } from '@prisma/client';
 import { getRequestSessionContext } from '../../common/context/request-context';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -7,21 +7,42 @@ import { PushService } from './push.service';
 
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: NotificationsGateway,
     private readonly pushService: PushService,
   ) {}
 
-  async create(userId: number, type: NotificationType, data: Record<string, any>): Promise<Notification> {
+  /**
+   * `forcePush`: also send the push when the user has a live WebSocket (normally push is the
+   * offline fallback only). Push failures are then logged and swallowed, since the notification
+   * row is already saved and the caller must not treat the send as failed.
+   */
+  async create(
+    userId: number,
+    type: NotificationType,
+    data: Record<string, any>,
+    options: { forcePush?: boolean } = {},
+  ): Promise<Notification> {
     const notification = await this.prisma.notification.create({
       data: { user_id: userId, type, data },
     });
 
-    if (this.gateway.isUserConnected(userId)) {
-      this.gateway.emitToUser(userId, notification);
-    } else {
-      await this.pushService.sendToUser(userId, notification);
+    const connected = this.gateway.isUserConnected(userId);
+    if (connected) this.gateway.emitToUser(userId, notification);
+
+    if (!connected || options.forcePush) {
+      if (options.forcePush) {
+        try {
+          await this.pushService.sendToUser(userId, notification);
+        } catch (error) {
+          this.logger.error(`Push failed for notification ${notification.id}: ${(error as Error).message}`);
+        }
+      } else {
+        await this.pushService.sendToUser(userId, notification);
+      }
     }
 
     return notification;
@@ -35,11 +56,12 @@ export class NotificationsService {
    * for car-bound types, by the car's `organization_id`):
    * - ORG_INVITED / ORG_INVITE_ACCEPTED: business only;
    * - CAR_SHARED / CAR_ACCESS_*: personal only (personal car sharing);
-   * - DOCUMENT_EXPIRING / VIN_CONFLICT / LICENSE_PLATE_CONFLICT: follow their
+   * - DOCUMENT_EXPIRING / MAINTENANCE_DUE / VIN_CONFLICT / LICENSE_PLATE_CONFLICT: follow their
    *   car (personal if it has no organization, business if it belongs to the
    *   session's organization).
    * - BUSINESS_ACCESS_REQUESTED / BUSINESS_ACCESS_APPROVED / BUSINESS_ACCESS_REJECTED:
    *   account-level, not org-bound — visible in any context (personal or business).
+   * - AI_QUOTA_BLOCKED: app-admin only, account-level — visible in any context.
    * Outside an HTTP request (no context) nothing is filtered.
    */
   private async filterForContext<T extends { type: NotificationType; data: unknown }>(rows: T[]): Promise<T[]> {
@@ -48,6 +70,7 @@ export class NotificationsService {
 
     const carBound: NotificationType[] = [
       NotificationType.DOCUMENT_EXPIRING,
+      NotificationType.MAINTENANCE_DUE,
       NotificationType.VIN_CONFLICT,
       NotificationType.LICENSE_PLATE_CONFLICT,
     ];
@@ -66,7 +89,8 @@ export class NotificationsService {
       if (
         r.type === NotificationType.BUSINESS_ACCESS_REQUESTED ||
         r.type === NotificationType.BUSINESS_ACCESS_APPROVED ||
-        r.type === NotificationType.BUSINESS_ACCESS_REJECTED
+        r.type === NotificationType.BUSINESS_ACCESS_REJECTED ||
+        r.type === NotificationType.AI_QUOTA_BLOCKED
       ) {
         return true;
       }

@@ -6,9 +6,11 @@ import { GoogleStrategy } from './google.strategy';
 import { AuthController } from './auth.controller';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtStrategy } from './jwt.strategy';
+import { LegalModule } from '../legal/legal.module';
 
 @Module({
   imports: [
+    LegalModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

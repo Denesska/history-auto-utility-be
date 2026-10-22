@@ -1,8 +1,18 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+} from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { NavRelayService } from './nav-relay.service';
 import { SetNavDto } from './dto/set-nav.dto';
-import { NavDestinationDto } from './dto/nav-destination.dto';
+import {
+  NavDestinationDto,
+  NavDestinationHistoryDto,
+} from './dto/nav-destination.dto';
 
 /**
  * Phone -> car destination relay. Deliberately unauthenticated: the phone shares a Google Maps
@@ -29,5 +39,24 @@ export class NavRelayController {
   @ApiResponse({ status: 200, type: NavDestinationDto })
   async latest(@Param('slug') slug: string): Promise<NavDestinationDto> {
     return this.navRelayService.latest(slug);
+  }
+
+  @Get(':slug/history')
+  @ApiOperation({ summary: 'Recent destinations shared on this channel' })
+  @ApiResponse({ status: 200, type: NavDestinationHistoryDto })
+  async history(
+    @Param('slug') slug: string,
+  ): Promise<NavDestinationHistoryDto> {
+    return this.navRelayService.history(slug);
+  }
+
+  @Post(':slug/history/:id/resend')
+  @ApiOperation({ summary: 'Resend a previous destination to the car' })
+  @ApiResponse({ status: 201, type: NavDestinationDto })
+  async resend(
+    @Param('slug') slug: string,
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<NavDestinationDto> {
+    return this.navRelayService.resend(slug, id);
   }
 }

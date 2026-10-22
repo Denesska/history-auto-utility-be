@@ -12,7 +12,8 @@ const DEFAULT_SETTINGS = {
     theme: 'auto',
     view_mode: 'cards',
     expiry_reminders_enabled: true,
-    expiry_reminder_days: [7],
+    expiry_reminder_days: [7, 3, 1, 0],
+    maintenance_reminders_enabled: true,
 };
 
 /** One entry of `UserSettings.navigation_prefs`, keyed per session context. */
@@ -50,6 +51,7 @@ export class UserSettingsService {
             view_mode: settings.view_mode,
             expiry_reminders_enabled: settings.expiry_reminders_enabled,
             expiry_reminder_days: settings.expiry_reminder_days,
+            maintenance_reminders_enabled: settings.maintenance_reminders_enabled,
         };
     }
 
@@ -65,6 +67,7 @@ export class UserSettingsService {
             view_mode: settings.view_mode,
             expiry_reminders_enabled: settings.expiry_reminders_enabled,
             expiry_reminder_days: settings.expiry_reminder_days,
+            maintenance_reminders_enabled: settings.maintenance_reminders_enabled,
         };
     }
 

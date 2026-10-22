@@ -20,6 +20,8 @@ import { CarMaintenanceSettingsModule } from './modules/car-maintenance-settings
 import { CarMaintenanceProfilesModule } from './modules/car-maintenance-profiles/car-maintenance-profiles.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { DocumentRemindersModule } from './modules/document-reminders/document-reminders.module';
+import { ReminderSnoozeModule } from './modules/reminder-snooze/reminder-snooze.module';
+import { MaintenanceRemindersModule } from './modules/maintenance-reminders/maintenance-reminders.module';
 import { CarNoteModule } from './modules/car-note/car-note.module';
 import { CarWishModule } from './modules/car-wish/car-wish.module';
 import { NavRelayModule } from './modules/nav-relay/nav-relay.module';
@@ -34,6 +36,9 @@ import { DriverAssignmentModule } from './modules/driver-assignment/driver-assig
 import { FleetCostModule } from './modules/fleet-cost/fleet-cost.module';
 import { ContextEnforcementInterceptor, RequestContextMiddleware } from './common/context';
 import { FeatureEnforcementInterceptor, FeaturesModule } from './common/features';
+import { LegalEnforcementInterceptor, LegalModule } from './modules/legal';
+import { AccountModule } from './modules/account/account.module';
+import { AiUsageModule } from './modules/ai-usage/ai-usage.module';
 
 @Module({
   imports: [
@@ -58,6 +63,8 @@ import { FeatureEnforcementInterceptor, FeaturesModule } from './common/features
     BootstrapModule,
     NotificationsModule,
     DocumentRemindersModule,
+    MaintenanceRemindersModule,
+    ReminderSnoozeModule,
     CarNoteModule,
     CarWishModule,
     NavRelayModule,
@@ -71,6 +78,9 @@ import { FeatureEnforcementInterceptor, FeaturesModule } from './common/features
     SupplierModule,
     DriverAssignmentModule,
     FleetCostModule,
+    LegalModule,
+    AccountModule,
+    AiUsageModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: process.env.ENV_FILE ?? '.env',
@@ -85,6 +95,10 @@ import { FeatureEnforcementInterceptor, FeaturesModule } from './common/features
     // APP_GUARD: global guards run before the per-controller JwtAuthGuard, so
     // req.user would not exist yet. See ContextEnforcementInterceptor.
     { provide: APP_INTERCEPTOR, useClass: ContextEnforcementInterceptor },
+    // Enforces GDPR terms/privacy acceptance (@SkipLegalConsent() exempts a route). Independent
+    // of context/feature checks, but kept after the context interceptor for the same "req.user
+    // must already be known" reasoning.
+    { provide: APP_INTERCEPTOR, useClass: LegalEnforcementInterceptor },
     // Must stay AFTER the context interceptor: enforces @Feature(...) on the verified context.
     { provide: APP_INTERCEPTOR, useClass: FeatureEnforcementInterceptor },
   ],
@@ -96,3 +110,4 @@ export class AppModule implements NestModule {
     consumer.apply(RequestContextMiddleware).forRoutes('*');
   }
 }
+

@@ -34,7 +34,7 @@ export class VehicleSilhouetteController {
   @Scope('personal')
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'App admins only: regenerate a bad silhouette' })
-  regenerate(@Body() body: RegenerateSilhouetteDto): Promise<VehicleSilhouetteResult> {
-    return this.service.regenerate(body?.make, body?.model);
+  regenerate(@Req() req: RequestWithUser, @Body() body: RegenerateSilhouetteDto): Promise<VehicleSilhouetteResult> {
+    return this.service.regenerate(body?.make, body?.model, req.user.id);
   }
 }
