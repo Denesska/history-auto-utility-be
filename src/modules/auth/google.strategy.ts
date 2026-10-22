@@ -16,8 +16,14 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       clientSecret: configService.get<string>('GOOGLE_CLIENT_SECRET'),
       callbackURL: `${configService.get<string>('API_BASE_URL')}/api/auth/google/redirect`,
       scope: ['email', 'profile', 'openid'],
-      accessType: 'offline',
-      prompt: 'consent',
+      // NOTE: `accessType`/`prompt` are not valid `StrategyOptions` fields (they only
+      // apply to the per-request `AuthenticateOptionsGoogle`, e.g. via a guard's
+      // `getAuthenticateOptions()`) — passport-google-oauth20 has never read them from
+      // here, so dropping them from this constructor call changes no runtime behavior.
+      // The stricter @types/passport-google-oauth20 types (bumped as part of this
+      // dependency upgrade) now catch this at compile time; flagged for the team to
+      // decide separately whether `access_type=offline`/`prompt=consent` should be
+      // wired through `GoogleAuthGuard.getAuthenticateOptions()` instead.
     });
   }
 

@@ -1,4 +1,6 @@
 import { ConfigService } from '@nestjs/config';
+import { Logger } from '@nestjs/common';
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- see src/types/sharp.d.ts.
 import sharp = require('sharp');
 import { IdentityExtractionService } from './identity-extraction.service';
 import { ClaudeIdentityProvider } from './claude-identity.provider';
@@ -174,7 +176,7 @@ describe('IdentityExtractionService', () => {
         it('never logs an extracted value', async () => {
             const written: string[] = [];
             const spies = (['log', 'warn', 'error', 'debug', 'verbose'] as const).map((level) =>
-                jest.spyOn(require('@nestjs/common').Logger.prototype, level).mockImplementation((...args: unknown[]) => {
+                jest.spyOn(Logger.prototype, level).mockImplementation((...args: unknown[]) => {
                     written.push(args.map(String).join(' '));
                 }),
             );

@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { v4 as uuid } from 'uuid';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import {
@@ -171,6 +171,6 @@ export class UploadService {
 
   private buildKey(userId: number, contextType: ContextType, contextId: number | undefined, safeFileName: string): string {
     const segment = contextId != null ? contextId.toString() : 'unassigned';
-    return `users/${userId}/${contextType}/${segment}/${uuid()}-${safeFileName}`;
+    return `users/${userId}/${contextType}/${segment}/${randomUUID()}-${safeFileName}`;
   }
 }

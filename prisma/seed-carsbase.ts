@@ -8,9 +8,9 @@
  * Safe to re-run — all writes are upserts.
  */
 
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from './prisma-client-factory';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -89,7 +89,7 @@ async function main(): Promise<void> {
   });
   if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
 
-  const json: ApiResponse = await res.json();
+  const json = (await res.json()) as ApiResponse;
   const allMakes = json.data;
   console.log(`[${ts()}] Downloaded. Total makes in catalog: ${allMakes.length}`);
 

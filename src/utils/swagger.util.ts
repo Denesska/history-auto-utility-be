@@ -1,7 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as fs from 'fs';
-import * as YAML from 'json-to-pretty-yaml';
+import { dump } from 'js-yaml';
 
 export function generateSwaggerYaml(app: INestApplication): void {
   const config = new DocumentBuilder()
@@ -16,7 +16,7 @@ export function generateSwaggerYaml(app: INestApplication): void {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  const data = YAML.stringify(document);
+  const data = dump(document);
   fs.writeFile('./prisma/swagger.yaml', data, (err) => {
     if (err) console.log(err);
     else {

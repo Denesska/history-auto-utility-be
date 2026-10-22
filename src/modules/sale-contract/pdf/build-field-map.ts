@@ -48,7 +48,20 @@ if (typeof (global as any).document === 'undefined') {
     };
 }
 
-const pdfjs = require('pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js');
+// Reaching into pdf-parse's bundled pdf.js build has no ES-module-friendly entry point.
+// This deliberately stays on the OLD pdf-parse 1.x line (aliased as `pdf-parse-legacy`
+// in package.json, since the app's real `pdf-parse` dependency moved to the actively
+// maintained v2/pdfjs-dist rewrite for actual text extraction — see
+// document-extraction.service.ts). v2 no longer bundles a `lib/pdf.js/v1.10.100/...`
+// tree at all (it wraps `pdfjs-dist` through a completely different API), and this
+// generator's whole design depends on precisely re-simulating pdf.js 1.10.100's exact
+// operator-list/text-state-machine behavior (see file header) — re-targeting it at a
+// different pdf.js version risks silently shifting a field onto the wrong line of a
+// fiscal document, with no way to verify parity without the real template PDF and a
+// byte-diff of the regenerated field-map.json. Left untouched; this file is a one-off
+// generator only re-run when the template PDF itself changes, not runtime code.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdfjs = require('pdf-parse-legacy/lib/pdf.js/v1.10.100/build/pdf.js');
 
 const TEMPLATE_PATH = path.join(__dirname, '..', 'assets', 'itl-054-anexa-2.pdf');
 const OUTPUT_PATH = path.join(__dirname, 'field-map.json');

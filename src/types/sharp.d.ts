@@ -11,6 +11,7 @@
 // `import sharp = require('sharp')` actually gets at runtime. Only affects
 // types; nothing here is emitted.
 declare module 'sharp' {
-    import sharp = require('sharp/lib/index');
-    export = sharp;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- see the file comment above.
+  import sharp = require('sharp/lib/index');
+  export = sharp;
 }

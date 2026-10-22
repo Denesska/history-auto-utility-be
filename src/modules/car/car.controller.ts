@@ -33,7 +33,7 @@ import { RequestWithUser } from '../auth/express-request.interface';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { v4 as uui } from 'uuid';
+import { randomUUID } from 'crypto';
 import { extname } from 'path';
 import { plainToInstance } from 'class-transformer';
 import { validateOrReject } from 'class-validator';
@@ -41,7 +41,7 @@ import { validateOrReject } from 'class-validator';
 const carPhotoStorage = diskStorage({
   destination: './uploads/cars',
   filename: (req, file, cb) => {
-    cb(null, `${uui()}${extname(file.originalname)}`);
+    cb(null, `${randomUUID()}${extname(file.originalname)}`);
   },
 });
 

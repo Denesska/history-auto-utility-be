@@ -7,9 +7,9 @@
  * Safe to re-run — all writes are upserts.
  */
 
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from './prisma-client-factory';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 

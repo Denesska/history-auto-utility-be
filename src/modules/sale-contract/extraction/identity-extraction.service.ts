@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- see src/types/sharp.d.ts.
 import sharp = require('sharp');
 import { ContractAddress, ExtractionConfidence, IdentityDocumentFields, IdentityExtractionProvider, IdentityExtractionResult, IdentityExtractionUnavailableError } from '../sale-contract.types';
 import { ClaudeIdentityProvider } from './claude-identity.provider';

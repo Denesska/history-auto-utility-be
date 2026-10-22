@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Car, CarAccessRole, NotificationType, OrganizationRole, User } from '@prisma/client';
-import { ROLE_RANK } from '../../common/guards/car-access/car-access.guard';
 import { getRequestSessionContext } from '../../common/context/request-context';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';

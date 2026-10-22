@@ -48,8 +48,6 @@ function normalizeAmount(raw: string): string {
     return s;
 }
 
-const DATE_RO = /\d{2}[.\/-]\d{2}[.\/-]\d{4}/;
-
 export class RcaParser implements DocumentParser {
     canParse(text: string): boolean {
         const n = norm(text);

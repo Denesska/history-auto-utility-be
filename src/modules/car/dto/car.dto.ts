@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional } from 'class-validator';
 import { CarStatus, FuelType, TransmissionType } from '@prisma/client';
 
 export class CarPhotoDto {

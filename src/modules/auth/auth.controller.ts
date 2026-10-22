@@ -27,7 +27,6 @@ import { SwitchContextDto } from './dto/switch-context.dto';
 import {
   ALLOW_PERSONAL_BUSINESS_SWITCH,
   ALLOWED_LOGIN_ORIGINS,
-  DEV_BYPASS_USER,
   isMobileLoginOrigin,
 } from './auth.constants';
 import { Scope } from '../../common/context/scope.decorator';

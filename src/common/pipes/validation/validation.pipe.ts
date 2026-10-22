@@ -1,4 +1,9 @@
-import { PipeTransform, Injectable, ArgumentMetadata, BadRequestException } from '@nestjs/common';
+import {
+  PipeTransform,
+  Injectable,
+  ArgumentMetadata,
+  BadRequestException,
+} from '@nestjs/common';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 
@@ -16,6 +21,9 @@ export class ValidationPipe implements PipeTransform<any> {
     return value;
   }
 
+  // `metatype` is whatever constructor Nest's reflection hands us (a DTO class,
+  // `String`, etc.) — there's no narrower type that still fits every case below.
+  /* eslint-disable @typescript-eslint/no-unsafe-function-type */
   private toValidate(metatype: Function): boolean {
     const types: Function[] = [String, Boolean, Number, Array, Object];
     return !types.includes(metatype);

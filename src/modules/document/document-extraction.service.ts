@@ -4,6 +4,7 @@ import { DocumentParser } from './parsers/document-parser.interface';
 import { RcaParser } from './parsers/rca.parser';
 import { GeminiExtractionService, GeminiServiceUnavailableError } from './gemini-extraction.service';
 import { CloudflareExtractionService, CloudflareExtractionUnavailableError } from './cloudflare-extraction.service';
+import { PDFParse } from 'pdf-parse';
 
 const SUPPORTED_MIME_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']);
 const MAX_RAW_TEXT_CHARS = 3000;
@@ -57,15 +58,16 @@ export class DocumentExtractionService {
 
         let rawText = '';
         if (mimeType === 'application/pdf') {
+            const parser = new PDFParse({ data: buffer });
             try {
-                // eslint-disable-next-line @typescript-eslint/no-require-imports
-                const pdfParse = require('pdf-parse');
-                const pdfResult = await pdfParse(buffer);
-                rawText = (pdfResult.text as string)?.trim() ?? '';
+                const pdfResult = await parser.getText();
+                rawText = pdfResult.text?.trim() ?? '';
             } catch {
                 throw new BadRequestException(
                     'Could not read the document. The file may be corrupted, empty, or password-protected.',
                 );
+            } finally {
+                await parser.destroy();
             }
 
             if (rawText.length >= 50) {

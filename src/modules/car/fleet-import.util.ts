@@ -36,7 +36,12 @@ function parseCsvBuffer(buffer: Buffer): Record<string, string>[] {
 /** Parses an uploaded XLSX/XLS file's first sheet into header-keyed row objects, using `exceljs` (actively maintained, unlike `xlsx`/SheetJS which has unpatched high-severity CVEs — see the import endpoint's doc comment). */
 async function parseExcelBuffer(buffer: Buffer): Promise<Record<string, string>[]> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer);
+  // exceljs's own index.d.ts declares a module-local `Buffer extends ArrayBuffer`
+  // (it has to stay browser-safe, so it can't rely on @types/node's global Buffer),
+  // which structurally conflicts with Node's real, generic `Buffer` — a long-standing
+  // exceljs typing quirk, not a behavior difference. `load()` accepts a real Node
+  // Buffer fine at runtime; this cast only works around the type clash.
+  await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
   const sheet = workbook.worksheets[0];
   if (!sheet) return [];
 

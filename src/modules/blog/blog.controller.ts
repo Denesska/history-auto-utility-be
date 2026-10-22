@@ -9,7 +9,7 @@ import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { v4 as uuid } from 'uuid';
+import { randomUUID } from 'crypto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RequestWithUser } from '../auth/express-request.interface';
 import { BlogService } from './blog.service';
@@ -20,7 +20,7 @@ import { BlogEntryDto, VehicleCategoryDto } from './dto/blog-entry.dto';
 
 const blogImageStorage = diskStorage({
   destination: './uploads/blog',
-  filename: (_req, file, cb) => cb(null, `${uuid()}${extname(file.originalname)}`),
+  filename: (_req, file, cb) => cb(null, `${randomUUID()}${extname(file.originalname)}`),
 });
 
 const blogImageFilter = (_req: any, file: Express.Multer.File, cb: any) => {
