@@ -32,11 +32,13 @@ export class MailService {
   }
 
   /** Generic low-level send — every notification email goes through this. */
-  private async sendMail(to: string, subject: string, html: string): Promise<void> {
+  private async sendMail(to: string, subject: string, html: string): Promise<boolean> {
     try {
       await this.transporter.sendMail({ from: this.from, to, subject, html });
+      return true;
     } catch (error) {
       this.logger.error(`Failed to send email to ${to}: ${(error as Error).message}`, (error as Error).stack);
+      return false;
     }
   }
 
@@ -45,9 +47,10 @@ export class MailService {
     await this.sendMail(to, subject, html);
   }
 
-  async sendDocumentExpiring(to: string, lang: MailLang, data: DocumentExpiringData): Promise<void> {
+  /** Resolves to whether the email was actually handed to the SMTP server (sendMail never throws). */
+  async sendDocumentExpiring(to: string, lang: MailLang, data: DocumentExpiringData): Promise<boolean> {
     const { subject, html } = documentExpiringEmail(lang, data);
-    await this.sendMail(to, subject, html);
+    return this.sendMail(to, subject, html);
   }
 
   /**

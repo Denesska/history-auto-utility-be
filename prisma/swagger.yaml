@@ -2582,6 +2582,18 @@ paths:
         - "admin"
       security:
         - cookie: []
+  /api/admin/document-reminders/dry-run:
+    post:
+      operationId: "AdminController_documentRemindersDryRun"
+      summary: "Dry-run the document expiry reminder job (optionally for a simulated date) and list who would be notified"
+      parameters: []
+      responses:
+        200:
+          description: ""
+      tags:
+        - "admin"
+      security:
+        - cookie: []
   /api/vehicle-silhouette:
     get:
       operationId: "VehicleSilhouetteController_get"
@@ -5672,10 +5684,15 @@ components:
           type: "array"
           example:
             - 7
+            - 3
+            - 1
+            - 0
           items:
             type: "number"
             enum:
+              - 0
               - 1
+              - 3
               - 7
               - 14
               - 30

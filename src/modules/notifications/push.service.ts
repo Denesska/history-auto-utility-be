@@ -5,6 +5,7 @@ import { App, cert, initializeApp } from 'firebase-admin/app';
 import { getMessaging } from 'firebase-admin/messaging';
 import { resolve } from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
+import { documentExpiringPushText } from '../mail/templates/document-expiring.template';
 import { NotificationDto } from './dto/notification.dto';
 
 @Injectable()
@@ -124,10 +125,13 @@ export class PushService {
     }
 
     if (notification.type === 'DOCUMENT_EXPIRING') {
-      return {
-        title: 'Document expiră',
-        body: `${notification.data?.docType} pentru ${notification.data?.carLabel} expiră în ${notification.data?.daysLeft} zile`,
-      };
+      const d = notification.data ?? {};
+      // The notification's data carries the recipient's language (the push is built without a user lookup).
+      return documentExpiringPushText(d.lang === 'en' ? 'en' : 'ro', {
+        carLabel: d.carLabel,
+        docType: d.docType,
+        daysLeft: d.daysLeft,
+      });
     }
 
     if (notification.type === 'AI_QUOTA_BLOCKED') {

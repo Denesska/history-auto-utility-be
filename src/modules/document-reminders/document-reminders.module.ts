@@ -7,5 +7,6 @@ import { DocumentRemindersService } from './document-reminders.service';
 @Module({
   imports: [PrismaModule, MailModule, NotificationsModule],
   providers: [DocumentRemindersService],
+  exports: [DocumentRemindersService],
 })
 export class DocumentRemindersModule {}

@@ -272,10 +272,14 @@ model DocumentReminderSent {
   id          Int                @id @default(autoincrement())
   user_id     Int
   car_id      Int
-  doc_type    DocumentExpiryType
+  /// Document.document_type ('RCA', 'ITP', 'ROV', 'CASCO', ...); a non-home vignette is 'ROV:<country>'.
+  doc_type    String
   expiry_date DateTime
+  /// Days before expiry the reminder is for (7, 3, 1, 0); -1 = the "expired yesterday" reminder.
   days_before Int
   sent_at     DateTime           @default(now())
+  /// The in-app notification + push went out when the row was written; false = email still to retry.
+  email_sent  Boolean            @default(true)
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
   car  Car  @relation(fields: [car_id], references: [id], onDelete: Cascade)
@@ -617,7 +621,7 @@ model UserSettings {
   theme                    String   @default("auto")
   view_mode                String   @default("cards")
   expiry_reminders_enabled Boolean  @default(true)
-  expiry_reminder_days     Int[]    @default([7])
+  expiry_reminder_days     Int[]    @default([7, 3, 1, 0])
   navigation_prefs         Json?
   created_at               DateTime @default(now())
   updated_at               DateTime @updatedAt

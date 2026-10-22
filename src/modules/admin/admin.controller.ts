@@ -1,5 +1,6 @@
+import { DocumentRemindersService, RunSummary } from '../document-reminders/document-reminders.service';
 import { Scope } from '../../common/context/scope.decorator';
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Put, Param, ParseIntPipe, Patch, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Post, Put, Param, ParseIntPipe, Patch, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RequestWithUser } from '../auth/express-request.interface';
@@ -22,6 +23,7 @@ export class AdminController {
   constructor(
     private readonly adminService: AdminService,
     private readonly adminAiUsage: AdminAiUsageService,
+    private readonly documentReminders: DocumentRemindersService,
   ) {}
 
   /** Open to every signed-in user — the frontend uses it to decide whether to show the Admin entry. */
@@ -119,5 +121,16 @@ export class AdminController {
   @ApiOperation({ summary: 'Remove a per-user AI limit override (back to defaults)' })
   deleteAiUserLimit(@Param('userId', ParseIntPipe) userId: number): Promise<void> {
     return this.adminAiUsage.deleteUserLimit(userId);
+  }
+
+  /** Dry run only: nothing is sent or written. Real runs happen from the daily cron. */
+  @Post('document-reminders/dry-run')
+  @HttpCode(200)
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Dry-run the document expiry reminder job (optionally for a simulated date) and list who would be notified' })
+  documentRemindersDryRun(@Body() body: { today?: string }): Promise<RunSummary> {
+    const today = body?.today ? new Date(body.today) : undefined;
+    if (today && Number.isNaN(today.getTime())) throw new BadRequestException('today must be an ISO date');
+    return this.documentReminders.run({ dryRun: true, today });
   }
 }

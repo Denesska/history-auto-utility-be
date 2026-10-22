@@ -12,7 +12,7 @@ const DEFAULT_SETTINGS = {
     theme: 'auto',
     view_mode: 'cards',
     expiry_reminders_enabled: true,
-    expiry_reminder_days: [7],
+    expiry_reminder_days: [7, 3, 1, 0],
 };
 
 /** One entry of `UserSettings.navigation_prefs`, keyed per session context. */

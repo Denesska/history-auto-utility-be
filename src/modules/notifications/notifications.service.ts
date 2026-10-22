@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Notification, NotificationType } from '@prisma/client';
 import { getRequestSessionContext } from '../../common/context/request-context';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -7,21 +7,42 @@ import { PushService } from './push.service';
 
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: NotificationsGateway,
     private readonly pushService: PushService,
   ) {}
 
-  async create(userId: number, type: NotificationType, data: Record<string, any>): Promise<Notification> {
+  /**
+   * `forcePush`: also send the push when the user has a live WebSocket (normally push is the
+   * offline fallback only). Push failures are then logged and swallowed, since the notification
+   * row is already saved and the caller must not treat the send as failed.
+   */
+  async create(
+    userId: number,
+    type: NotificationType,
+    data: Record<string, any>,
+    options: { forcePush?: boolean } = {},
+  ): Promise<Notification> {
     const notification = await this.prisma.notification.create({
       data: { user_id: userId, type, data },
     });
 
-    if (this.gateway.isUserConnected(userId)) {
-      this.gateway.emitToUser(userId, notification);
-    } else {
-      await this.pushService.sendToUser(userId, notification);
+    const connected = this.gateway.isUserConnected(userId);
+    if (connected) this.gateway.emitToUser(userId, notification);
+
+    if (!connected || options.forcePush) {
+      if (options.forcePush) {
+        try {
+          await this.pushService.sendToUser(userId, notification);
+        } catch (error) {
+          this.logger.error(`Push failed for notification ${notification.id}: ${(error as Error).message}`);
+        }
+      } else {
+        await this.pushService.sendToUser(userId, notification);
+      }
     }
 
     return notification;
