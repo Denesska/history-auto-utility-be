@@ -441,6 +441,10 @@ model MaintenanceRecord {
   fuel_liters        Float?
   energy_kwh         Float?
   is_company_expense Boolean           @default(false)
+  // Labor (manoperă) part of the cost, in the record's `currency`; notes = free
+  // multi-line description of the work (`description` is the short title).
+  labor_cost         Float?
+  notes              String?           @db.Text
   created_at         DateTime          @default(now())
   car                Car               @relation(fields: [car_id], references: [id], onDelete: Cascade)
   parts              MaintenancePart[]
@@ -1119,7 +1123,7 @@ model AiUsage {
   id              Int      @id @default(autoincrement())
   user_id         Int?
   organization_id Int?
-  feature         String   // 'document_extract' | 'identity_extract' | 'maintenance_category' | 'vehicle_silhouette'
+  feature         String   // 'document_extract' | 'identity_extract' | 'maintenance_category' | 'maintenance_invoice_extract' | 'vehicle_silhouette'
   provider        String   // 'gemini' | 'anthropic' | 'cloudflare' | 'cache' | 'none'
   model           String?
   input_tokens    Int      @default(0)

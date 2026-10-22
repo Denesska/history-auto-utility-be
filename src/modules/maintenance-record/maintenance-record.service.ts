@@ -11,6 +11,7 @@ import { ExchangeRateService } from '../exchange-rate/exchange-rate.service';
 export type MaintenanceRecordWithParts = MaintenanceRecord & { parts: MaintenancePart[] };
 export type MaintenanceRecordWithMeta = MaintenanceRecordWithParts & {
     attachmentsCount: number;
+    invoicesCount: number;
     thumbnailUrl: string | null;
     consumption_l_100km?: number;
     consumption_kwh_100km?: number;
@@ -53,6 +54,8 @@ export class MaintenanceRecordService {
                 fuel_liters:        data.fuel_liters,
                 energy_kwh:         data.energy_kwh,
                 is_company_expense: data.is_company_expense ?? false,
+                labor_cost:         data.labor_cost,
+                notes:              data.notes,
                 supplier_id:        supplierId,
                 parts: data.parts?.length
                     ? { create: data.parts.map(p => ({ name: p.name, code: p.code, quantity: p.quantity, price: p.price })) }
@@ -104,6 +107,8 @@ export class MaintenanceRecordService {
                 fuel_liters:        data.fuel_liters,
                 energy_kwh:         data.energy_kwh,
                 is_company_expense: data.is_company_expense,
+                labor_cost:         data.labor_cost,
+                notes:              data.notes,
                 supplier_id:        supplierId,
                 parts: data.parts !== undefined
                     ? { create: data.parts.map(p => ({ name: p.name, code: p.code, quantity: p.quantity, price: p.price })) }
@@ -289,6 +294,16 @@ export class MaintenanceRecordService {
             orderBy: { created_at: 'asc' },
         });
 
+        const invoiceGroups = await this.prisma.uploadedFile.groupBy({
+            by: ['context_id'],
+            where: { context_type: 'maintenance_invoice', context_id: { in: records.map(r => r.id) }, status: 'UPLOADED' },
+            _count: { _all: true },
+        });
+        const invoicesByRecord = new Map<number, number>();
+        for (const g of invoiceGroups) {
+            if (g.context_id != null) invoicesByRecord.set(g.context_id, g._count._all);
+        }
+
         const filesByRecord = new Map<number, typeof files>();
         for (const file of files) {
             if (file.context_id == null) continue;
@@ -315,6 +330,7 @@ export class MaintenanceRecordService {
             result.push({
                 ...record,
                 attachmentsCount: recordFiles.length,
+                invoicesCount: invoicesByRecord.get(record.id) ?? 0,
                 thumbnailUrl,
                 consumption_l_100km: this._computeConsumption(record, records),
                 consumption_kwh_100km: this._computeEnergyConsumption(record, records),

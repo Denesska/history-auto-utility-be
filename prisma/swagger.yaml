@@ -958,6 +958,56 @@ paths:
                   $ref: "#/components/schemas/YearResponseDto"
       tags:
         - "vehicle-catalog"
+  /api/maintenance-record/extract-invoice:
+    post:
+      operationId: "MaintenanceRecordController_extractInvoice"
+      summary: "Extract one reconciled maintenance entry from 1-3 invoice / service report photos or PDFs (suggestion only, does not save)"
+      description: "All files must belong to ONE intervention (e.g. a parts invoice plus the workshop work order). Parts repeated across documents are counted once; totals are computed server-side. The user must review before saving."
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: "object"
+              required:
+                - "files"
+              properties:
+                files:
+                  type: "array"
+                  items:
+                    type: "string"
+                    format: "binary"
+                  maxItems: 3
+                car_id:
+                  type: "integer"
+                  description: "Optional: gives the model vehicle context."
+                lang:
+                  type: "string"
+                  enum:
+                    - "ro"
+                    - "en"
+                    - "ru"
+                  default: "ro"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceExtractionResultDto"
+        400:
+          description: "No files, too many files, or invalid car_id/lang."
+        415:
+          description: "Unsupported file type."
+        429:
+          description: "AI quota exceeded."
+        503:
+          description: "AI extraction service is temporarily unavailable."
+      tags:
+        - "maintenance-record"
+      security:
+        - bearer: []
   /api/maintenance-record/suggest-category:
     post:
       operationId: "MaintenanceRecordController_suggestCategory"
@@ -1180,6 +1230,11 @@ paths:
           in: "path"
           schema:
             type: "number"
+        - name: "download"
+          required: true
+          in: "query"
+          schema:
+            type: "string"
       responses:
         200:
           description: ""
@@ -4168,6 +4223,210 @@ components:
         - "id"
         - "modelId"
         - "year"
+    InvoicePartDto:
+      type: "object"
+      properties:
+        name:
+          type: "string"
+        code:
+          type: "string"
+          nullable: true
+        quantity:
+          type: "number"
+        unit_price:
+          type: "number"
+          nullable: true
+        total:
+          type: "number"
+          nullable: true
+        source:
+          type: "number"
+          description: "0-based index of the uploaded file this line comes from."
+      required:
+        - "name"
+        - "code"
+        - "quantity"
+        - "unit_price"
+        - "total"
+        - "source"
+    InvoiceLaborDto:
+      type: "object"
+      properties:
+        description:
+          type: "string"
+        amount:
+          type: "number"
+        source:
+          type: "number"
+      required:
+        - "description"
+        - "amount"
+        - "source"
+    InvoiceTotalsDto:
+      type: "object"
+      properties:
+        parts:
+          type: "number"
+        labor:
+          type: "number"
+        other:
+          type: "number"
+        discount:
+          type: "number"
+          description: "Positive number; subtracted in grand_total."
+        grand_total:
+          type: "number"
+          description: "parts + labor + other - discount, 2 decimals. This is the cost for the form."
+        documents_total:
+          type: "number"
+          nullable: true
+          description: "Sum of the documents' own printed grand totals (deduplicated)."
+      required:
+        - "parts"
+        - "labor"
+        - "other"
+        - "discount"
+        - "grand_total"
+        - "documents_total"
+    InvoiceDocumentDto:
+      type: "object"
+      properties:
+        index:
+          type: "number"
+        kind:
+          type: "string"
+          enum:
+            - "parts_invoice"
+            - "service_report"
+            - "receipt"
+            - "other"
+            - "unreadable"
+        supplier_name:
+          type: "string"
+          nullable: true
+        number:
+          type: "string"
+          nullable: true
+        date:
+          type: "string"
+          nullable: true
+          description: "YYYY-MM-DD"
+        total:
+          type: "number"
+          nullable: true
+        currency:
+          type: "string"
+          nullable: true
+      required:
+        - "index"
+        - "kind"
+        - "supplier_name"
+        - "number"
+        - "date"
+        - "total"
+        - "currency"
+    InvoiceWarningDto:
+      type: "object"
+      properties:
+        code:
+          type: "string"
+          enum:
+            - "TOTAL_MISMATCH"
+            - "MIXED_CURRENCY"
+            - "DUPLICATES_MERGED"
+            - "UNREADABLE_DOCUMENT"
+            - "MISSING_PRICES"
+            - "VAT_UNCLEAR"
+        params:
+          type: "object"
+          additionalProperties: true
+      required:
+        - "code"
+    InvoiceExtractionResultDto:
+      type: "object"
+      properties:
+        detected:
+          type: "boolean"
+        service_type:
+          type: "string"
+          enum:
+            - "REPAIR"
+            - "MAINTENANCE"
+            - "IMPROVEMENT"
+            - "PASSION"
+          nullable: true
+        service_category:
+          type: "string"
+          enum:
+            - "OIL_CHANGE"
+            - "BRAKE_SERVICE"
+            - "TRANSMISSION_SERVICE"
+            - "TIRE_SERVICE"
+            - "FLUID_SERVICE"
+            - "ENGINE_SERVICE"
+            - "INSPECTION"
+            - "BATTERY_SERVICE"
+            - "FILTER_SERVICE"
+            - "LIGHT_SERVICE"
+            - "OTHER"
+          nullable: true
+        title:
+          type: "string"
+          nullable: true
+        notes:
+          type: "string"
+          nullable: true
+          description: "Plain text, newline-separated lines."
+        service_date:
+          type: "string"
+          nullable: true
+          description: "YYYY-MM-DD"
+        mileage:
+          type: "number"
+          nullable: true
+        supplier_name:
+          type: "string"
+          nullable: true
+        currency:
+          type: "string"
+          enum:
+            - "RON"
+            - "EUR"
+            - "USD"
+            - "MDL"
+        parts:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/InvoicePartDto"
+        labor:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/InvoiceLaborDto"
+        totals:
+          $ref: "#/components/schemas/InvoiceTotalsDto"
+        documents:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/InvoiceDocumentDto"
+        warnings:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/InvoiceWarningDto"
+      required:
+        - "detected"
+        - "service_type"
+        - "service_category"
+        - "title"
+        - "notes"
+        - "service_date"
+        - "mileage"
+        - "supplier_name"
+        - "currency"
+        - "parts"
+        - "labor"
+        - "totals"
+        - "documents"
+        - "warnings"
     SuggestCategoryDto:
       type: "object"
       properties:
@@ -4444,6 +4703,16 @@ components:
           type: "boolean"
           example: false
           description: "Whether this expense is a company expense (reimbursable)"
+        labor_cost:
+          type: "number"
+          example: 150
+          nullable: true
+          description: "Labor (manopera) amount, in the record currency"
+        notes:
+          type: "string"
+          example: "Changed oil and filters, checked brakes"
+          nullable: true
+          description: "Free multi-line description of the work done"
         parts:
           type: "array"
           items:
@@ -4483,6 +4752,7 @@ components:
           enum:
             - "car"
             - "maintenance"
+            - "maintenance_invoice"
             - "document"
             - "inspection"
             - "journal"

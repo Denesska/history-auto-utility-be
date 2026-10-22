@@ -6,12 +6,13 @@ import { UploadModule } from '../upload/upload.module';
 import { CategorySuggestionService } from './category-suggestion.service';
 import { CarAccessModule } from '../car-access/car-access.module';
 import { SupplierModule } from '../supplier/supplier.module';
+import { InvoiceExtractionService } from './invoice-extraction/invoice-extraction.service';
 import { ExchangeRateModule } from '../exchange-rate/exchange-rate.module';
 
 @Module({
   imports: [PrismaModule, UploadModule, CarAccessModule, SupplierModule, ExchangeRateModule],
   controllers: [MaintenanceRecordController],
-  providers: [MaintenanceRecordService, CategorySuggestionService],
+  providers: [MaintenanceRecordService, CategorySuggestionService, InvoiceExtractionService],
   exports: [MaintenanceRecordService],
 })
 export class MaintenanceRecordModule {}
