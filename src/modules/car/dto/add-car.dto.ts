@@ -1,7 +1,8 @@
-import { IsInt, IsNumber, IsOptional, IsString, IsEnum, IsDateString } from 'class-validator';
+import { IsInt, IsNumber, IsOptional, IsString, IsEnum, IsDateString, IsIn } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { FuelType, TransmissionType } from '@prisma/client';
+import { DrivetrainType, FuelType, TransmissionType } from '@prisma/client';
+import { OIL_VISCOSITIES } from '../../maintenance-record/plan-item.catalog';
 
 export class AddCarDto {
   @ApiProperty({ example: '6' })
@@ -53,6 +54,16 @@ export class AddCarDto {
   @IsEnum(TransmissionType)
   @IsOptional()
   readonly transmission?: TransmissionType;
+
+  @ApiProperty({ example: 'FRONT', enum: DrivetrainType, enumName: 'DrivetrainType', required: false, nullable: true })
+  @IsEnum(DrivetrainType)
+  @IsOptional()
+  readonly drivetrain?: DrivetrainType | null;
+
+  @ApiProperty({ example: '5W-30', enum: OIL_VISCOSITIES, required: false, nullable: true, description: 'Engine oil viscosity grade; sets the engine-oil change interval in the Plan' })
+  @IsIn(OIL_VISCOSITIES)
+  @IsOptional()
+  readonly engine_oil_viscosity?: string | null;
 
   @ApiProperty({ example: '2.0L Turbo' })
   @IsString()

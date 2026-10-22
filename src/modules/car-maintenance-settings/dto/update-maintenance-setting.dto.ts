@@ -18,4 +18,10 @@ export class UpdateMaintenanceSettingDto {
   @IsInt()
   @Min(0)
   readonly custom_interval_months?: number | null;
+
+  @ApiPropertyOptional({ nullable: true, example: 2, description: 'Send null to clear the override and fall back to the default' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  readonly custom_interval_oil_changes?: number | null;
 }

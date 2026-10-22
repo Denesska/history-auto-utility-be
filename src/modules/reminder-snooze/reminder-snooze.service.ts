@@ -17,9 +17,16 @@ export function snoozeMapKey(userId: number, kind: ReminderSnoozeKind, itemKey: 
   return `${userId}:${kind}:${itemKey}`;
 }
 
-/** Snooze key of a maintenance plan item (category + the record that started the cycle). */
-export function planSnoozeKey(category: string, lastRecordId: number): string {
-  return `${category}:${lastRecordId}`;
+/** Plan item of a MAINTENANCE_DUE notification payload; notifications stored before Plan items carry only a category. */
+function planItemOf(d: Record<string, unknown>): string {
+  if (typeof d.item === 'string') return d.item;
+  const legacy: Record<string, string> = { OIL_CHANGE: 'ENGINE_OIL', TRANSMISSION_SERVICE: 'GEARBOX_OIL', TIRE_SERVICE: 'TIRES', INSPECTION: 'INSPECTION' };
+  return legacy[String(d.category)] ?? String(d.category);
+}
+
+/** Snooze key of a maintenance plan item (PlanItemKey + the record that started the cycle). */
+export function planSnoozeKey(item: string, lastRecordId: number): string {
+  return `${item}:${lastRecordId}`;
 }
 
 /**
@@ -114,7 +121,7 @@ export class ReminderSnoozeService {
     if (n.type === 'MAINTENANCE_DUE' && typeof d.recordId === 'number') {
       return d.stage === 'EXPIRY'
         ? { carId, kind: 'MAINTENANCE_RECORD', itemKey: String(d.recordId) }
-        : { carId, kind: 'MAINTENANCE_PLAN', itemKey: planSnoozeKey(String(d.category), d.recordId) };
+        : { carId, kind: 'MAINTENANCE_PLAN', itemKey: planSnoozeKey(planItemOf(d), d.recordId) };
     }
     throw new BadRequestException('Notification cannot be snoozed');
   }

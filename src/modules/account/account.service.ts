@@ -70,7 +70,7 @@ export class AccountService {
         where: { user_id: userId, organization_id: null },
         include: {
           documents: true,
-          maintenanceRecords: { include: { parts: true } },
+          maintenanceRecords: { include: { parts: true, plan_items: true } },
           notes: true,
           wishes: true,
           photos: true,

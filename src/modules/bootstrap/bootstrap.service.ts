@@ -1,11 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { ServiceCategory } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CarService } from '../car/car.service';
 import { CarAccessService } from '../car-access/car-access.service';
 import { DocumentService } from '../document/document.service';
 import { MaintenanceRecordService, MaintenanceRecordWithMeta } from '../maintenance-record/maintenance-record.service';
-import { DEFAULT_MAINTENANCE_INTERVALS } from '../maintenance-record/maintenance-interval.defaults';
 import { CarMaintenanceSettingsService } from '../car-maintenance-settings/car-maintenance-settings.service';
 import { CarMaintenanceProfilesService } from '../car-maintenance-profiles/car-maintenance-profiles.service';
 import { FeatureAccessService } from '../../common/features/feature-access.service';
@@ -14,7 +12,6 @@ import { UserSettingsService } from '../user-settings/user-settings.service';
 import { NavigationPrefsDto } from '../user-settings/dto/navigation-prefs.dto';
 import { BootstrapResponseDto, SharedCarEntry } from './dto/bootstrap-response.dto';
 import { DocumentDto } from '../document/dto/document.dto';
-import { MaintenanceIntervalDto } from '../maintenance-record/dto/maintenance-interval.dto';
 
 @Injectable()
 export class BootstrapService {
@@ -83,10 +80,6 @@ export class BootstrapService {
       maintenance[m.car_id].push(m);
     });
 
-    const maintenanceIntervals: MaintenanceIntervalDto[] = (Object.keys(DEFAULT_MAINTENANCE_INTERVALS) as ServiceCategory[]).map(
-      category => ({ category, ...DEFAULT_MAINTENANCE_INTERVALS[category] }),
-    );
-
     return {
       me,
       ownedCars,
@@ -94,7 +87,6 @@ export class BootstrapService {
       pendingInvites,
       documents,
       maintenance,
-      maintenanceIntervals,
       carMaintenanceSettings,
       maintenanceProfiles,
       enabled_features: enabledFeatures,

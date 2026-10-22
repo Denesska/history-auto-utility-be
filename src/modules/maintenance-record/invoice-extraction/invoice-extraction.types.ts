@@ -1,3 +1,5 @@
+import { PlanItemKey } from '@prisma/client';
+
 export const INVOICE_SERVICE_TYPES = ['REPAIR', 'MAINTENANCE', 'IMPROVEMENT', 'PASSION'] as const;
 export const INVOICE_SERVICE_CATEGORIES = [
     'OIL_CHANGE', 'BRAKE_SERVICE', 'TRANSMISSION_SERVICE', 'TIRE_SERVICE', 'FLUID_SERVICE',
@@ -52,6 +54,8 @@ export interface RawInvoiceExtraction {
     detected: boolean;
     service_type?: string | null;
     service_category?: string | null;
+    plan_items?: string[] | null;
+    custom_items?: string[] | null;
     title?: string | null;
     notes?: string | null;
     mileage?: number | null;
@@ -97,6 +101,10 @@ export interface InvoiceExtractionResult {
     detected: boolean;
     service_type: InvoiceServiceType | null;
     service_category: InvoiceServiceCategory | null;
+    /** Plan items the invoice shows were done (valid enum values, deduped, applicable to the car). */
+    plan_items: PlanItemKey[];
+    /** Short free-text labels for work that maps to no plan item (max 5, each <= 40 chars). */
+    custom_items: string[];
     title: string | null;
     notes: string | null;
     service_date: string | null;

@@ -1,4 +1,4 @@
-import { Car, CarStatus, FuelType, TransmissionType } from '@prisma/client';
+import { Car, CarStatus, DrivetrainType, FuelType, TransmissionType } from '@prisma/client';
 
 export class CarEntity implements Car {
   id: number;
@@ -12,6 +12,8 @@ export class CarEntity implements Car {
   license_plate: string;
   fuel_type: FuelType | null;
   transmission: TransmissionType | null;
+  drivetrain: DrivetrainType | null;
+  engine_oil_viscosity: string | null;
   engine: string | null;
   color: string | null;
   current_mileage: number | null;
