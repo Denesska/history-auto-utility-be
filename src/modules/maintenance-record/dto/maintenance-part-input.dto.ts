@@ -1,3 +1,5 @@
+import { IsIn } from 'class-validator';
+import { INVOICE_CURRENCIES } from '../invoice-extraction/invoice-extraction.types';
 import { IsString, IsOptional, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -20,4 +22,9 @@ export class MaintenancePartInputDto {
     @IsNumber()
     @ApiPropertyOptional({ example: 76 })
     readonly price?: number;
+
+    @IsOptional()
+    @IsIn(INVOICE_CURRENCIES)
+    @ApiPropertyOptional({ nullable: true, example: 'EUR', description: 'Currency of the price; null/omitted = same as the record currency' })
+    readonly currency?: string | null;
 }

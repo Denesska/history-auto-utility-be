@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { PlanItemKey } from '@prisma/client';
 import {
     INVOICE_CURRENCIES, INVOICE_DOCUMENT_KINDS, INVOICE_SERVICE_CATEGORIES, INVOICE_SERVICE_TYPES, INVOICE_WARNING_CODES,
 } from './invoice-extraction.types';
@@ -46,6 +47,8 @@ export class InvoiceExtractionResultDto {
     @ApiProperty() detected: boolean;
     @ApiProperty({ enum: INVOICE_SERVICE_TYPES, nullable: true, type: String }) service_type: string | null;
     @ApiProperty({ enum: INVOICE_SERVICE_CATEGORIES, nullable: true, type: String }) service_category: string | null;
+    @ApiProperty({ enum: PlanItemKey, enumName: 'PlanItemKey', isArray: true, description: 'Maintenance Plan items the invoice shows were done (empty when none).' }) plan_items: PlanItemKey[];
+    @ApiProperty({ type: [String], description: 'Short free-text labels for work that maps to no plan item (max 5, each <= 40 chars; empty when none).' }) custom_items: string[];
     @ApiProperty({ nullable: true, type: String }) title: string | null;
     @ApiProperty({ nullable: true, type: String, description: 'Plain text, newline-separated lines.' }) notes: string | null;
     @ApiProperty({ nullable: true, type: String, description: 'YYYY-MM-DD' }) service_date: string | null;

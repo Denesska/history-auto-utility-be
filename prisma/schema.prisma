@@ -100,6 +100,10 @@ model Car {
   license_plate             String?
   fuel_type                 FuelType?
   transmission              TransmissionType?
+  // Which axles are driven — decides whether a differential-oil Plan item applies.
+  drivetrain                DrivetrainType?
+  // One of OIL_VISCOSITIES (plan-item.catalog.ts) — drives the engine-oil km interval.
+  engine_oil_viscosity      String?
   engine                    String?
   color                     String?
   current_mileage           Int?
@@ -437,6 +441,8 @@ model MaintenanceRecord {
   exchange_rate_date DateTime?
   exchange_rate_source String?
   expiry_date        DateTime?
+  // Optional name the user gives the reminder date ("custom reminder"); cleared with expiry_date.
+  reminder_title     String?
   is_diy             Boolean           @default(false)
   fuel_liters        Float?
   energy_kwh         Float?
@@ -444,14 +450,24 @@ model MaintenanceRecord {
   // Labor (manoperă) part of the cost, in the record's `currency`; notes = free
   // multi-line description of the work (`description` is the short title).
   labor_cost         Float?
+  // User override of the parts total (both null = automatic sum of parts, computed on the FE).
+  parts_cost          Float?
+  parts_cost_currency String?
   notes              String?           @db.Text
   created_at         DateTime          @default(now())
   car                Car               @relation(fields: [car_id], references: [id], onDelete: Cascade)
   parts              MaintenancePart[]
+  // Plan items this record resets (oil change + air filter in one visit, ...).
+  plan_items         MaintenanceRecordPlanItem[]
+  // Free-text work items typed by the user ("Replaced wiper blades"); max 10, 1-60 chars each.
+  custom_items       String[]          @default([])
   // Which supplier (garage/workshop) carried out this work — optional, null
   // for DIY or when the supplier directory isn't used.
   supplier_id        Int?
   supplier           Supplier?         @relation(fields: [supplier_id], references: [id], onDelete: SetNull)
+  // Free-text workshop name for personal records (the supplier directory is business-only).
+  // Always null when supplier_id is set.
+  service_name       String?
 }
 
 model MaintenancePart {
@@ -461,7 +477,19 @@ model MaintenancePart {
   code                  String?
   quantity              Float?
   price                 Float?
+  // null = same currency as the record
+  currency              String?
   maintenanceRecord     MaintenanceRecord @relation(fields: [maintenance_record_id], references: [id], onDelete: Cascade)
+}
+
+model MaintenanceRecordPlanItem {
+  id                    Int               @id @default(autoincrement())
+  maintenance_record_id Int
+  item                  PlanItemKey
+  maintenanceRecord     MaintenanceRecord @relation(fields: [maintenance_record_id], references: [id], onDelete: Cascade)
+
+  @@unique([maintenance_record_id, item])
+  @@index([item])
 }
 
 enum SupplierType {
@@ -551,6 +579,36 @@ enum ServiceType {
   IMPROVEMENT
   PASSION
   ALIMENTARE
+}
+
+enum PlanItemKey {
+  ENGINE_OIL
+  AIR_FILTER
+  CABIN_FILTER
+  FUEL_FILTER
+  GEARBOX_OIL
+  DIFFERENTIAL_OIL
+  BRAKE_FLUID
+  COOLANT
+  POWER_STEERING_FLUID
+  AC_SERVICE
+  TIRES
+  INSPECTION
+  TIMING_BELT
+  // Work items: no interval, never on Plan bars or in settings
+  BRAKE_PARTS
+  BATTERY
+  LIGHTS
+  SUSPENSION
+  ENGINE_REPAIR
+  BODYWORK
+  ELECTRICAL
+}
+
+enum DrivetrainType {
+  FRONT
+  REAR
+  ALL_WHEEL
 }
 
 enum ServiceCategory {
@@ -767,19 +825,20 @@ model MaintenanceProfile {
 
 /// A per-user override of a maintenance category on one car, scoped to a specific
 /// MaintenanceProfile: whether the user wants it tracked (progress bar shown) and/or
-/// a custom interval instead of the global default from DEFAULT_MAINTENANCE_INTERVALS.
+/// a custom interval instead of the catalog default (plan-item.catalog.ts).
 /// Sparse on purpose — a row only exists when the user deviates from the neutral state
-/// (tracked=true, no custom interval) within that profile; resetting back to neutral
+/// (tracked = the car's catalog default, no custom interval) within that profile; resetting back to neutral
 /// deletes the row rather than storing a no-op override.
 model CarMaintenanceSetting {
   id                     Int             @id @default(autoincrement())
   car_id                 Int
   user_id                Int
   profile_id             Int
-  category               ServiceCategory
+  item                   PlanItemKey
   tracked                Boolean         @default(true)
   custom_interval_km     Int?
   custom_interval_months Int?
+  custom_interval_oil_changes Int?
   created_at             DateTime        @default(now())
   updated_at             DateTime        @updatedAt
 
@@ -787,7 +846,7 @@ model CarMaintenanceSetting {
   user    User               @relation(fields: [user_id], references: [id], onDelete: Cascade)
   profile MaintenanceProfile @relation(fields: [profile_id], references: [id], onDelete: Cascade)
 
-  @@unique([car_id, user_id, profile_id, category])
+  @@unique([car_id, user_id, profile_id, item])
 }
 
 // A destination shared from a phone (Google Maps) to be picked up by the car head unit

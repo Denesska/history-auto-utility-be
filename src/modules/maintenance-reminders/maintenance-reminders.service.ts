@@ -1,14 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
-import { Car, CarStatus, MaintenanceRecord, MaintenanceReminderSent, Prisma, ReminderSnooze, CarReminderMute, ServiceCategory } from '@prisma/client';
+import { Car, CarStatus, MaintenanceRecord, MaintenanceReminderSent, Prisma, ReminderSnooze, CarReminderMute, CarMaintenanceSetting, PlanItemKey, ServiceCategory } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FeatureAccessService } from '../../common/features/feature-access.service';
 import { MailService } from '../mail/mail.service';
 import { MaintenanceDueData, MaintenanceDueStage } from '../mail/templates/maintenance-due.template';
 import { NotificationsService } from '../notifications/notifications.service';
 import { carMuteMapKey, isCarMuted, planSnoozeKey, snoozeMapKey, snoozeState } from '../reminder-snooze/reminder-snooze.service';
-import { OVERDUE_STEP_DAYS, computePlanDueItems, decideDueAction, decideStage, PlanDueItem, PlanRecordInput } from '../maintenance-record/plan-due.util';
+import { PLAN_ITEM_TO_CATEGORY } from '../maintenance-record/plan-item.catalog';
+import { OVERDUE_STEP_DAYS, computePlanDueItems, decideDueAction, decideStage, PlanDueItem, PlanRecordInput, PlanSettingInput } from '../maintenance-record/plan-due.util';
 import {
   DEFAULT_REMINDER_DAYS,
   EMAIL_RETRY_DAYS,
@@ -24,7 +25,7 @@ import {
 type CarWithRecipients = Car & {
   user: UserWithSettings;
   access_entries: { user: UserWithSettings }[];
-  maintenanceRecords: MaintenanceRecord[];
+  maintenanceRecords: (MaintenanceRecord & { plan_items: { item: PlanItemKey }[] })[];
 };
 
 /** Mileage not refreshed for this long is ignored: the decision falls back to the date only. */
@@ -46,6 +47,8 @@ export interface ReminderCandidate {
   email: string;
   carId: number;
   carLabel: string;
+  /** Plan item (null for record-date reminders). */
+  item: PlanItemKey | null;
   category: ServiceCategory;
   stage: MaintenanceDueStage;
   key: string;
@@ -143,7 +146,7 @@ export class MaintenanceRemindersService {
       include: {
         user: { include: { settings: true } },
         access_entries: { where: { accepted_at: { not: null } }, include: { user: { include: { settings: true } } } },
-        maintenanceRecords: true,
+        maintenanceRecords: { include: { plan_items: { select: { item: true } } } },
       },
     })) as CarWithRecipients[];
     const cars = allCars.filter(car => car.organization_id == null || !disabledOrgIds.has(car.organization_id));
@@ -153,13 +156,13 @@ export class MaintenanceRemindersService {
     const nicknameRows = await this.prisma.carUserNickname.findMany({ where: { car_id: { in: carIds } } });
     const nicknames = new Map(nicknameRows.map(r => [`${r.car_id}:${r.user_id}`, r.nickname]));
 
-    // Categories a user switched off in the Plan ("tracked = false", any profile) — maintenance has no
-    // CarDeadlineOrder dismissal (that is documents only), tracked=false is its dismissal.
-    const untrackedRows = await this.prisma.carMaintenanceSetting.findMany({ where: { car_id: { in: carIds }, tracked: false } });
-    const untracked = new Map<string, typeof untrackedRows>();
-    for (const row of untrackedRows) {
+    // The user's Plan settings (tracked on/off per item, any profile). The active profile and its custom
+    // intervals are client-only state, so only `tracked` is honoured server-side (see resolveSettings).
+    const settingRows = await this.prisma.carMaintenanceSetting.findMany({ where: { car_id: { in: carIds } } });
+    const settingsByUserCar = new Map<string, CarMaintenanceSetting[]>();
+    for (const row of settingRows) {
       const k = `${row.car_id}:${row.user_id}`;
-      untracked.set(k, [...(untracked.get(k) ?? []), row]);
+      settingsByUserCar.set(k, [...(settingsByUserCar.get(k) ?? []), row]);
     }
 
     const sentRows = await this.prisma.maintenanceReminderSent.findMany({ where: { car_id: { in: carIds } } });
@@ -180,16 +183,22 @@ export class MaintenanceRemindersService {
       if ((car.actual_mileage ?? car.current_mileage) != null && odometer == null) summary.carsWithStaleMileage++;
       const records: PlanRecordInput[] = car.maintenanceRecords.map(r => ({
         id: r.id,
-        service_category: r.service_category,
         service_date: r.service_date,
         mileage: r.mileage,
+        plan_items: r.plan_items.map(p => p.item),
       }));
 
       for (const user of uniqueRecipients(car).filter(u => options.onlyUserId == null || u.id === options.onlyUserId)) {
         if (!(user.settings?.maintenance_reminders_enabled ?? true)) continue;
         if (isCarMuted(ctx.mutes.get(carMuteMapKey(user.id, car.id)), now)) continue;
         const carLabel = reminderCarLabel(car, nicknames.get(`${car.id}:${user.id}`));
-        const items = computePlanDueItems({ odometer, records, settings: untracked.get(`${car.id}:${user.id}`), now });
+        const items = computePlanDueItems({
+          car,
+          odometer,
+          records,
+          settings: this.resolveSettings(settingsByUserCar.get(`${car.id}:${user.id}`)),
+          now,
+        });
         summary.itemsConsidered += items.length;
 
         for (const item of items) {
@@ -198,7 +207,7 @@ export class MaintenanceRemindersService {
           } catch (error) {
             summary.failures++;
             this.logger.error(
-              `Plan reminder failed (user ${user.id}, car ${car.id}, ${item.category}): ${(error as Error).message}`,
+              `Plan reminder failed (user ${user.id}, car ${car.id}, ${item.item}): ${(error as Error).message}`,
               (error as Error).stack,
             );
           }
@@ -242,6 +251,16 @@ export class MaintenanceRemindersService {
   }
 
   /**
+   * One setting per item for this user+car. Profiles are client-only state, so across all the user's
+   * profiles: any `tracked = false` wins (the dismissal), else any `tracked = true`; custom intervals are ignored.
+   */
+  private resolveSettings(rows: CarMaintenanceSetting[] = []): PlanSettingInput[] {
+    const byItem = new Map<PlanItemKey, boolean>();
+    for (const r of rows) byItem.set(r.item, (byItem.get(r.item) ?? true) && r.tracked);
+    return [...byItem].map(([item, tracked]) => ({ item, tracked }));
+  }
+
+  /**
    * The odometer reading to use, or null when it can't be trusted: the freshest signal is the
    * newer of `actual_mileage_updated_at` and the newest record carrying a mileage; if that is
    * older than 60 days (or there is none) km are ignored and the decision is by date only.
@@ -257,7 +276,7 @@ export class MaintenanceRemindersService {
     return now.getTime() - Math.max(...signals) > STALE_MILEAGE_DAYS * MS_PER_DAY ? null : odometer;
   }
 
-  /** SOON / DUE once per cycle (cycle = the category's latest record), then OVERDUE every 30 days after DUE. */
+  /** SOON / DUE once per cycle (cycle = the item's latest linked record), then OVERDUE every 30 days after DUE. */
   private async handlePlanItem(
     ctx: RunContext,
     user: UserWithSettings,
@@ -272,11 +291,11 @@ export class MaintenanceRemindersService {
     const decision = decideStage(item, daysToDue);
     if (!decision) return;
 
-    const snooze = ctx.snoozes.get(snoozeMapKey(user.id, 'MAINTENANCE_PLAN', planSnoozeKey(item.category, item.lastRecordId)));
+    const snooze = ctx.snoozes.get(snoozeMapKey(user.id, 'MAINTENANCE_PLAN', planSnoozeKey(item.item, item.lastRecordId)));
     const snoozed = snoozeState(snooze, today);
     if (snoozed === 'silent') return;
 
-    const base = `plan:${item.category}:${item.lastRecordId}`;
+    const base = `plan:${item.item}:${item.lastRecordId}`;
     const dueRow = ctx.sent.get(`${user.id}:${car.id}:${base}:DUE`);
     let stage: MaintenanceDueStage = decision.stage;
     let key = `${base}:${decision.stage}`;
@@ -297,7 +316,8 @@ export class MaintenanceRemindersService {
       const payload: ReminderPayload = {
         carId: car.id,
         carLabel,
-        category: item.category,
+        item: item.item,
+        category: PLAN_ITEM_TO_CATEGORY[item.item],
         stage: endStage,
         soonBy: decision.soonBy,
         nextDueDate: item.nextDueDate ? item.nextDueDate.toISOString() : null,
@@ -329,7 +349,8 @@ export class MaintenanceRemindersService {
     const payload: ReminderPayload = {
       carId: car.id,
       carLabel,
-      category: item.category,
+      item: item.item,
+      category: PLAN_ITEM_TO_CATEGORY[item.item],
       stage,
       soonBy: decision.soonBy,
       nextDueDate: item.nextDueDate ? item.nextDueDate.toISOString() : null,
@@ -360,6 +381,7 @@ export class MaintenanceRemindersService {
       kmRemaining: null,
       daysLeft,
       description: record.description,
+      reminderTitle: record.reminder_title,
       recordId: record.id,
     };
     if (endedSnooze) {
@@ -420,6 +442,7 @@ export class MaintenanceRemindersService {
       email: user.email,
       carId: car.id,
       carLabel: payload.carLabel,
+      item: (payload.item as PlanItemKey | undefined) ?? null,
       category: payload.category as ServiceCategory,
       stage: payload.stage,
       key,
@@ -486,7 +509,8 @@ export class MaintenanceRemindersService {
         email: row.user.email,
         carId: row.car_id,
         carLabel: payload.carLabel,
-        category: payload.category as ServiceCategory,
+        item: (payload.item as PlanItemKey | undefined) ?? null,
+      category: payload.category as ServiceCategory,
         stage: payload.stage,
         key: row.key,
         daysLeft: payload.daysLeft ?? null,

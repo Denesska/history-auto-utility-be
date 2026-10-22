@@ -2,6 +2,7 @@ import {IsString, IsInt, IsDate, IsNumber, IsEnum, IsBoolean, IsArray, IsOptiona
 import {ApiProperty, ApiPropertyOptional} from "@nestjs/swagger";
 import {ServiceType} from "../../document/enum/service-type.enum";
 import {ServiceCategory} from "../../document/enum/service-category.enum";
+import {PlanItemKey} from '@prisma/client';
 import {MaintenancePartDto} from "./maintenance-part.dto";
 
 export class MaintenanceRecordDto {
@@ -65,6 +66,9 @@ export class MaintenanceRecordDto {
     @ApiProperty({ example: 'Insurance' })
     readonly expiry_date: Date;
 
+    @ApiProperty({ example: 'Tire swap', nullable: true })
+    readonly reminder_title: string | null;
+
     @IsBoolean()
     @ApiProperty({ example: false })
     readonly is_diy: boolean;
@@ -93,9 +97,27 @@ export class MaintenanceRecordDto {
     @ApiPropertyOptional({ example: 18.2, description: 'Computed energy consumption (kWh/100km) vs. the previous ALIMENTARE charging record for the same car, when available' })
     readonly consumption_kwh_100km?: number;
 
+    @IsOptional()
+    @IsNumber()
+    @ApiPropertyOptional({ nullable: true, example: 300, description: 'User override of the parts total; null = automatic sum' })
+    readonly parts_cost?: number | null;
+
+    @IsOptional()
+    @IsString()
+    @ApiPropertyOptional({ nullable: true, example: 'RON' })
+    readonly parts_cost_currency?: string | null;
+
     @IsArray()
     @ApiProperty({ type: [MaintenancePartDto] })
     readonly parts: MaintenancePartDto[];
+
+    @IsArray()
+    @ApiProperty({ enum: PlanItemKey, enumName: 'PlanItemKey', isArray: true, example: ['ENGINE_OIL'], description: 'Plan items this record resets' })
+    readonly plan_items: PlanItemKey[];
+
+    @IsArray()
+    @ApiProperty({ type: [String], example: ['Replaced wiper blades'], description: 'Free-text work items typed by the user' })
+    readonly custom_items: string[];
 
     @IsInt()
     @ApiProperty({ example: 2 })
@@ -110,4 +132,9 @@ export class MaintenanceRecordDto {
     @IsInt()
     @ApiPropertyOptional({ example: 1, nullable: true, description: 'Supplier directory entry (garage/workshop) that carried out this work' })
     readonly supplier_id?: number | null;
+
+    @IsOptional()
+    @IsString()
+    @ApiPropertyOptional({ example: 'Auto Service Popescu', nullable: true, description: 'Free-text workshop name (personal records)' })
+    readonly service_name?: string | null;
 }

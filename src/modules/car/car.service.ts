@@ -1,5 +1,5 @@
 import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { Car, CarAccessRole, CarPhoto, CarStatus, FuelType, NotificationType, OrganizationRole, Prisma, ServiceCategory, ServiceType, TransmissionType } from '@prisma/client';
+import { Car, CarAccessRole, CarPhoto, CarStatus, FuelType, NotificationType, OrganizationRole, PlanItemKey, Prisma, ServiceCategory, ServiceType, TransmissionType } from '@prisma/client';
 import { getRequestSessionContext } from '../../common/context/request-context';
 import { ROLE_RANK } from '../../common/guards/car-access/car-access.guard';
 import { formatLicensePlate, normalizePlateForComparison } from '../../common/util/license-plate.util';
@@ -248,24 +248,18 @@ export class CarService {
 
         // A last-oil-change baseline entered on the add-car form only ever lived on
         // Car.last_oil_service_* — the maintenance Plan (buildPlanItems) reads the
-        // latest MaintenanceRecord with service_category OIL_CHANGE and never looked
+        // latest MaintenanceRecord linked to the ENGINE_OIL plan item and never looked
         // at those columns, so the baseline was silently ignored until the car's
-        // *next* real oil-change record. Mirror it into a real record here, once, at
-        // creation time only (never on edit — see updateCar) so the Plan has
-        // something to count down from immediately. Columns are left as-is; this
-        // is purely additive.
+        // *next* real oil-change record. Mirror it into a real record here so the Plan
+        // has something to count down from immediately (updateCar does the same when
+        // the values later change, see syncOilBaselineRecord). Columns are left as-is.
         if (carData.last_oil_service_date || carData.last_oil_service_mileage != null) {
-          await tx.maintenanceRecord.create({
-            data: {
-              car_id: createdCar.id,
-              service_date: carData.last_oil_service_date ? new Date(carData.last_oil_service_date) : new Date(),
-              mileage: carData.last_oil_service_mileage ?? null,
-              description: '',
-              service_type: ServiceType.MAINTENANCE,
-              service_category: ServiceCategory.OIL_CHANGE,
-              cost: 0,
-            },
-          });
+          await this.createOilBaselineRecord(
+            tx,
+            createdCar.id,
+            carData.last_oil_service_date ? new Date(carData.last_oil_service_date) : null,
+            carData.last_oil_service_mileage ?? null,
+          );
         }
 
         return createdCar;
@@ -284,6 +278,64 @@ export class CarService {
     await this.setMyNickname(car.id, user.id, nickname);
 
     return this.toCarDto(car, nickname?.trim() || null);
+  }
+
+  /**
+   * Synthetic ENGINE_OIL record that makes a car's "last oil change" (entered on the car form)
+   * count for the maintenance Plan. Date only -> mileage stays null (the Plan then uses the time
+   * dimension only); mileage only -> the date is today (the real date is unknown, so the time
+   * dimension starts counting from now rather than being overstated).
+   */
+  private async createOilBaselineRecord(
+    client: Prisma.TransactionClient | PrismaService,
+    carId: number,
+    date: Date | null,
+    mileage: number | null,
+  ): Promise<void> {
+    await client.maintenanceRecord.create({
+      data: {
+        car_id: carId,
+        service_date: date ?? new Date(),
+        mileage,
+        description: '',
+        service_type: ServiceType.MAINTENANCE,
+        service_category: ServiceCategory.OIL_CHANGE,
+        cost: 0,
+        plan_items: { create: [{ item: PlanItemKey.ENGINE_OIL }] },
+      },
+    });
+  }
+
+  /**
+   * updateCar counterpart of the createCar baseline: when the car's last-oil fields are newer than
+   * the latest ENGINE_OIL-linked record (or none exists), add the same synthetic record. Does not
+   * write Car.last_oil_service_* (they were just saved from the form), so there is no loop with
+   * MaintenanceRecordService._syncLastOilService, and an unchanged/equal value never duplicates.
+   */
+  private async syncOilBaselineRecord(carId: number, date: Date | null, mileage: number | null): Promise<void> {
+    if (!date && mileage == null) return;
+    const day = (d: Date) => d.toISOString().slice(0, 10);
+    const records = await this.prisma.maintenanceRecord.findMany({
+      where: { car_id: carId, plan_items: { some: { item: PlanItemKey.ENGINE_OIL } } },
+      select: { service_date: true, mileage: true },
+      orderBy: [{ service_date: 'desc' }, { mileage: 'desc' }],
+    });
+    const latest = records[0];
+    const duplicate = records.some(r =>
+      (date ? day(r.service_date) === day(date) : true) && r.mileage === mileage);
+    if (duplicate) return;
+    let newer = !latest;
+    if (latest) {
+      if (date) {
+        const cmp = day(date).localeCompare(day(latest.service_date));
+        newer = cmp > 0 || (cmp === 0 && mileage != null && mileage > (latest.mileage ?? -1));
+      } else {
+        // Mileage only: compare against the highest recorded oil mileage.
+        const maxMileage = records.reduce((m, r) => Math.max(m, r.mileage ?? -1), -1);
+        newer = mileage! > maxMileage;
+      }
+    }
+    if (newer) await this.createOilBaselineRecord(this.prisma, carId, date, mileage);
   }
 
   async getCar(id: number, userId: number): Promise<CarDto | null> {
@@ -392,6 +444,10 @@ export class CarService {
         throw new ConflictException({ code: 'CAR_VIN_CONFLICT', message: 'A car with this VIN already exists' });
       }
       throw e;
+    }
+
+    if (updateData.last_oil_service_date !== undefined || updateData.last_oil_service_mileage !== undefined) {
+      await this.syncOilBaselineRecord(id, car.last_oil_service_date, car.last_oil_service_mileage);
     }
 
     await this.notifyLicensePlateConflictIfNeeded(car.license_plate, car.id, car.user_id);
@@ -556,6 +612,8 @@ export class CarService {
       license_plate: car.license_plate,
       fuel_type: car.fuel_type,
       transmission: car.transmission,
+      drivetrain: car.drivetrain,
+      engine_oil_viscosity: car.engine_oil_viscosity,
       engine: car.engine,
       color: car.color,
       current_mileage: car.current_mileage,

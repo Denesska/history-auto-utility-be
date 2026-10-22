@@ -3,13 +3,16 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI, Type } from '@google/genai';
+import { PlanItemKey } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { AiUsageService } from '../../ai-usage/ai-usage.service';
 import { CarAccessService } from '../../car-access/car-access.service';
 import { ExchangeRateService } from '../../exchange-rate/exchange-rate.service';
+import { AiCallReport } from '../../../common/ai/ai-call-report';
 import { getRequestSessionContext } from '../../../common/context/request-context';
 import { GeminiServiceUnavailableError } from '../../document/gemini-extraction.service';
-import { buildInvoicePrompt, InvoiceLang, InvoicePromptCar } from './invoice-extraction.prompt';
+import { getPlanItemDefinitions, WORK_ITEM_KEYS } from '../plan-item.catalog';
+import { buildInvoicePrompt, buildInvoiceSystemInstruction, INVOICE_PROMPT_VERSION, InvoiceLang, InvoicePromptCar } from './invoice-extraction.prompt';
 import { reconcileInvoiceExtraction } from './invoice-reconciliation';
 import {
     INVOICE_DOCUMENT_KINDS, INVOICE_SERVICE_CATEGORIES, INVOICE_SERVICE_TYPES, InvoiceExtractionResult, RawInvoiceExtraction,
@@ -19,6 +22,12 @@ const SUPPORTED_MIME_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/pn
 const FEATURE = 'maintenance_invoice_extract' as const;
 // Up to 3 documents with many line items; thinking tokens also count against this cap.
 const MAX_OUTPUT_TOKENS = 16384;
+// Used after the primary model keeps returning overload errors.
+const FALLBACK_MODEL = 'gemini-3.5-flash';
+// Keep the user's spinner short: per-attempt cap and overall Gemini budget.
+const GEMINI_ATTEMPT_TIMEOUT_MS = 35_000;
+const GEMINI_BUDGET_MS = 75_000;
+const GEMINI_RETRY_DELAY_MS = 1_500;
 const LANGS: InvoiceLang[] = ['ro', 'en', 'ru'];
 
 const LINE_SCHEMA = {
@@ -41,6 +50,8 @@ const RESPONSE_SCHEMA = {
         detected: { type: Type.BOOLEAN },
         service_type: { type: Type.STRING, enum: [...INVOICE_SERVICE_TYPES], nullable: true },
         service_category: { type: Type.STRING, enum: [...INVOICE_SERVICE_CATEGORIES], nullable: true },
+        plan_items: { type: Type.ARRAY, items: { type: Type.STRING, enum: Object.values(PlanItemKey) } },
+        custom_items: { type: Type.ARRAY, items: { type: Type.STRING } },
         title: { type: Type.STRING, nullable: true },
         notes: { type: Type.STRING, nullable: true },
         mileage: { type: Type.NUMBER, nullable: true },
@@ -73,7 +84,8 @@ const RESPONSE_SCHEMA = {
 /**
  * Reads 1-3 photos/PDFs of invoices / service work orders for ONE maintenance intervention with
  * Gemini (raw per-document extraction only) and reconciles them in code into one ready-to-fill entry.
- * No Cloudflare fallback: it can't read PDFs or several documents at once.
+ * No Cloudflare fallback: it is too imprecise for invoices and can't read PDFs or several documents at once.
+ * Overload (503/429/504) is retried once, then retried on a fallback Gemini model, within a total time budget.
  */
 @Injectable()
 export class InvoiceExtractionService {
@@ -113,17 +125,23 @@ export class InvoiceExtractionService {
         const carId = opts.carId ?? null;
 
         let car: InvoicePromptCar | null = null;
+        let carInfo: Parameters<typeof getPlanItemDefinitions>[0] | null = null;
         if (carId !== null) {
             await this.carAccess.assertHasAccess(carId, userId);
             const row = await this.prisma.car.findUnique({
                 where: { id: carId },
-                select: { make: true, model: true, year: true, fuel_type: true, current_mileage: true, actual_mileage: true },
+                select: {
+                    make: true, model: true, year: true, fuel_type: true, transmission: true, drivetrain: true,
+                    engine_oil_viscosity: true, current_mileage: true, actual_mileage: true,
+                },
             });
             if (row) {
                 car = {
                     make: row.make, model: row.model, year: row.year, fuel_type: row.fuel_type,
                     mileage: row.actual_mileage ?? row.current_mileage,
+                    transmission: row.transmission, drivetrain: row.drivetrain,
                 };
+                carInfo = row;
             }
         }
 
@@ -135,15 +153,16 @@ export class InvoiceExtractionService {
         const orgId = ctx?.type === 'business' ? ctx.orgId : null;
         // Order matters (it defines the document indexes), so file hashes are not sorted.
         const contentHash = this.aiUsage.hashBuffer(
-            Buffer.from(`${files.map((f) => this.aiUsage.hashBuffer(f.buffer)).join('|')}#${lang}#${carId ?? ''}`),
+            Buffer.from(`${files.map((f) => this.aiUsage.hashBuffer(f.buffer)).join('|')}#${lang}#${carId ?? ''}#${INVOICE_PROMPT_VERSION}`),
         );
         const cached = await this.aiUsage.getCached<InvoiceExtractionResult>(userId, FEATURE, contentHash);
         if (cached) return cached;
         await this.aiUsage.assertQuota(FEATURE, userId, orgId);
 
+        const record = (r: AiCallReport) => void this.aiUsage.record({ feature: FEATURE, userId, orgId, provider: 'gemini', ...r });
         let raw: RawInvoiceExtraction;
         try {
-            raw = await this.callGemini(files, lang, car, (r) => void this.aiUsage.record({ feature: FEATURE, userId, orgId, provider: 'gemini', ...r }));
+            raw = await this.callGemini(files, lang, car, record);
         } catch (err) {
             if (err instanceof GeminiServiceUnavailableError) {
                 throw new ServiceUnavailableException(
@@ -155,6 +174,11 @@ export class InvoiceExtractionService {
 
         const ronRates = await this.loadRonRates(raw);
         const result = reconcileInvoiceExtraction(raw, { fileCount: files.length, ronRates });
+        // Drop Plan items that don't apply to this car (e.g. engine oil on an EV); without a car keep all valid ones.
+        if (carInfo) {
+            const applicable = new Set<PlanItemKey>([...getPlanItemDefinitions(carInfo).map((d) => d.key), ...WORK_ITEM_KEYS]);
+            result.plan_items = result.plan_items.filter((k) => applicable.has(k));
+        }
         if (result.detected) await this.aiUsage.setCached(userId, FEATURE, contentHash, result);
         return result;
     }
@@ -189,37 +213,75 @@ export class InvoiceExtractionService {
             parts.push({ inlineData: { mimeType: f.mimetype, data: f.buffer.toString('base64') } });
         });
 
+        // Transient overload (503/429/504): retry the primary model once after a short backoff, then try a fallback model.
+        const models = [this.model, this.model, FALLBACK_MODEL].filter((m, i, arr) => i < 2 || m !== arr[0]);
+        let lastErr: unknown;
+        const deadline = Date.now() + GEMINI_BUDGET_MS;
+        for (let i = 0; i < models.length; i++) {
+            const remaining = deadline - Date.now();
+            if (remaining < 5_000) {
+                this.logger.warn(`Gemini budget (${GEMINI_BUDGET_MS}ms) exhausted — skipping remaining attempts.`);
+                break;
+            }
+            try {
+                return await this.generate(models[i], parts, lang, onUsage, Math.min(GEMINI_ATTEMPT_TIMEOUT_MS, remaining));
+            } catch (err) {
+                lastErr = err;
+                const message = err instanceof Error ? err.message : String(err);
+                if (!this.isOverload(err)) {
+                    this.logger.error(`Gemini invoice extraction failed (${models[i]}): ${message}`);
+                    throw new BadRequestException('The documents could not be analysed. Please try clearer photos or fill in the entry manually.');
+                }
+                this.logger.warn(`Gemini overloaded (${models[i]}, attempt ${i + 1}/${models.length}): ${message}`);
+                if (i < models.length - 1) await new Promise((r) => setTimeout(r, GEMINI_RETRY_DELAY_MS));
+            }
+        }
+        this.logger.error(`Gemini invoice extraction failed after ${models.length} attempts: ${lastErr instanceof Error ? lastErr.message : String(lastErr)}`);
+        throw new GeminiServiceUnavailableError();
+    }
+
+    /** Transient capacity/timeout errors: 503 UNAVAILABLE, 429 RESOURCE_EXHAUSTED, 504 DEADLINE_EXCEEDED. */
+    private isOverload(err: unknown): boolean {
+        const message = err instanceof Error ? err.message : String(err);
+        const status = (err as { status?: number; code?: number })?.status ?? (err as { code?: number })?.code;
+        return [503, 429, 504].includes(status as number)
+            || /"code"\s*:\s*(503|429|504)/.test(message)
+            || /UNAVAILABLE|RESOURCE_EXHAUSTED|DEADLINE_EXCEEDED/.test(message);
+    }
+
+    private async generate(
+        model: string,
+        parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }>,
+        lang: InvoiceLang,
+        onUsage: (r: { model: string; inputTokens: number; outputTokens: number; status: 'ok' | 'error' }) => void,
+        timeoutMs: number,
+    ): Promise<RawInvoiceExtraction> {
         let reported = false;
         try {
             const response = await this.client!.models.generateContent({
-                model: this.model,
+                model,
                 contents: [{ role: 'user', parts }],
                 config: {
+                    systemInstruction: buildInvoiceSystemInstruction(lang),
                     responseMimeType: 'application/json',
                     responseSchema: RESPONSE_SCHEMA,
                     temperature: 0,
                     maxOutputTokens: MAX_OUTPUT_TOKENS,
-                    httpOptions: { timeout: 90_000 },
+                    httpOptions: { timeout: timeoutMs },
                 },
             });
             reported = true;
             const usage = response.usageMetadata;
             onUsage({
-                model: this.model,
+                model,
                 inputTokens: usage?.promptTokenCount ?? 0,
                 outputTokens: (usage?.candidatesTokenCount ?? 0) + (usage?.thoughtsTokenCount ?? 0),
                 status: 'ok',
             });
             return JSON.parse(response.text ?? '') as RawInvoiceExtraction;
         } catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            this.logger.error(`Gemini invoice extraction failed: ${message}`);
-            if (!reported) onUsage({ model: this.model, inputTokens: 0, outputTokens: 0, status: 'error' });
-            const status = (err as { status?: number; code?: number })?.status ?? (err as { code?: number })?.code;
-            if (status === 503 || /"code"\s*:\s*503/.test(message) || /UNAVAILABLE/.test(message)) {
-                throw new GeminiServiceUnavailableError();
-            }
-            throw new BadRequestException('The documents could not be analysed. Please try clearer photos or fill in the entry manually.');
+            if (!reported) onUsage({ model, inputTokens: 0, outputTokens: 0, status: 'error' });
+            throw err;
         }
     }
 }

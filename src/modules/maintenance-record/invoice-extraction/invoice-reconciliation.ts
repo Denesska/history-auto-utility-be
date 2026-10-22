@@ -1,3 +1,5 @@
+import { PlanItemKey } from '@prisma/client';
+import { sanitizeCustomItems } from '../custom-items.util';
 import {
     INVOICE_CURRENCIES, INVOICE_DOCUMENT_KINDS, INVOICE_SERVICE_CATEGORIES, INVOICE_SERVICE_TYPES,
     InvoiceCurrency, InvoiceDocumentKind, InvoiceDocumentSummary, InvoiceExtractionResult, InvoiceLabor,
@@ -282,6 +284,8 @@ export function reconcileInvoiceExtraction(raw: RawInvoiceExtraction, opts: Reco
         detected,
         service_type: detected ? type ?? 'MAINTENANCE' : null,
         service_category: detected ? category : null,
+        plan_items: detected ? validPlanItems(raw.plan_items) : [],
+        custom_items: detected ? sanitizeCustomItems(raw.custom_items, 5, 40) : [],
         title: title ? title.slice(0, 80) : null,
         notes: str(raw.notes),
         service_date: dates.length ? dates[dates.length - 1] : null,
@@ -294,4 +298,10 @@ export function reconcileInvoiceExtraction(raw: RawInvoiceExtraction, opts: Reco
         documents: summaries,
         warnings,
     };
+}
+
+/** Keeps only valid, unique PlanItemKey values. Applicability to the car is filtered by the service. */
+function validPlanItems(items: string[] | null | undefined): PlanItemKey[] {
+    const valid = new Set<string>(Object.values(PlanItemKey));
+    return [...new Set((items ?? []).filter((i) => valid.has(i)))] as PlanItemKey[];
 }
