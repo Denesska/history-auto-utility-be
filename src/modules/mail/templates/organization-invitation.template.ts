@@ -9,16 +9,33 @@ export interface OrganizationInvitationData {
 }
 
 const ROLE_LABELS: Record<string, Record<MailLang, string>> = {
-  SUPER_ADMIN: { ro: 'Director', en: 'Director' },
-  FLEET_ADMIN: { ro: 'Fleet admin', en: 'Fleet admin' },
-  MANAGER: { ro: 'Manager', en: 'Manager' },
-  DRIVER: { ro: 'Șofer', en: 'Driver' },
-  FINANCE: { ro: 'Finance', en: 'Finance' },
+  SUPER_ADMIN: { ro: 'Director', en: 'Director', ru: 'Директор' },
+  FLEET_ADMIN: { ro: 'Fleet admin', en: 'Fleet admin', ru: 'Администратор автопарка' },
+  MANAGER: { ro: 'Manager', en: 'Manager', ru: 'Менеджер' },
+  DRIVER: { ro: 'Șofer', en: 'Driver', ru: 'Водитель' },
+  FINANCE: { ro: 'Finance', en: 'Finance', ru: 'Финансы' },
 };
 
 /** The invited email already has a HAU App account — this is a notification + instructions to accept. */
 export function organizationInvitationExistingUserEmail(lang: MailLang, data: OrganizationInvitationData): RenderedEmail {
   const roleLabel = ROLE_LABELS[data.role]?.[lang] ?? data.role;
+
+  if (lang === 'ru') {
+    return {
+      subject: `${data.inviterName} приглашает вас в ${data.organizationName} в HAU App`,
+      html: renderEmailLayout(
+        'ru',
+        `
+        <p>Здравствуйте!</p>
+        <p><strong>${data.inviterName}</strong> приглашает вас присоединиться к <strong>${data.organizationName}</strong> в HAU App в роли: <strong>${roleLabel}</strong>.</p>
+        <p>Войдите в свой аккаунт, чтобы просмотреть и принять приглашение.</p>
+        <p style="margin-top:24px;">
+          <a href="${data.appUrl}" style="background:#2563eb;color:#ffffff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Открыть HAU App</a>
+        </p>
+        `,
+      ),
+    };
+  }
 
   if (lang === 'en') {
     return {

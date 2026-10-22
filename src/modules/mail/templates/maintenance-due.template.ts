@@ -1,4 +1,4 @@
-import { MailLang, daysText, renderEmailLayout } from './base-email.template';
+import { MailLang, daysText, formatDate, renderEmailLayout, snoozeHintHtml } from './base-email.template';
 import { RenderedEmail } from './car-share-invitation.template';
 
 /** SOON/DUE/OVERDUE come from the service plan; EXPIRY is a record's user-entered reminder date. */
@@ -24,18 +24,18 @@ export interface MaintenanceDueData {
 }
 
 const CATEGORY_LABELS: Record<string, Record<MailLang, string>> = {
-  OIL_CHANGE: { ro: 'Schimbul de ulei', en: 'Oil change' },
-  BRAKE_SERVICE: { ro: 'Revizia frânelor', en: 'Brake service' },
-  TRANSMISSION_SERVICE: { ro: 'Revizia transmisiei', en: 'Transmission service' },
-  TIRE_SERVICE: { ro: 'Service-ul anvelopelor', en: 'Tire service' },
-  FLUID_SERVICE: { ro: 'Schimbul de lichide', en: 'Fluid service' },
-  ENGINE_SERVICE: { ro: 'Revizia motorului', en: 'Engine service' },
-  INSPECTION: { ro: 'Inspecția', en: 'Inspection' },
-  BATTERY_SERVICE: { ro: 'Service-ul bateriei', en: 'Battery service' },
-  FILTER_SERVICE: { ro: 'Schimbul de filtre', en: 'Filter service' },
-  LIGHT_SERVICE: { ro: 'Service-ul farurilor', en: 'Light service' },
-  COMBUSTIBIL: { ro: 'Alimentarea', en: 'Refuelling' },
-  OTHER: { ro: 'Lucrarea de întreținere', en: 'Maintenance job' },
+  OIL_CHANGE: { ro: 'Schimbul de ulei', en: 'Oil change', ru: 'Замена масла' },
+  BRAKE_SERVICE: { ro: 'Revizia frânelor', en: 'Brake service', ru: 'Обслуживание тормозов' },
+  TRANSMISSION_SERVICE: { ro: 'Revizia transmisiei', en: 'Transmission service', ru: 'Обслуживание трансмиссии' },
+  TIRE_SERVICE: { ro: 'Service-ul anvelopelor', en: 'Tire service', ru: 'Шиномонтаж' },
+  FLUID_SERVICE: { ro: 'Schimbul de lichide', en: 'Fluid service', ru: 'Замена технических жидкостей' },
+  ENGINE_SERVICE: { ro: 'Revizia motorului', en: 'Engine service', ru: 'Обслуживание двигателя' },
+  INSPECTION: { ro: 'Inspecția', en: 'Inspection', ru: 'Осмотр' },
+  BATTERY_SERVICE: { ro: 'Service-ul bateriei', en: 'Battery service', ru: 'Обслуживание аккумулятора' },
+  FILTER_SERVICE: { ro: 'Schimbul de filtre', en: 'Filter service', ru: 'Замена фильтров' },
+  LIGHT_SERVICE: { ro: 'Service-ul farurilor', en: 'Light service', ru: 'Обслуживание фар' },
+  COMBUSTIBIL: { ro: 'Alimentarea', en: 'Refuelling', ru: 'Заправка' },
+  OTHER: { ro: 'Lucrarea de întreținere', en: 'Maintenance job', ru: 'Работа по обслуживанию' },
 };
 
 export function maintenanceCategoryLabel(category: string, lang: MailLang): string {
@@ -46,17 +46,35 @@ function roundKm(km: number): number {
   return Math.max(0, Math.round(km / 100) * 100);
 }
 
-function formatDate(date: Date | string, lang: MailLang): string {
-  return new Date(date).toLocaleDateString(lang === 'ro' ? 'ro-RO' : 'en-GB');
-}
-
 function daysPhrase(days: number, lang: MailLang): string {
   if (days === 1 && lang === 'ro') return 'mâine';
-  return `${lang === 'en' ? 'in' : 'în'} ${daysText(days, lang)}`;
+  if (days === 1 && lang === 'ru') return 'завтра';
+  return `${lang === 'en' ? 'in' : lang === 'ru' ? 'через' : 'în'} ${daysText(days, lang)}`;
+}
+
+/** Russian variant of whenPhrase; kept separate because the sentence order differs from en/ro. Neutral gender throughout. */
+function whenPhraseRu(data: MaintenanceDueData): string {
+  if (data.stage === 'DUE') return 'подошло время обслуживания';
+  if (data.stage === 'OVERDUE') return `просрочено на ${daysText(data.overdueDays ?? 0, 'ru')}`;
+  if (data.stage === 'EXPIRY') {
+    const d = data.daysLeft ?? 0;
+    if (d < 0) return 'дата напоминания была вчера';
+    if (d === 0) return 'дата напоминания сегодня';
+    return `дата напоминания ${daysPhrase(d, 'ru')}`;
+  }
+  // SOON
+  const parts: string[] = [];
+  if (data.soonBy !== 'km' && data.daysLeft != null) {
+    parts.push(data.daysLeft <= 0 ? 'сегодня' : daysPhrase(data.daysLeft, 'ru'));
+  }
+  if (data.soonBy !== 'date' && data.kmRemaining != null) parts.push(`~${roundKm(data.kmRemaining)} км`);
+  const when = parts.join(' / ');
+  return `скоро обслуживание: ${data.soonBy === 'km' ? 'через ' : ''}${when}`;
 }
 
 /** "is due in 9 days / ~800 km" / "is due now" / "is overdue by 34 days" / "has a reminder date today", per language. */
 function whenPhrase(data: MaintenanceDueData, lang: MailLang): string {
+  if (lang === 'ru') return whenPhraseRu(data);
   const en = lang === 'en';
   if (data.stage === 'DUE') return en ? 'is due now' : 'a ajuns la scadență';
   if (data.stage === 'OVERDUE') {
@@ -89,11 +107,23 @@ function subject(data: MaintenanceDueData, lang: MailLang): string {
 }
 
 function sentence(data: MaintenanceDueData, lang: MailLang): string {
+  if (lang === 'ru') return `${subject(data, lang)} для ${data.carLabel} — ${whenPhrase(data, lang)}`;
   return `${subject(data, lang)} ${lang === 'ro' ? 'pentru' : 'for'} ${data.carLabel} ${whenPhrase(data, lang)}`;
 }
 
 /** Short one-line text for push notifications. */
 export function maintenanceDuePushText(lang: MailLang, data: MaintenanceDueData): { title: string; body: string } {
+  if (lang === 'ru') {
+    const ruTitle =
+      data.stage === 'EXPIRY'
+        ? 'Напоминание об обслуживании'
+        : data.stage === 'SOON'
+          ? 'Скоро обслуживание'
+          : data.stage === 'DUE'
+            ? 'Пора на обслуживание'
+            : 'Обслуживание просрочено';
+    return { title: ruTitle, body: sentence(data, lang) };
+  }
   const ro = lang === 'ro';
   const title =
     data.stage === 'EXPIRY'
@@ -110,6 +140,24 @@ export function maintenanceDueEmail(lang: MailLang, data: MaintenanceDueData & {
   const line = sentence(data, lang);
   const dateStr = data.nextDueDate ? formatDate(data.nextDueDate, lang) : null;
 
+  if (lang === 'ru') {
+    return {
+      subject: line,
+      html: renderEmailLayout(
+        'ru',
+        `
+        <p>Здравствуйте!</p>
+        <p><strong>${subject(data, 'ru')}</strong> для <strong>${data.carLabel}</strong> — ${whenPhrase(data, 'ru')}${dateStr && data.stage !== 'EXPIRY' ? ` (срок: <strong>${dateStr}</strong>)` : ''}.</p>
+        <p>Войдите в HAU App, чтобы увидеть план обслуживания, и отметьте выполненную работу, чтобы начался новый цикл.</p>
+        <p style="margin-top:24px;">
+          <a href="${data.appUrl}" style="background:#2563eb;color:#ffffff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Открыть HAU App</a>
+        </p>
+        ${snoozeHintHtml('ru')}
+        `,
+      ),
+    };
+  }
+
   if (lang === 'en') {
     return {
       subject: line,
@@ -122,6 +170,7 @@ export function maintenanceDueEmail(lang: MailLang, data: MaintenanceDueData & {
         <p style="margin-top:24px;">
           <a href="${data.appUrl}" style="background:#2563eb;color:#ffffff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Open HAU App</a>
         </p>
+        ${snoozeHintHtml('en')}
         `,
       ),
     };
@@ -138,6 +187,7 @@ export function maintenanceDueEmail(lang: MailLang, data: MaintenanceDueData & {
       <p style="margin-top:24px;">
         <a href="${data.appUrl}" style="background:#2563eb;color:#ffffff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Deschide HAU App</a>
       </p>
+      ${snoozeHintHtml('ro')}
       `,
     ),
   };

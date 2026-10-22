@@ -96,7 +96,8 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
   }
 
   isUserConnected(userId: number): boolean {
-    const room = this.server.sockets.adapter.rooms.get(userRoom(userId));
+    // server is null in standalone contexts (scripts) where no WebSocket gateway is bound
+    const room = this.server?.sockets?.adapter?.rooms.get(userRoom(userId));
     return !!room && room.size > 0;
   }
 }

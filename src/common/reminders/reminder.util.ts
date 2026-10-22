@@ -1,5 +1,5 @@
 import { Car, User, UserSettings } from '@prisma/client';
-import { MailLang } from '../../modules/mail/templates/base-email.template';
+import { MailLang, resolveMailLang } from '../../modules/mail/templates/base-email.template';
 
 /** Helpers shared by the daily reminder jobs (document-reminders, maintenance-reminders). */
 
@@ -26,7 +26,7 @@ export function reminderCarLabel(car: Pick<Car, 'make' | 'model' | 'license_plat
 }
 
 export function reminderLang(user: UserWithSettings): MailLang {
-  return user.settings?.language === 'en' ? 'en' : 'ro';
+  return resolveMailLang(user.settings?.language);
 }
 
 /** Car owner + users with accepted CarUserAccess, deduplicated. */

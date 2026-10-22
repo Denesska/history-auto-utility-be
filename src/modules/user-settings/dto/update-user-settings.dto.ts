@@ -1,7 +1,7 @@
 import { IsArray, IsBoolean, IsIn, IsOptional, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
-const LANGUAGES = ['en', 'ro'];
+const LANGUAGES = ['en', 'ro', 'ru'];
 const THEMES = ['light', 'dark', 'auto'];
 const VIEW_MODES = ['cards', 'list'];
 // 0 = on the day of expiry. An empty array is valid: no "before" reminders (the day-after one is always sent).
