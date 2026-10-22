@@ -1,5 +1,12 @@
 export type MailLang = 'ro' | 'en';
 
+/** "1 day" / "5 days" / "1 zi" / "5 zile" / "20 de zile" (Romanian: 2-19 take "zile", 0 and 20+ take "de zile"). */
+export function daysText(n: number, lang: MailLang): string {
+  if (lang === 'en') return n === 1 ? '1 day' : `${n} days`;
+  const r = n % 100;
+  return n === 1 ? '1 zi' : r >= 1 && r <= 19 ? `${n} zile` : `${n} de zile`;
+}
+
 const FOOTER_TEXT: Record<MailLang, string> = {
   ro: 'Acest email a fost trimis automat de HAU App.',
   en: 'This email was sent automatically by HAU App.',

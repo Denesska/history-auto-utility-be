@@ -56,7 +56,7 @@ export class NotificationsService {
    * for car-bound types, by the car's `organization_id`):
    * - ORG_INVITED / ORG_INVITE_ACCEPTED: business only;
    * - CAR_SHARED / CAR_ACCESS_*: personal only (personal car sharing);
-   * - DOCUMENT_EXPIRING / VIN_CONFLICT / LICENSE_PLATE_CONFLICT: follow their
+   * - DOCUMENT_EXPIRING / MAINTENANCE_DUE / VIN_CONFLICT / LICENSE_PLATE_CONFLICT: follow their
    *   car (personal if it has no organization, business if it belongs to the
    *   session's organization).
    * - BUSINESS_ACCESS_REQUESTED / BUSINESS_ACCESS_APPROVED / BUSINESS_ACCESS_REJECTED:
@@ -70,6 +70,7 @@ export class NotificationsService {
 
     const carBound: NotificationType[] = [
       NotificationType.DOCUMENT_EXPIRING,
+      NotificationType.MAINTENANCE_DUE,
       NotificationType.VIN_CONFLICT,
       NotificationType.LICENSE_PLATE_CONFLICT,
     ];

@@ -45,6 +45,9 @@ model User {
   ai_user_limit        AiUserLimit?
   push_tokens          PushToken[]
   reminders_sent       DocumentReminderSent[]
+  maintenance_reminders_sent MaintenanceReminderSent[]
+  reminder_snoozes     ReminderSnooze[]
+  car_reminder_mutes   CarReminderMute[]
   maintenance_settings CarMaintenanceSetting[]
   maintenance_profiles MaintenanceProfile[]
   sale_contracts       SaleContract[]
@@ -129,6 +132,9 @@ model Car {
   blog_entries              BlogEntry[]
   deadline_orders           CarDeadlineOrder[]
   reminders_sent            DocumentReminderSent[]
+  maintenance_reminders_sent MaintenanceReminderSent[]
+  reminder_snoozes          ReminderSnooze[]
+  car_reminder_mutes        CarReminderMute[]
   notes                     CarNote[]
   maintenance_settings      CarMaintenanceSetting[]
   maintenance_profiles      MaintenanceProfile[]
@@ -250,6 +256,7 @@ enum NotificationType {
   CAR_ACCESS_ROLE_CHANGED
   CAR_ACCESS_ACCEPTED
   DOCUMENT_EXPIRING
+  MAINTENANCE_DUE
   VIN_CONFLICT
   LICENSE_PLATE_CONFLICT
   ORG_INVITED
@@ -285,6 +292,68 @@ model DocumentReminderSent {
   car  Car  @relation(fields: [car_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id, car_id, doc_type, expiry_date, days_before])
+}
+
+/// Dedup + email-retry ledger of the maintenance-due reminder job (MaintenanceRemindersService).
+model MaintenanceReminderSent {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  car_id     Int
+  /// What was sent. Plan items: 'plan:<CATEGORY>:<lastRecordId>:SOON' | ':DUE' | ':OVERDUE:<30-day step>'
+  /// (a newer record of the category = a new cycle). User-set record dates: 'rec:<recordId>:<daysLeft>' (-1 = day after).
+  key        String
+  /// The notification payload, kept so a failed email can be retried without recomputing the plan.
+  data       Json?
+  created_at DateTime @default(now())
+  /// The in-app notification + push went out when the row was written; false = email still to retry.
+  email_sent Boolean  @default(true)
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  car  Car  @relation(fields: [car_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, car_id, key])
+}
+
+enum ReminderSnoozeKind {
+  DOCUMENT
+  MAINTENANCE_PLAN
+  MAINTENANCE_RECORD
+}
+
+/// A user silencing the reminders of one item (per user: a co-owner is unaffected). The item key makes it
+/// reset by itself: a renewed document has a new id, a new service of a category a new last-record id.
+model ReminderSnooze {
+  id              Int                  @id @default(autoincrement())
+  user_id         Int
+  car_id          Int
+  kind            ReminderSnoozeKind
+  /// DOCUMENT: Document.id. MAINTENANCE_PLAN: '<CATEGORY>:<last record id>'. MAINTENANCE_RECORD: MaintenanceRecord.id.
+  item_key        String
+  /// Silent until this moment; null = silent for the rest of this cycle ("don't remind me again").
+  until           DateTime?
+  /// When the single "snooze ended" reminder went out (null = still due to send). Reset by a re-snooze.
+  end_notified_at DateTime?
+  created_at      DateTime             @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  car  Car  @relation(fields: [car_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, kind, item_key])
+}
+
+/// A user silencing ALL reminders (documents, maintenance plan, record dates) of one car, for themselves only.
+/// A timed mute simply ends (no catch-up); `until` null = muted until the user turns it back on.
+model CarReminderMute {
+  id         Int       @id @default(autoincrement())
+  user_id    Int
+  car_id     Int
+  until      DateTime?
+  created_at DateTime  @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  car  Car  @relation(fields: [car_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, car_id])
 }
 
 model PushToken {
@@ -622,6 +691,7 @@ model UserSettings {
   view_mode                String   @default("cards")
   expiry_reminders_enabled Boolean  @default(true)
   expiry_reminder_days     Int[]    @default([7, 3, 1, 0])
+  maintenance_reminders_enabled Boolean @default(true)
   navigation_prefs         Json?
   created_at               DateTime @default(now())
   updated_at               DateTime @updatedAt

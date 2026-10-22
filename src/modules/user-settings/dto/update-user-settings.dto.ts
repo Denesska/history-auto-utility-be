@@ -36,4 +36,9 @@ export class UpdateUserSettingsDto {
     @IsArray()
     @IsIn(REMINDER_DAYS, { each: true })
     readonly expiry_reminder_days?: number[];
+
+    @ApiPropertyOptional({ example: true })
+    @IsOptional()
+    @IsBoolean()
+    readonly maintenance_reminders_enabled?: boolean;
 }

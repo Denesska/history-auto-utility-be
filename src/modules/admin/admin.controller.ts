@@ -1,4 +1,5 @@
 import { DocumentRemindersService, RunSummary } from '../document-reminders/document-reminders.service';
+import { MaintenanceRemindersService, RunSummary as MaintenanceRunSummary } from '../maintenance-reminders/maintenance-reminders.service';
 import { Scope } from '../../common/context/scope.decorator';
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Post, Put, Param, ParseIntPipe, Patch, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -24,6 +25,7 @@ export class AdminController {
     private readonly adminService: AdminService,
     private readonly adminAiUsage: AdminAiUsageService,
     private readonly documentReminders: DocumentRemindersService,
+    private readonly maintenanceReminders: MaintenanceRemindersService,
   ) {}
 
   /** Open to every signed-in user — the frontend uses it to decide whether to show the Admin entry. */
@@ -132,5 +134,16 @@ export class AdminController {
     const today = body?.today ? new Date(body.today) : undefined;
     if (today && Number.isNaN(today.getTime())) throw new BadRequestException('today must be an ISO date');
     return this.documentReminders.run({ dryRun: true, today });
+  }
+
+  /** Dry run only: nothing is sent or written. Real runs happen from the daily cron. */
+  @Post('maintenance-reminders/dry-run')
+  @HttpCode(200)
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Dry-run the maintenance-due reminder job (optionally for a simulated date) and list who would be notified' })
+  maintenanceRemindersDryRun(@Body() body: { today?: string }): Promise<MaintenanceRunSummary> {
+    const today = body?.today ? new Date(body.today) : undefined;
+    if (today && Number.isNaN(today.getTime())) throw new BadRequestException('today must be an ISO date');
+    return this.maintenanceReminders.run({ dryRun: true, today });
   }
 }

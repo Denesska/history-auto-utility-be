@@ -1,15 +1,25 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
-import { Car, CarStatus, Document, Prisma, User, UserSettings } from '@prisma/client';
+import { Car, CarReminderMute, CarStatus, Document, Prisma, ReminderSnooze } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailLang } from '../mail/templates/base-email.template';
 import { normalizeDocKind } from '../mail/templates/document-expiring.template';
 import { MailService } from '../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { FeatureAccessService } from '../../common/features/feature-access.service';
-
-type UserWithSettings = User & { settings: UserSettings | null };
+import {
+  DEFAULT_REMINDER_DAYS,
+  EMAIL_RETRY_DAYS,
+  EXPIRED_OFFSET,
+  MS_PER_DAY,
+  UserWithSettings,
+  reminderCarLabel,
+  reminderLang,
+  startOfDay,
+  uniqueRecipients,
+} from '../../common/reminders/reminder.util';
+import { carMuteMapKey, isCarMuted, snoozeMapKey, snoozeState } from '../reminder-snooze/reminder-snooze.service';
 
 type CarWithRecipients = Car & {
   user: UserWithSettings;
@@ -17,19 +27,16 @@ type CarWithRecipients = Car & {
   documents: Document[];
 };
 
-/** Default "before expiry" offsets when the user has no settings row. */
-const DEFAULT_REMINDER_DAYS = [7, 3, 1, 0];
-/** Sent once, the day after expiry, to every user with reminders enabled. */
-const EXPIRED_OFFSET = -1;
-/** A reminder whose email failed is retried for this many days after it was first sent. */
-const EMAIL_RETRY_DAYS = 3;
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
+/** A snooze-end reminder is still sent for a document that expired at most this many days ago. */
+const SNOOZE_END_MAX_DAYS_EXPIRED = 30;
 
 export interface RunOptions {
   /** Compute and log who would be notified; send and write nothing. */
   dryRun?: boolean;
   /** Pretend this is today (for verifying offsets). */
   today?: Date;
+  /** Restrict recipients to this user (testing real sends safely). */
+  onlyUserId?: number;
 }
 
 export interface ReminderCandidate {
@@ -40,7 +47,7 @@ export interface ReminderCandidate {
   docType: string;
   expiresAt: Date;
   daysLeft: number;
-  action: 'send' | 'already-sent' | 'retry-email';
+  action: 'send' | 'already-sent' | 'retry-email' | 'snooze-end';
 }
 
 export interface RunSummary {
@@ -54,12 +61,6 @@ export interface RunSummary {
   emailFailed: number;
   failures: number;
   candidates: ReminderCandidate[];
-}
-
-function startOfDay(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
 }
 
 @Injectable()
@@ -76,6 +77,10 @@ export class DocumentRemindersService {
 
   @Cron('0 8 * * *')
   async checkExpiringDocuments(): Promise<void> {
+    if (this.configService.get<string>('REMINDERS_CRON_DISABLED') === 'true') {
+      this.logger.log('reminder cron disabled by env');
+      return;
+    }
     try {
       await this.run();
     } catch (error) {
@@ -85,7 +90,8 @@ export class DocumentRemindersService {
 
   async run(options: RunOptions = {}): Promise<RunSummary> {
     const dryRun = options.dryRun ?? false;
-    const today = startOfDay(options.today ?? new Date());
+    const now = options.today ?? new Date();
+    const today = startOfDay(now);
     const summary: RunSummary = {
       dryRun,
       today: today.toLocaleDateString('sv-SE'),
@@ -123,19 +129,43 @@ export class DocumentRemindersService {
     const nicknameRows = await this.prisma.carUserNickname.findMany({ where: { car_id: { in: cars.map(c => c.id) } } });
     const nicknames = new Map(nicknameRows.map(r => [`${r.car_id}:${r.user_id}`, r.nickname]));
 
+    // Per-user snoozes of documents (ReminderSnooze, keyed by document id).
+    const snoozeRows = await this.prisma.reminderSnooze.findMany({ where: { kind: 'DOCUMENT', car_id: { in: cars.map(c => c.id) } } });
+    const snoozes = new Map<string, ReminderSnooze>(snoozeRows.map(r => [snoozeMapKey(r.user_id, r.kind, r.item_key), r]));
+
+    // Per-user car mutes: nothing is sent (or retried) for a muted car; an ended timed mute just stops filtering.
+    const muteRows = await this.prisma.carReminderMute.findMany({ where: { car_id: { in: cars.map(c => c.id) } } });
+    const mutes = new Map(muteRows.map(r => [carMuteMapKey(r.user_id, r.car_id), r]));
+
     for (const car of cars) {
-      const recipients = this.uniqueRecipients(car);
+      const recipients = uniqueRecipients(car).filter(
+        u => (options.onlyUserId == null || u.id === options.onlyUserId) && !isCarMuted(mutes.get(carMuteMapKey(u.id, car.id)), now),
+      );
       for (const doc of this.currentDocuments(car.documents)) {
         summary.docsConsidered++;
         const expiresAt = doc.expiry_date as Date;
         const daysLeft = Math.round((startOfDay(expiresAt).getTime() - today.getTime()) / MS_PER_DAY);
-        if (daysLeft < EXPIRED_OFFSET) continue;
+        if (daysLeft < -SNOOZE_END_MAX_DAYS_EXPIRED) continue;
         const docType = this.dedupType(doc);
 
         for (const user of recipients) {
           const remindersEnabled = user.settings?.expiry_reminders_enabled ?? true;
           const reminderDays = user.settings?.expiry_reminder_days ?? DEFAULT_REMINDER_DAYS;
           if (!remindersEnabled) continue;
+          const snooze = snoozes.get(snoozeMapKey(user.id, 'DOCUMENT', String(doc.id)));
+          const snoozed = snoozeState(snooze, today);
+          if (snoozed === 'silent') continue;
+          if (snoozed === 'ended') {
+            // A timed snooze elapsed: ONE reminder now whatever the offsets say, then back to the normal cadence.
+            try {
+              await this.handleSnoozeEnd(summary, user, car, reminderCarLabel(car, nicknames.get(`${car.id}:${user.id}`)), doc, docType, daysLeft, snooze as ReminderSnooze);
+            } catch (error) {
+              summary.failures++;
+              this.logger.error(`Snooze-end reminder failed (user ${user.id}, car ${car.id}, ${docType}): ${(error as Error).message}`, (error as Error).stack);
+            }
+            continue;
+          }
+          if (daysLeft < EXPIRED_OFFSET) continue;
           if (daysLeft !== EXPIRED_OFFSET && !reminderDays.includes(daysLeft)) continue;
 
           try {
@@ -143,10 +173,11 @@ export class DocumentRemindersService {
               summary,
               user,
               car,
-              this.carLabel(car, nicknames.get(`${car.id}:${user.id}`)),
+              reminderCarLabel(car, nicknames.get(`${car.id}:${user.id}`)),
               docType,
               expiresAt,
               daysLeft,
+              doc.id,
             );
           } catch (error) {
             summary.failures++;
@@ -159,7 +190,7 @@ export class DocumentRemindersService {
       }
     }
 
-    await this.retryFailedEmails(summary, nicknames);
+    await this.retryFailedEmails(summary, nicknames, options.onlyUserId, mutes, now);
 
     this.logger.log(
       `Document reminder run finished (dryRun=${dryRun}): cars=${summary.carsScanned} docs=${summary.docsConsidered} ` +
@@ -184,6 +215,7 @@ export class DocumentRemindersService {
     docType: string,
     expiresAt: Date,
     daysLeft: number,
+    docId: number,
   ): Promise<void> {
     const existing = await this.prisma.documentReminderSent.findUnique({
       where: {
@@ -213,17 +245,18 @@ export class DocumentRemindersService {
     if (summary.dryRun) {
       this.logger.log(
         `[dry-run] would notify user ${user.id} <${user.email}>: ${docType} of car ${car.id} "${carLabel}" ` +
-          `expires ${expiresAt.toISOString().slice(0, 10)} (daysLeft=${daysLeft}, lang=${this.lang(user)})`,
+          `expires ${expiresAt.toISOString().slice(0, 10)} (daysLeft=${daysLeft}, lang=${reminderLang(user)})`,
       );
       return;
     }
 
-    const lang = this.lang(user);
+    const lang = reminderLang(user);
     await this.notificationsService.create(user.id, 'DOCUMENT_EXPIRING', {
       carId: car.id,
       carLabel,
       docType: normalizeDocKind(docType.split(':')[0]),
       docTypeRaw: docType,
+      docId,
       expiresAt,
       daysLeft,
       lang,
@@ -259,7 +292,7 @@ export class DocumentRemindersService {
     expiresAt: Date,
     daysLeft: number,
   ): Promise<void> {
-    const ok = await this.mailService.sendDocumentExpiring(user.email, this.lang(user), {
+    const ok = await this.mailService.sendDocumentExpiring(user.email, reminderLang(user), {
       carLabel,
       docType: docType.split(':')[0],
       expiresAt,
@@ -274,14 +307,61 @@ export class DocumentRemindersService {
     }
   }
 
+  /**
+   * The single reminder after a timed snooze ended (the doc is still the current one). Dedup lives on the
+   * snooze row (`end_notified_at`); the email is attempted once and not retried.
+   */
+  private async handleSnoozeEnd(
+    summary: RunSummary,
+    user: UserWithSettings,
+    car: CarWithRecipients,
+    carLabel: string,
+    doc: Document,
+    docType: string,
+    daysLeft: number,
+    snooze: ReminderSnooze,
+  ): Promise<void> {
+    const expiresAt = doc.expiry_date as Date;
+    summary.candidates.push({ userId: user.id, email: user.email, carId: car.id, carLabel, docType, expiresAt, daysLeft, action: 'snooze-end' });
+    if (summary.dryRun) {
+      this.logger.log(`[dry-run] would send snooze-end reminder to user ${user.id} <${user.email}>: ${docType} of car ${car.id} (daysLeft=${daysLeft})`);
+      return;
+    }
+    const lang = reminderLang(user);
+    await this.notificationsService.create(user.id, 'DOCUMENT_EXPIRING', {
+      carId: car.id,
+      carLabel,
+      docType: normalizeDocKind(docType.split(':')[0]),
+      docTypeRaw: docType,
+      docId: doc.id,
+      expiresAt,
+      daysLeft,
+      snoozeEnd: true,
+      lang,
+    }, { forcePush: true });
+    summary.inApp++;
+    summary.push++;
+    await this.prisma.reminderSnooze.update({ where: { id: snooze.id }, data: { end_notified_at: new Date() } });
+    const ok = await this.mailService.sendDocumentExpiring(user.email, lang, {
+      carLabel,
+      docType: docType.split(':')[0],
+      expiresAt,
+      daysLeft,
+      appUrl: this.configService.get<string>('FE_BASE_URL', 'http://localhost:4200'),
+    });
+    if (ok) summary.emailSent++;
+    else summary.emailFailed++;
+  }
+
   /** Re-sends only the email for reminders whose email failed earlier (notification/push already went out). */
-  private async retryFailedEmails(summary: RunSummary, nicknames: Map<string, string>): Promise<void> {
+  private async retryFailedEmails(summary: RunSummary, nicknames: Map<string, string>, onlyUserId?: number, mutes?: Map<string, CarReminderMute>, now = new Date()): Promise<void> {
     const rows = await this.prisma.documentReminderSent.findMany({
-      where: { email_sent: false, sent_at: { gte: new Date(Date.now() - EMAIL_RETRY_DAYS * MS_PER_DAY) } },
+      where: { ...(onlyUserId != null ? { user_id: onlyUserId } : {}), email_sent: false, sent_at: { gte: new Date(Date.now() - EMAIL_RETRY_DAYS * MS_PER_DAY) } },
       include: { user: { include: { settings: true } }, car: true },
     });
     for (const row of rows) {
-      const carLabel = this.carLabel(row.car, nicknames.get(`${row.car_id}:${row.user_id}`));
+      if (isCarMuted(mutes?.get(carMuteMapKey(row.user_id, row.car_id)), now)) continue;
+      const carLabel = reminderCarLabel(row.car, nicknames.get(`${row.car_id}:${row.user_id}`));
       summary.candidates.push({
         userId: row.user_id,
         email: row.user.email,
@@ -324,23 +404,5 @@ export class DocumentRemindersService {
   private dedupType(doc: Document): string {
     const type = doc.document_type === 'ROVINIETA' ? 'ROV' : doc.document_type;
     return type === 'ROV' && doc.country && doc.country !== 'RO' ? `ROV:${doc.country}` : type;
-  }
-
-  private carLabel(car: Pick<Car, 'make' | 'model' | 'license_plate'>, nickname: string | undefined): string {
-    const name = nickname ?? `${car.make} ${car.model}`.trim();
-    return car.license_plate ? `${name} (${car.license_plate})` : name;
-  }
-
-  private lang(user: UserWithSettings): MailLang {
-    return user.settings?.language === 'en' ? 'en' : 'ro';
-  }
-
-  private uniqueRecipients(car: CarWithRecipients): UserWithSettings[] {
-    const byId = new Map<number, UserWithSettings>();
-    byId.set(car.user.id, car.user);
-    for (const entry of car.access_entries) {
-      byId.set(entry.user.id, entry.user);
-    }
-    return [...byId.values()];
   }
 }

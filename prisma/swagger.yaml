@@ -2084,6 +2084,106 @@ paths:
         - "app-data"
       security:
         - cookie: []
+  /api/reminders/snooze:
+    post:
+      operationId: "ReminderSnoozeController_snooze"
+      summary: "Snooze the reminders of the item behind a notification (3 or 7 days, or null = do not remind again)"
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SnoozeReminderDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SnoozeResultDto"
+      tags:
+        - "reminders"
+      security:
+        - cookie: []
+  /api/reminders/snooze/{notificationId}:
+    delete:
+      operationId: "ReminderSnoozeController_unsnooze"
+      summary: "Remove the snooze of the item behind a notification"
+      parameters:
+        - name: "notificationId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        204:
+          description: ""
+      tags:
+        - "reminders"
+      security:
+        - cookie: []
+  /api/reminders/car-mute/{carId}:
+    put:
+      operationId: "ReminderSnoozeController_muteCar"
+      summary: "Mute all reminders of a car for the current user (months 1|3|6, or null = until turned back on)"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MuteCarDto"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarMuteDto"
+      tags:
+        - "reminders"
+      security:
+        - cookie: []
+    delete:
+      operationId: "ReminderSnoozeController_unmuteCar"
+      summary: "Turn the reminders of a car back on for the current user"
+      parameters:
+        - name: "carId"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        204:
+          description: ""
+      tags:
+        - "reminders"
+      security:
+        - cookie: []
+  /api/reminders/car-mutes:
+    get:
+      operationId: "ReminderSnoozeController_carMutes"
+      summary: "The current user's active car-level mutes"
+      parameters: []
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/CarMuteDto"
+      tags:
+        - "reminders"
+      security:
+        - cookie: []
   /api/car-note:
     post:
       operationId: "CarNoteController_createCarNote"
@@ -2586,6 +2686,18 @@ paths:
     post:
       operationId: "AdminController_documentRemindersDryRun"
       summary: "Dry-run the document expiry reminder job (optionally for a simulated date) and list who would be notified"
+      parameters: []
+      responses:
+        200:
+          description: ""
+      tags:
+        - "admin"
+      security:
+        - cookie: []
+  /api/admin/maintenance-reminders/dry-run:
+    post:
+      operationId: "AdminController_maintenanceRemindersDryRun"
+      summary: "Dry-run the maintenance-due reminder job (optionally for a simulated date) and list who would be notified"
       parameters: []
       responses:
         200:
@@ -3445,6 +3557,7 @@ components:
             - "CAR_ACCESS_ROLE_CHANGED"
             - "CAR_ACCESS_ACCEPTED"
             - "DOCUMENT_EXPIRING"
+            - "MAINTENANCE_DUE"
             - "VIN_CONFLICT"
             - "LICENSE_PLATE_CONFLICT"
             - "ORG_INVITED"
@@ -5649,12 +5762,16 @@ components:
           type: "array"
           items:
             type: "array"
+        maintenance_reminders_enabled:
+          type: "boolean"
+          example: true
       required:
         - "language"
         - "theme"
         - "view_mode"
         - "expiry_reminders_enabled"
         - "expiry_reminder_days"
+        - "maintenance_reminders_enabled"
     UpdateUserSettingsDto:
       type: "object"
       properties:
@@ -5696,6 +5813,9 @@ components:
               - 7
               - 14
               - 30
+        maintenance_reminders_enabled:
+          type: "boolean"
+          example: true
     NavigationPrefsDto:
       type: "object"
       properties:
@@ -5756,6 +5876,57 @@ components:
       required:
         - "enabled_features"
         - "navigation"
+    SnoozeReminderDto:
+      type: "object"
+      properties:
+        notificationId:
+          type: "number"
+          description: "A DOCUMENT_EXPIRING or MAINTENANCE_DUE notification of the current user"
+        days:
+          type: "number"
+          nullable: true
+          enum:
+            - 7
+            - 30
+          description: "Days to stay silent; null = do not remind again for this item/cycle"
+      required:
+        - "notificationId"
+        - "days"
+    SnoozeResultDto:
+      type: "object"
+      properties:
+        until:
+          format: "date-time"
+          type: "string"
+          nullable: true
+      required:
+        - "until"
+    MuteCarDto:
+      type: "object"
+      properties:
+        months:
+          type: "number"
+          nullable: true
+          enum:
+            - 1
+            - 3
+            - 6
+          description: "Months to mute the car for; null = until turned back on"
+      required:
+        - "months"
+    CarMuteDto:
+      type: "object"
+      properties:
+        carId:
+          type: "number"
+        until:
+          format: "date-time"
+          type: "string"
+          nullable: true
+          description: "Muted until this moment; null = until turned back on"
+      required:
+        - "carId"
+        - "until"
     CarNoteChecklistItemDto:
       type: "object"
       properties:

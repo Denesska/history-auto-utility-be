@@ -1,4 +1,4 @@
-import { MailLang, renderEmailLayout } from './base-email.template';
+import { MailLang, daysText, renderEmailLayout } from './base-email.template';
 import { RenderedEmail } from './car-share-invitation.template';
 
 /** Document.document_type as stored ('RCA', 'ITP', 'ROV', 'CASCO', ...); ROVINIETA is accepted as an alias of ROV. */
@@ -38,13 +38,13 @@ function formatDate(date: Date, lang: MailLang): string {
 /** "expires in 3 days" / "expires today" / "expired yesterday" phrase, per language. */
 function whenPhrase(daysLeft: number, lang: MailLang): string {
   if (lang === 'en') {
-    if (daysLeft < 0) return daysLeft === -1 ? 'expired yesterday' : `expired ${-daysLeft} days ago`;
+    if (daysLeft < 0) return daysLeft === -1 ? 'expired yesterday' : `expired ${daysText(-daysLeft, 'en')} ago`;
     if (daysLeft === 0) return 'expires today';
-    return `expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`;
+    return `expires in ${daysText(daysLeft, 'en')}`;
   }
-  if (daysLeft < 0) return daysLeft === -1 ? 'a expirat ieri' : `a expirat acum ${-daysLeft} zile`;
+  if (daysLeft < 0) return daysLeft === -1 ? 'a expirat ieri' : `a expirat acum ${daysText(-daysLeft, 'ro')}`;
   if (daysLeft === 0) return 'expiră astăzi';
-  return daysLeft === 1 ? 'expiră mâine' : `expiră în ${daysLeft} zile`;
+  return daysLeft === 1 ? 'expiră mâine' : `expiră în ${daysText(daysLeft, 'ro')}`;
 }
 
 /** Short one-line text for push notifications. */

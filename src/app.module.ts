@@ -20,6 +20,8 @@ import { CarMaintenanceSettingsModule } from './modules/car-maintenance-settings
 import { CarMaintenanceProfilesModule } from './modules/car-maintenance-profiles/car-maintenance-profiles.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { DocumentRemindersModule } from './modules/document-reminders/document-reminders.module';
+import { ReminderSnoozeModule } from './modules/reminder-snooze/reminder-snooze.module';
+import { MaintenanceRemindersModule } from './modules/maintenance-reminders/maintenance-reminders.module';
 import { CarNoteModule } from './modules/car-note/car-note.module';
 import { CarWishModule } from './modules/car-wish/car-wish.module';
 import { NavRelayModule } from './modules/nav-relay/nav-relay.module';
@@ -61,6 +63,8 @@ import { AiUsageModule } from './modules/ai-usage/ai-usage.module';
     BootstrapModule,
     NotificationsModule,
     DocumentRemindersModule,
+    MaintenanceRemindersModule,
+    ReminderSnoozeModule,
     CarNoteModule,
     CarWishModule,
     NavRelayModule,

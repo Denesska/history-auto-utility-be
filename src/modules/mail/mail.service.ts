@@ -4,6 +4,7 @@ import * as nodemailer from 'nodemailer';
 import { MailLang } from './templates/base-email.template';
 import { CarShareInvitationData, carShareInvitationEmail } from './templates/car-share-invitation.template';
 import { DocumentExpiringData, documentExpiringEmail } from './templates/document-expiring.template';
+import { MaintenanceDueData, maintenanceDueEmail } from './templates/maintenance-due.template';
 import { OrganizationInvitationData, organizationInvitationExistingUserEmail } from './templates/organization-invitation.template';
 import { BusinessAccessRequestedData, businessAccessRequestedEmail } from './templates/business-access-request.template';
 import {
@@ -50,6 +51,12 @@ export class MailService {
   /** Resolves to whether the email was actually handed to the SMTP server (sendMail never throws). */
   async sendDocumentExpiring(to: string, lang: MailLang, data: DocumentExpiringData): Promise<boolean> {
     const { subject, html } = documentExpiringEmail(lang, data);
+    return this.sendMail(to, subject, html);
+  }
+
+  /** Resolves to whether the email was actually handed to the SMTP server (sendMail never throws). */
+  async sendMaintenanceDue(to: string, lang: MailLang, data: MaintenanceDueData & { appUrl: string }): Promise<boolean> {
+    const { subject, html } = maintenanceDueEmail(lang, data);
     return this.sendMail(to, subject, html);
   }
 

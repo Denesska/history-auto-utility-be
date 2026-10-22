@@ -6,6 +6,7 @@ import { getMessaging } from 'firebase-admin/messaging';
 import { resolve } from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
 import { documentExpiringPushText } from '../mail/templates/document-expiring.template';
+import { maintenanceDuePushText } from '../mail/templates/maintenance-due.template';
 import { NotificationDto } from './dto/notification.dto';
 
 @Injectable()
@@ -65,6 +66,7 @@ export class PushService {
         tokens: webTokens.map(t => t.token),
         data: { ...data, title, body },
       });
+      this.logResult(notification, 'WEB', response);
       staleTokens.push(...this.collectStaleTokens(response, webTokens));
     }
 
@@ -74,12 +76,25 @@ export class PushService {
         notification: { title, body },
         data,
       });
+      this.logResult(notification, 'ANDROID', response);
       staleTokens.push(...this.collectStaleTokens(response, androidTokens));
     }
 
     if (staleTokens.length > 0) {
       await this.prisma.pushToken.deleteMany({ where: { token: { in: staleTokens } } });
     }
+  }
+
+  private logResult(
+    notification: NotificationDto,
+    platform: string,
+    response: { successCount: number; failureCount: number; responses: { success: boolean; error?: { code?: string } }[] },
+  ): void {
+    const errors = response.responses.filter(r => !r.success).map(r => r.error?.code ?? 'unknown');
+    this.logger.log(
+      `FCM ${platform} push for notification ${notification.id}: ${response.successCount} ok, ${response.failureCount} failed` +
+        (errors.length ? ` (${errors.join(', ')})` : ''),
+    );
   }
 
   private collectStaleTokens(
@@ -132,6 +147,11 @@ export class PushService {
         docType: d.docType,
         daysLeft: d.daysLeft,
       });
+    }
+
+    if (notification.type === 'MAINTENANCE_DUE') {
+      const d = notification.data ?? {};
+      return maintenanceDuePushText(d.lang === 'en' ? 'en' : 'ro', d);
     }
 
     if (notification.type === 'AI_QUOTA_BLOCKED') {
