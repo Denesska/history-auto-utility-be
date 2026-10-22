@@ -109,7 +109,7 @@ else in this document refers to it.
   are trusted.
 - `ai-time.ts` — Europe/Bucharest day and month boundaries.
 - `ai-features.ts` — the feature keys (`document_extract`, `identity_extract`,
-  `maintenance_category`, `vehicle_silhouette`), provider names and usage
+  `maintenance_category`, `maintenance_invoice_extract`, `vehicle_silhouette`), provider names and usage
   statuses (`ok`, `error`, `cached`, `blocked`) used in usage rows and admin
   breakdowns.
 - `ai-usage.controller.ts` — `GET /ai-usage/me` (`@Scope('any')`), the figures

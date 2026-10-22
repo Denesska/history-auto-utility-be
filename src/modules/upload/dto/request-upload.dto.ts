@@ -7,7 +7,7 @@ export type AllowedMimeType = (typeof ALLOWED_MIME_TYPES)[number];
 export const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
 export const MAX_PDF_SIZE = 20 * 1024 * 1024;   // 20 MB
 
-export const CONTEXT_TYPES = ['car', 'maintenance', 'document', 'inspection', 'journal'] as const;
+export const CONTEXT_TYPES = ['car', 'maintenance', 'maintenance_invoice', 'document', 'inspection', 'journal'] as const;
 export type ContextType = (typeof CONTEXT_TYPES)[number];
 
 export class RequestUploadDto {

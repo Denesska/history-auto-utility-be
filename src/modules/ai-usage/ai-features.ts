@@ -1,4 +1,4 @@
-export const AI_FEATURES = ['document_extract', 'identity_extract', 'maintenance_category', 'vehicle_silhouette'] as const;
+export const AI_FEATURES = ['document_extract', 'identity_extract', 'maintenance_category', 'maintenance_invoice_extract', 'vehicle_silhouette'] as const;
 
 export type AiFeature = (typeof AI_FEATURES)[number];
 

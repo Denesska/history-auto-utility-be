@@ -1,5 +1,5 @@
 import { Scope } from '../../common/context/scope.decorator';
-import { BadRequestException, Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RequestWithUser } from '../auth/express-request.interface';
@@ -64,8 +64,9 @@ export class UploadController {
   getReadUrl(
     @Req() req: RequestWithUser,
     @Param('id', ParseIntPipe) id: number,
+    @Query('download') download?: string,
   ): Promise<ReadUrlResponseDto> {
-    return this.uploadService.getReadUrl(req.user.id, id);
+    return this.uploadService.getReadUrl(req.user.id, id, download === '1' || download === 'true');
   }
 
   @Get('context/:contextType/:contextId')

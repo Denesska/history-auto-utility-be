@@ -1,6 +1,7 @@
 import { Scope } from '../../common/context/scope.decorator';
 import { Feature } from '../../common/features/feature.decorator';
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -10,8 +11,12 @@ import {
   Put,
   Req,
   ServiceUnavailableException,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { RequestWithUser } from '../auth/express-request.interface';
 import { MaintenanceRecordService } from './maintenance-record.service';
 import { MaintenanceRecord as MaintenanceRecordModel } from '@prisma/client';
@@ -19,6 +24,8 @@ import { CreateMaintenanceRecordDto } from './dto/create-maintenance-record.dto'
 import { UpdateMaintenanceRecordDto } from './dto/update-maintenance-record.dto';
 import {
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiOperation,
   ApiResponse,
   ApiTags,
@@ -30,6 +37,8 @@ import {
   CategorySuggestionService,
   CategorySuggestionServiceUnavailableError,
 } from './category-suggestion.service';
+import { InvoiceExtractionService } from './invoice-extraction/invoice-extraction.service';
+import { InvoiceExtractionResultDto } from './invoice-extraction/invoice-extraction.dto';
 
 @ApiTags('maintenance-record')
 @ApiBearerAuth()
@@ -41,7 +50,44 @@ export class MaintenanceRecordController {
   constructor(
     private readonly maintenanceRecordService: MaintenanceRecordService,
     private readonly categorySuggestionService: CategorySuggestionService,
+    private readonly invoiceExtractionService: InvoiceExtractionService,
   ) {}
+
+  @Post('extract-invoice')
+  @ApiOperation({
+    summary: 'Extract one reconciled maintenance entry from 1-3 invoice / service report photos or PDFs (suggestion only, does not save)',
+    description:
+      'All files must belong to ONE intervention (e.g. a parts invoice plus the workshop work order). Parts repeated across ' +
+      'documents are counted once; totals are computed server-side. The user must review before saving.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['files'],
+      properties: {
+        files: { type: 'array', items: { type: 'string', format: 'binary' }, maxItems: 3 },
+        car_id: { type: 'integer', description: 'Optional: gives the model vehicle context.' },
+        lang: { type: 'string', enum: ['ro', 'en', 'ru'], default: 'ro' },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, type: InvoiceExtractionResultDto })
+  @ApiResponse({ status: 400, description: 'No files, too many files, or invalid car_id/lang.' })
+  @ApiResponse({ status: 415, description: 'Unsupported file type.' })
+  @ApiResponse({ status: 429, description: 'AI quota exceeded.' })
+  @ApiResponse({ status: 503, description: 'AI extraction service is temporarily unavailable.' })
+  @UseInterceptors(FilesInterceptor('files', 3, { storage: memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } }))
+  async extractInvoice(
+    @Req() req: RequestWithUser,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Body() body: { car_id?: string; lang?: string },
+  ): Promise<InvoiceExtractionResultDto> {
+    const rawCar = body?.car_id;
+    const carId = rawCar !== undefined && rawCar !== '' ? Number(rawCar) : null;
+    if (carId !== null && !Number.isInteger(carId)) throw new BadRequestException('car_id must be an integer.');
+    return this.invoiceExtractionService.extract(files, req.user.id, { carId, lang: body?.lang });
+  }
 
   @Post('suggest-category')
   @ApiOperation({

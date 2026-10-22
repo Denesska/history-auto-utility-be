@@ -19,6 +19,8 @@ export class MaintenanceRecordEntity implements MaintenanceRecord {
     fuel_liters: number | null;
     energy_kwh: number | null;
     is_company_expense: boolean;
+    labor_cost: number | null;
+    notes: string | null;
     created_at: Date;
     supplier_id: number | null;
 }

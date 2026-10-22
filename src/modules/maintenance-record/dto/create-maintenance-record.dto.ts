@@ -1,4 +1,4 @@
-import { IsString, IsInt, IsNumber, IsEnum, IsOptional, IsDateString, IsBoolean, IsArray, ValidateNested } from 'class-validator';
+import { IsString, IsInt, IsNumber, IsEnum, IsOptional, IsDateString, IsBoolean, IsArray, ValidateNested, Min, MaxLength } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ServiceType } from '../../document/enum/service-type.enum';
@@ -65,6 +65,18 @@ export class CreateMaintenanceRecordDto {
     @IsBoolean()
     @ApiPropertyOptional({ example: false, description: 'Whether this expense is a company expense (reimbursable)' })
     readonly is_company_expense?: boolean;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    @ApiPropertyOptional({ example: 150, nullable: true, description: 'Labor (manopera) amount, in the record currency' })
+    readonly labor_cost?: number | null;
+
+    @IsOptional()
+    @IsString()
+    @MaxLength(4000)
+    @ApiPropertyOptional({ example: 'Changed oil and filters, checked brakes', nullable: true, description: 'Free multi-line description of the work done' })
+    readonly notes?: string | null;
 
     @IsOptional()
     @IsArray()
