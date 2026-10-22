@@ -2470,6 +2470,49 @@ paths:
                 $ref: "#/components/schemas/NavDestinationDto"
       tags:
         - "nav-relay"
+  /api/n/{slug}/history:
+    get:
+      operationId: "NavRelayController_history"
+      summary: "Recent destinations shared on this channel"
+      parameters:
+        - name: "slug"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NavDestinationHistoryDto"
+      tags:
+        - "nav-relay"
+  /api/n/{slug}/history/{id}/resend:
+    post:
+      operationId: "NavRelayController_resend"
+      summary: "Resend a previous destination to the car"
+      parameters:
+        - name: "slug"
+          required: true
+          in: "path"
+          schema:
+            type: "string"
+        - name: "id"
+          required: true
+          in: "path"
+          schema:
+            type: "number"
+      responses:
+        201:
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NavDestinationDto"
+      tags:
+        - "nav-relay"
   /api/p/{slug}:
     get:
       operationId: "CockpitProfileController_get"
@@ -6242,6 +6285,15 @@ components:
           type: "number"
           example: 1721400000
           description: "Unix seconds when it was shared."
+    NavDestinationHistoryDto:
+      type: "object"
+      properties:
+        items:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/NavDestinationDto"
+      required:
+        - "items"
     CockpitProfileDto:
       type: "object"
       properties:
