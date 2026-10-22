@@ -10,7 +10,7 @@ mail/
 ├── mail.module.ts                          # Nest module, exports MailService
 ├── mail.service.ts                         # nodemailer transport + one public method per email type
 └── templates/
-    ├── base-email.template.ts              # shared HTML layout (header/footer), ro/en footer text
+    ├── base-email.template.ts              # shared HTML layout (header/footer), ro/en/ru footer text
     └── car-share-invitation.template.ts    # subject + body for the "car shared with you" email
 ```
 
@@ -28,7 +28,7 @@ mail/
 `mailService.sendCarShareInvitation()` right after creating the `CarUserAccess` row, so the
 invited user gets an email informing them a car was shared with them.
 
-Language is picked from the invited user's `UserSettings.language` (`'en'` or default `'ro'`).
+Every channel (email, push, in-app) follows the recipient's language, never the actor's. Language is picked from the recipient's `UserSettings.language` via `resolveMailLang` in `base-email.template.ts` (`'ru'` and `'ro'` kept, anything else falls back to `'en'`).
 
 ## How to add a new notification type (e.g. access-expiring email)
 
@@ -73,8 +73,8 @@ a clear "missing config" error there since `MailService` uses `getOrThrow` for a
 
 ## Notes / things to know
 
-- Romanian and English are the only supported languages, matching the two locales already
-  in the frontend (`assets/i18n/ro.json` / `en.json`). Add more languages by extending the
+- English, Romanian and Russian are the supported languages (`MailLang`), matching the
+  frontend locales. The `business-access-request` admin alert follows each recipient's own language (looked up by email from `UserSettings.language`, en for addresses that aren't users). Add more languages by extending the
   `Record<MailLang, ...>` lookups in each template and the `MailLang` type in
   `base-email.template.ts`.
 - Email sending is `await`ed but failures never throw — check backend logs (`MailService`

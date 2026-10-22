@@ -1,4 +1,4 @@
-import { MailLang, daysText, renderEmailLayout } from './base-email.template';
+import { MailLang, daysText, formatDate, renderEmailLayout, snoozeHintHtml } from './base-email.template';
 import { RenderedEmail } from './car-share-invitation.template';
 
 /** Document.document_type as stored ('RCA', 'ITP', 'ROV', 'CASCO', ...); ROVINIETA is accepted as an alias of ROV. */
@@ -14,10 +14,10 @@ export interface DocumentExpiringData {
 }
 
 const DOC_LABELS: Record<string, Record<MailLang, string>> = {
-  RCA: { ro: 'RCA', en: 'RCA insurance' },
-  ITP: { ro: 'ITP', en: 'technical inspection (ITP)' },
-  ROV: { ro: 'Rovinieta', en: 'road tax (rovinietă)' },
-  CASCO: { ro: 'CASCO', en: 'CASCO insurance' },
+  RCA: { ro: 'RCA', en: 'RCA insurance', ru: 'Страховка ОСАГО (RCA)' },
+  ITP: { ro: 'ITP', en: 'technical inspection (ITP)', ru: 'Техосмотр (ITP)' },
+  ROV: { ro: 'Rovinieta', en: 'road tax (rovinietă)', ru: 'Дорожный сбор (rovinietă)' },
+  CASCO: { ro: 'CASCO', en: 'CASCO insurance', ru: 'Страховка КАСКО' },
 };
 
 /** Keys the frontend has labels for (sidebar.notifications.docTypes.*); anything else is sent as 'OTHER'. */
@@ -28,11 +28,7 @@ export function normalizeDocKind(docType: string): string {
 
 export function docLabel(docType: string, lang: MailLang): string {
   const kind = normalizeDocKind(docType);
-  return kind === 'OTHER' ? (lang === 'ro' ? 'Documentul' : 'document') : DOC_LABELS[kind][lang];
-}
-
-function formatDate(date: Date, lang: MailLang): string {
-  return date.toLocaleDateString(lang === 'ro' ? 'ro-RO' : 'en-GB');
+  return kind === 'OTHER' ? (lang === 'ro' ? 'Documentul' : lang === 'ru' ? 'Документ' : 'document') : DOC_LABELS[kind][lang];
 }
 
 /** "expires in 3 days" / "expires today" / "expired yesterday" phrase, per language. */
@@ -41,6 +37,11 @@ function whenPhrase(daysLeft: number, lang: MailLang): string {
     if (daysLeft < 0) return daysLeft === -1 ? 'expired yesterday' : `expired ${daysText(-daysLeft, 'en')} ago`;
     if (daysLeft === 0) return 'expires today';
     return `expires in ${daysText(daysLeft, 'en')}`;
+  }
+  if (lang === 'ru') {
+    if (daysLeft < 0) return daysLeft === -1 ? 'срок действия истёк вчера' : `срок действия истёк ${daysText(-daysLeft, 'ru')} назад`;
+    if (daysLeft === 0) return 'срок действия истекает сегодня';
+    return daysLeft === 1 ? 'срок действия истекает завтра' : `срок действия истекает через ${daysText(daysLeft, 'ru')}`;
   }
   if (daysLeft < 0) return daysLeft === -1 ? 'a expirat ieri' : `a expirat acum ${daysText(-daysLeft, 'ro')}`;
   if (daysLeft === 0) return 'expiră astăzi';
@@ -54,8 +55,11 @@ export function documentExpiringPushText(
 ): { title: string; body: string } {
   const label = docLabel(data.docType, lang);
   return {
-    title: data.daysLeft < 0 ? (lang === 'ro' ? 'Document expirat' : 'Document expired') : lang === 'ro' ? 'Document expiră' : 'Document expiring',
-    body: `${label} ${lang === 'ro' ? 'pentru' : 'for'} ${data.carLabel} ${whenPhrase(data.daysLeft, lang)}`,
+    title:
+      data.daysLeft < 0
+        ? lang === 'ro' ? 'Document expirat' : lang === 'ru' ? 'Документ просрочен' : 'Document expired'
+        : lang === 'ro' ? 'Document expiră' : lang === 'ru' ? 'Документ истекает' : 'Document expiring',
+    body: `${label} ${lang === 'ro' ? 'pentru' : lang === 'ru' ? 'для' : 'for'} ${data.carLabel} ${lang === 'ru' ? '— ' : ''}${whenPhrase(data.daysLeft, lang)}`,
   };
 }
 
@@ -63,6 +67,24 @@ export function documentExpiringEmail(lang: MailLang, data: DocumentExpiringData
   const label = docLabel(data.docType, lang);
   const expiresAtStr = formatDate(data.expiresAt, lang);
   const when = whenPhrase(data.daysLeft, lang);
+
+  if (lang === 'ru') {
+    return {
+      subject: `${label} для ${data.carLabel} — ${when}`,
+      html: renderEmailLayout(
+        'ru',
+        `
+        <p>Здравствуйте!</p>
+        <p><strong>${label}</strong> для <strong>${data.carLabel}</strong>: ${when} (дата окончания: <strong>${expiresAtStr}</strong>).</p>
+        <p>Войдите в HAU App, чтобы обновить дату окончания после продления.</p>
+        <p style="margin-top:24px;">
+          <a href="${data.appUrl}" style="background:#2563eb;color:#ffffff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Открыть HAU App</a>
+        </p>
+        ${snoozeHintHtml('ru')}
+        `,
+      ),
+    };
+  }
 
   if (lang === 'en') {
     return {
@@ -76,6 +98,7 @@ export function documentExpiringEmail(lang: MailLang, data: DocumentExpiringData
         <p style="margin-top:24px;">
           <a href="${data.appUrl}" style="background:#2563eb;color:#ffffff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Open HAU App</a>
         </p>
+        ${snoozeHintHtml('en')}
         `,
       ),
     };
@@ -92,6 +115,7 @@ export function documentExpiringEmail(lang: MailLang, data: DocumentExpiringData
       <p style="margin-top:24px;">
         <a href="${data.appUrl}" style="background:#2563eb;color:#ffffff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Deschide HAU App</a>
       </p>
+      ${snoozeHintHtml('ro')}
       `,
     ),
   };
