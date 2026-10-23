@@ -7,7 +7,7 @@ export const KNOWN_DOCUMENT_TYPES = new Set(['RCA', 'CASCO', 'ITP', 'ROV', 'REGI
 
 export const DOCUMENT_TYPE_VALUES = [...KNOWN_DOCUMENT_TYPES];
 
-export const DOCUMENT_EXTRACTION_PROMPT = `You are analysing a photo or scan of a Romanian vehicle-related document. Identify which of these document types it is:
+export const DOCUMENT_EXTRACTION_PROMPT = `You are analysing a photo, scan or PDF of a Romanian vehicle-related document. Identify which of these document types it is:
 - RCA: mandatory third-party liability insurance policy/certificate ("poliță RCA", "certificat de asigurare", "carte verde")
 - CASCO: optional comprehensive/own-damage insurance policy ("poliță CASCO", covers theft/collision/own-vehicle damage, not just third-party liability) — distinguish from RCA by the word "CASCO" on the document and the absence of a bonus-malus class, which is an RCA-only concept
 - ITP: periodic technical inspection certificate/sticker ("inspecție tehnică periodică", "ITP")
@@ -31,6 +31,13 @@ For REGISTRATION (vehicle registration certificate / "certificat de înmatricula
 - "color" ("culoare") should be a plain color name in Romanian (e.g. "Alb", "Negru", "Gri", "Roșu", "Albastru").
 - "manufacture_year" is the 4-digit year of manufacture ("an fabricație"), not the first-registration date.
 - "civ_number" is the series AND number of the vehicle identity card ("seria și numărul cărții de identitate a vehiculului", also printed as "C.I.V."), combined into one string exactly as printed (series letters immediately followed by the number, e.g. "K123456") — this is a field on the registration certificate itself, distinct from the plate number and the VIN.
+
+For RCA documents specifically (also applies to the insurance fields of CASCO):
+- "policy_series" and "policy_number" come from the "Seria ... Nr. ..." (or "Serie"/"Număr poliță") line of the contract, e.g. series "RO/26/J26/JA" and number "096171237". Do not use the Green Card "Cod țară/Cod asigurător/Număr poliță" box as the series.
+- "policyholder_name" is the "Nume/Denumire Asigurat" (PROPRIETAR) — a person or a company name, without the role label. "owner_cnp" is the "C.U.I. / C.N.P. Proprietar" value (a company CUI or a personal CNP) — NOT the CNP of a listed driver ("Conducători Auto").
+- "valid_from" / "valid_until" come from "Valabilitate Contract de la ... până la ..." (inclusive dates); "issue_date" is "Contract emis în data de" / "Data emiterii".
+- "bonus_malus_class" is the "Clasă Bonus-Malus" value: B0-B14 or M1-M8.
+- "premium" is "Prima de asigurare" with "currency" (Lei -> RON; Moldovan policies may use MDL).
 
 For CASCO documents specifically:
 - Extract "policy_series", "policy_number", "insurer_name", "policyholder_name", "owner_cnp", "premium", "currency", "issue_date"/"valid_from" and "valid_until" the same way as for RCA.
