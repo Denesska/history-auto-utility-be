@@ -14,7 +14,7 @@ import { MailLang, resolveMailLang } from '../mail/templates/base-email.template
 import { NotificationsService } from '../notifications/notifications.service';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { ChangeRoleDto } from './dto/change-role.dto';
-import { CarAccessDto, SharedCarDto } from './dto/car-access.dto';
+import { CarAccessDto, SharedCarDto, ShareUserSearchResultDto } from './dto/car-access.dto';
 
 @Injectable()
 export class CarAccessService {
@@ -462,12 +462,21 @@ export class CarAccessService {
 
     if (getRequestSessionContext()?.type === 'business') return [];
 
-    const carSelect = { id: true, make: true, model: true, variant: true, year: true, license_plate: true };
+    const carSelect = { id: true, make: true, model: true, variant: true, year: true, license_plate: true, user_id: true };
 
     const entries = await this.prisma.carUserAccess.findMany({
       where: { user_id: user.id, car: { organization_id: null } },
       include: { car: { select: carSelect } },
     });
+
+    const ownerIds = [...new Set(entries.map(e => e.car.user_id))];
+    const owners = ownerIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: ownerIds } },
+          select: { id: true, email: true, first_name: true, last_name: true, picture: true },
+        })
+      : [];
+    const ownerById = new Map(owners.map(o => [o.id, o]));
 
     return entries.map(e => ({
       id: e.car.id,
@@ -480,7 +489,37 @@ export class CarAccessService {
       accepted_at: e.accepted_at,
       organization_id: null,
       organization_name: null,
+      owner: ownerById.get(e.car.user_id) ?? null,
     }));
+  }
+
+  /**
+   * Share-candidate lookup: every whitespace-separated token of `q` must appear (case-insensitive,
+   * contains) in the email, first name or last name — so "ion pop" finds "Ion Popescu". Excludes the
+   * caller and company-managed/disabled accounts; max 10; returns display fields only.
+   */
+  async searchUsers(googleId: string, q: string): Promise<ShareUserSearchResultDto[]> {
+    const me = await this.resolveUser(googleId);
+    const tokens = (q ?? '').trim().split(/\s+/).filter(Boolean);
+    if (tokens.join('').length < 3) return [];
+
+    return this.prisma.user.findMany({
+      where: {
+        id: { not: me.id },
+        is_company_managed: false,
+        disabled_at: null,
+        AND: tokens.slice(0, 4).map(t => ({
+          OR: [
+            { email: { contains: t, mode: 'insensitive' as const } },
+            { first_name: { contains: t, mode: 'insensitive' as const } },
+            { last_name: { contains: t, mode: 'insensitive' as const } },
+          ],
+        })),
+      },
+      select: { id: true, email: true, first_name: true, last_name: true, picture: true },
+      orderBy: [{ first_name: 'asc' }, { last_name: 'asc' }],
+      take: 10,
+    });
   }
 
   // ── organizations (B2B) ────────────────────────────────────────────────

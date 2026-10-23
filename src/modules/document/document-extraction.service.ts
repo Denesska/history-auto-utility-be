@@ -10,6 +10,9 @@ import { CloudflareExtractionService, CloudflareExtractionUnavailableError } fro
 
 const SUPPORTED_MIME_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']);
 const MAX_RAW_TEXT_CHARS = 3000;
+// If the free regex parser leaves any of these empty on a text PDF, the layout is one it doesn't
+// know — escalate to AI extraction and merge, instead of returning a half-filled policy.
+const RCA_CRITICAL_FIELDS = ['policy_number', 'valid_from', 'valid_until'] as const;
 const VIN_PATTERN = /^[A-HJ-NPR-Z0-9]{17}$/;
 
 // The VIN alphabet excludes I, O and Q entirely, so any occurrence in a raw
@@ -60,6 +63,9 @@ export class DocumentExtractionService {
         }
 
         let rawText = '';
+        // Regex-parser result that is missing critical fields: kept as the base for an AI merge,
+        // and returned as-is if the AI step is unavailable (quota, outage).
+        let partial: ExtractionResultDto | null = null;
         if (mimeType === 'application/pdf') {
             try {
                 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -77,7 +83,7 @@ export class DocumentExtractionService {
                     if (parser.canParse(rawText)) {
                         const result = parser.parse(rawText);
                         sanitizeVin(result.fields, result.warnings);
-                        return {
+                        const parsed: ExtractionResultDto = {
                             detected: result.detected,
                             document_type: result.document_type,
                             confidence: result.confidence,
@@ -85,11 +91,15 @@ export class DocumentExtractionService {
                             warnings: result.warnings,
                             raw_text: rawText.slice(0, MAX_RAW_TEXT_CHARS),
                         };
+                        if (RCA_CRITICAL_FIELDS.every(k => !!result.fields[k])) return parsed;
+                        partial = parsed;
+                        break;
                     }
                 }
             }
         }
 
+        try {
         // Fallback (or primary path for images / scanned PDFs / non-RCA document types): AI extraction.
         // Everything above (pdf-parse + regex parsers) is free and is neither counted nor limited.
         const ctx = getRequestSessionContext();
@@ -135,7 +145,8 @@ export class DocumentExtractionService {
                 detected: aiResult.detected,
                 document_type: aiResult.document_type,
                 confidence: aiResult.confidence,
-                fields: aiResult.fields,
+                // Regex values (deterministic) win where present; the AI fills the gaps.
+                fields: partial ? { ...aiResult.fields, ...partial.fields } : aiResult.fields,
                 warnings: aiResult.warnings,
                 raw_text: rawText ? rawText.slice(0, MAX_RAW_TEXT_CHARS) : undefined,
             };
@@ -145,7 +156,14 @@ export class DocumentExtractionService {
             }
             return result;
         }
+        } catch (err) {
+            // The regex parser already got most of the policy; a quota/outage error on the AI
+            // top-up shouldn't throw that away.
+            if (partial) return partial;
+            throw err;
+        }
 
+        if (partial) return partial;
         return {
             detected: false,
             document_type: null,
