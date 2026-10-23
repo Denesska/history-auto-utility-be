@@ -1,4 +1,4 @@
-import { IsArray, IsBoolean, IsIn, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsOptional, IsString, Matches } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 const LANGUAGES = ['en', 'ro', 'ru'];
@@ -41,4 +41,10 @@ export class UpdateUserSettingsDto {
     @IsOptional()
     @IsBoolean()
     readonly maintenance_reminders_enabled?: boolean;
+
+    @ApiPropertyOptional({ example: 'EUR', nullable: true, description: 'ISO 4217 code. Null resets to automatic.' })
+    @IsOptional()
+    @IsString()
+    @Matches(/^[A-Z]{3}$/)
+    readonly currency?: string | null;
 }
