@@ -18,6 +18,29 @@ paths:
         - "car-access"
       security:
         - cookie: []
+  /api/car/access/user-search:
+    get:
+      operationId: "CarAccessController_searchUsers"
+      summary: "Search registered users (name or email, min 3 chars) to share a car with"
+      parameters:
+        - name: "q"
+          required: true
+          in: "query"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/ShareUserSearchResultDto"
+      tags:
+        - "car-access"
+      security:
+        - cookie: []
   /api/car/{carId}/access:
     get:
       operationId: "CarAccessController_getAccessList"
@@ -3567,6 +3590,24 @@ components:
       in: "cookie"
       name: "access_token"
   schemas:
+    ShareUserSearchResultDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+        email:
+          type: "string"
+        first_name:
+          type: "string"
+        last_name:
+          type: "string"
+        picture:
+          type: "string"
+      required:
+        - "id"
+        - "email"
+        - "first_name"
+        - "last_name"
     SharedCarDto:
       type: "object"
       properties:
@@ -3599,6 +3640,10 @@ components:
         organization_name:
           type: "string"
           nullable: true
+        owner:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/ShareUserSearchResultDto"
       required:
         - "id"
         - "make"
@@ -6277,6 +6322,11 @@ components:
         maintenance_reminders_enabled:
           type: "boolean"
           example: true
+        currency:
+          type: "string"
+          example: "EUR"
+          nullable: true
+          description: "Default currency (ISO 4217). Null = automatic (detected from device location)."
       required:
         - "language"
         - "theme"
@@ -6284,6 +6334,7 @@ components:
         - "expiry_reminders_enabled"
         - "expiry_reminder_days"
         - "maintenance_reminders_enabled"
+        - "currency"
     UpdateUserSettingsDto:
       type: "object"
       properties:
@@ -6329,6 +6380,11 @@ components:
         maintenance_reminders_enabled:
           type: "boolean"
           example: true
+        currency:
+          type: "string"
+          example: "EUR"
+          nullable: true
+          description: "ISO 4217 code. Null resets to automatic."
     NavigationPrefsDto:
       type: "object"
       properties:

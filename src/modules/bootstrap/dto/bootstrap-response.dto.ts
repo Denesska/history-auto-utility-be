@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { CarAccessRole } from '@prisma/client';
 import { CarDto } from '../../car/dto/car.dto';
 import { DocumentDto } from '../../document/dto/document.dto';
-import { CarAccessUserDto, SharedCarDto } from '../../car-access/dto/car-access.dto';
+import { CarAccessUserDto, SharedCarDto, ShareUserSearchResultDto } from '../../car-access/dto/car-access.dto';
 import { MaintenanceRecordWithMeta } from '../../maintenance-record/maintenance-record.service';
 import { MaintenanceSettingDto } from '../../car-maintenance-settings/dto/maintenance-setting.dto';
 import { MaintenanceProfileDto } from '../../car-maintenance-profiles/dto/maintenance-profile.dto';
@@ -14,6 +14,8 @@ export class SharedCarEntry {
   /** Null = shared with you personally. Set = you see this car through an organization, not a personal share. */
   organizationId: number | null;
   organizationName: string | null;
+  /** Car owner (name + email only) so the sharee can see whose car it is. */
+  owner: ShareUserSearchResultDto | null;
 }
 
 export class BootstrapResponseDto {
