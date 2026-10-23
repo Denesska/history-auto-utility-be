@@ -14,6 +14,7 @@ const DEFAULT_SETTINGS = {
     expiry_reminders_enabled: true,
     expiry_reminder_days: [7, 3, 1, 0],
     maintenance_reminders_enabled: true,
+    currency: null as string | null,
 };
 
 /** One entry of `UserSettings.navigation_prefs`, keyed per session context. */
@@ -52,6 +53,7 @@ export class UserSettingsService {
             expiry_reminders_enabled: settings.expiry_reminders_enabled,
             expiry_reminder_days: settings.expiry_reminder_days,
             maintenance_reminders_enabled: settings.maintenance_reminders_enabled,
+            currency: settings.currency,
         };
     }
 
@@ -68,6 +70,7 @@ export class UserSettingsService {
             expiry_reminders_enabled: settings.expiry_reminders_enabled,
             expiry_reminder_days: settings.expiry_reminder_days,
             maintenance_reminders_enabled: settings.maintenance_reminders_enabled,
+            currency: settings.currency,
         };
     }
 

@@ -18,6 +18,29 @@ paths:
         - "car-access"
       security:
         - cookie: []
+  /api/car/access/user-search:
+    get:
+      operationId: "CarAccessController_searchUsers"
+      summary: "Search registered users (name or email, min 3 chars) to share a car with"
+      parameters:
+        - name: "q"
+          required: true
+          in: "query"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/ShareUserSearchResultDto"
+      tags:
+        - "car-access"
+      security:
+        - cookie: []
   /api/car/{carId}/access:
     get:
       operationId: "CarAccessController_getAccessList"
@@ -1402,6 +1425,36 @@ paths:
           description: "Supplier not found."
       tags:
         - "supplier"
+  /api/exchange-rate:
+    get:
+      operationId: "ExchangeRateController_getRate"
+      summary: "BNR cross rate between two currencies on a date (via RON)"
+      parameters:
+        - name: "from"
+          required: true
+          in: "query"
+          example: "EUR"
+          schema:
+            type: "string"
+        - name: "to"
+          required: true
+          in: "query"
+          example: "MDL"
+          schema:
+            type: "string"
+        - name: "date"
+          required: false
+          in: "query"
+          example: "2026-10-23"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+      tags:
+        - "exchange-rate"
+      security:
+        - bearer: []
   /api/document/all:
     get:
       operationId: "DocumentController_getAllDocuments"
@@ -2257,6 +2310,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CarNoteDto"
+      tags:
+        - "car-note"
+  /api/car-note/all:
+    get:
+      operationId: "CarNoteController_getAllCarNotes"
+      summary: "Get all notes across every car accessible in the current context"
+      parameters: []
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/CarNoteDto"
       tags:
         - "car-note"
   /api/car-note/{id}:
@@ -3521,6 +3590,24 @@ components:
       in: "cookie"
       name: "access_token"
   schemas:
+    ShareUserSearchResultDto:
+      type: "object"
+      properties:
+        id:
+          type: "number"
+        email:
+          type: "string"
+        first_name:
+          type: "string"
+        last_name:
+          type: "string"
+        picture:
+          type: "string"
+      required:
+        - "id"
+        - "email"
+        - "first_name"
+        - "last_name"
     SharedCarDto:
       type: "object"
       properties:
@@ -3553,6 +3640,10 @@ components:
         organization_name:
           type: "string"
           nullable: true
+        owner:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/ShareUserSearchResultDto"
       required:
         - "id"
         - "make"
@@ -6231,6 +6322,11 @@ components:
         maintenance_reminders_enabled:
           type: "boolean"
           example: true
+        currency:
+          type: "string"
+          example: "EUR"
+          nullable: true
+          description: "Default currency (ISO 4217). Null = automatic (detected from device location)."
       required:
         - "language"
         - "theme"
@@ -6238,6 +6334,7 @@ components:
         - "expiry_reminders_enabled"
         - "expiry_reminder_days"
         - "maintenance_reminders_enabled"
+        - "currency"
     UpdateUserSettingsDto:
       type: "object"
       properties:
@@ -6283,6 +6380,11 @@ components:
         maintenance_reminders_enabled:
           type: "boolean"
           example: true
+        currency:
+          type: "string"
+          example: "EUR"
+          nullable: true
+          description: "ISO 4217 code. Null resets to automatic."
     NavigationPrefsDto:
       type: "object"
       properties:

@@ -755,6 +755,7 @@ model UserSettings {
   expiry_reminder_days     Int[]    @default([7, 3, 1, 0])
   maintenance_reminders_enabled Boolean @default(true)
   navigation_prefs         Json?
+  currency                 String?  @db.VarChar(3)
   created_at               DateTime @default(now())
   updated_at               DateTime @updatedAt
 }

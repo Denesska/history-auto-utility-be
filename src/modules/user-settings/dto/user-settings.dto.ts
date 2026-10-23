@@ -18,4 +18,7 @@ export class UserSettingsDto {
 
     @ApiProperty({ example: true })
     maintenance_reminders_enabled: boolean;
+
+    @ApiProperty({ example: 'EUR', nullable: true, description: 'Default currency (ISO 4217). Null = automatic (detected from device location).' })
+    currency: string | null;
 }

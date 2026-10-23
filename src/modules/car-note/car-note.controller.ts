@@ -24,6 +24,14 @@ export class CarNoteController {
     return this.carNoteService.createCarNote(createCarNoteDto, req.user.id);
   }
 
+  // Declared before ':id' so it isn't swallowed by the param route.
+  @Get('all')
+  @ApiOperation({ summary: 'Get all notes across every car accessible in the current context' })
+  @ApiResponse({ status: 200, type: [CarNoteDto] })
+  async getAllCarNotes(@Req() req: RequestWithUser): Promise<CarNoteDto[]> {
+    return this.carNoteService.getAllByUser(req.user.id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get car note by ID' })
   @ApiResponse({ status: 200, type: CarNoteDto })

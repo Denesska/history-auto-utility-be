@@ -81,6 +81,16 @@ export class CarNoteService {
         return notes.map(n => this.toDto(n));
     }
 
+    /** Every note across all cars accessible in the current context (own + shared, or the org's fleet). */
+    async getAllByUser(userId: number): Promise<CarNoteDto[]> {
+        const carIds = await this.carAccess.getAccessibleCarIds(userId);
+        const notes = await this.prisma.carNote.findMany({
+            where: { car_id: { in: carIds } },
+            orderBy: { created_at: 'asc' },
+        });
+        return notes.map(n => this.toDto(n));
+    }
+
     /** Same access rule as the rest of this service, but Not Found instead of Forbidden — a
      * note's existence shouldn't be distinguishable from "no access" to someone probing ids. */
     private async assertAccessOrNotFound(carId: number, userId: number): Promise<void> {

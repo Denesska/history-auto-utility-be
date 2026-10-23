@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -16,6 +17,7 @@ import {
   ApiCookieAuth,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -27,7 +29,7 @@ import { RequestWithUser } from '../auth/express-request.interface';
 import { CarAccessService } from './car-access.service';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { ChangeRoleDto } from './dto/change-role.dto';
-import { CarAccessDto, SharedCarDto } from './dto/car-access.dto';
+import { CarAccessDto, SharedCarDto, ShareUserSearchResultDto } from './dto/car-access.dto';
 
 @Scope('personal')
 @Controller('car')
@@ -42,6 +44,14 @@ export class CarAccessController {
   @ApiResponse({ status: 200, type: [SharedCarDto] })
   getSharedCars(@Req() req: RequestWithUser): Promise<SharedCarDto[]> {
     return this.carAccessService.getSharedCars(req.user.google_id);
+  }
+
+  @Get('access/user-search')
+  @ApiOperation({ summary: 'Search registered users (name or email, min 3 chars) to share a car with' })
+  @ApiQuery({ name: 'q', type: String })
+  @ApiResponse({ status: 200, type: [ShareUserSearchResultDto] })
+  searchUsers(@Req() req: RequestWithUser, @Query('q') q: string): Promise<ShareUserSearchResultDto[]> {
+    return this.carAccessService.searchUsers(req.user.google_id, typeof q === 'string' ? q.slice(0, 100) : '');
   }
 
   @Get(':carId/access')

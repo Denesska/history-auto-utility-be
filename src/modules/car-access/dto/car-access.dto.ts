@@ -9,6 +9,15 @@ export class CarAccessUserDto {
   @ApiPropertyOptional() picture?: string;
 }
 
+/** Minimal public profile of a share candidate / car owner — display fields only. */
+export class ShareUserSearchResultDto {
+  @ApiProperty() id: number;
+  @ApiProperty() email: string;
+  @ApiProperty() first_name: string;
+  @ApiProperty() last_name: string;
+  @ApiPropertyOptional() picture?: string;
+}
+
 export class CarAccessDto {
   @ApiProperty() id: number;
   @ApiProperty() car_id: number;
@@ -31,4 +40,6 @@ export class SharedCarDto {
   /** Null = shared with you personally. Set = you see this car through an organization, not a personal share. */
   @ApiPropertyOptional({ nullable: true }) organization_id: number | null;
   @ApiPropertyOptional({ nullable: true }) organization_name: string | null;
+  /** Who owns the car (first/last name + email only). Null if it can't be resolved. */
+  @ApiPropertyOptional({ type: ShareUserSearchResultDto, nullable: true }) owner: ShareUserSearchResultDto | null;
 }
