@@ -1402,6 +1402,36 @@ paths:
           description: "Supplier not found."
       tags:
         - "supplier"
+  /api/exchange-rate:
+    get:
+      operationId: "ExchangeRateController_getRate"
+      summary: "BNR cross rate between two currencies on a date (via RON)"
+      parameters:
+        - name: "from"
+          required: true
+          in: "query"
+          example: "EUR"
+          schema:
+            type: "string"
+        - name: "to"
+          required: true
+          in: "query"
+          example: "MDL"
+          schema:
+            type: "string"
+        - name: "date"
+          required: false
+          in: "query"
+          example: "2026-10-23"
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: ""
+      tags:
+        - "exchange-rate"
+      security:
+        - bearer: []
   /api/document/all:
     get:
       operationId: "DocumentController_getAllDocuments"
@@ -2257,6 +2287,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CarNoteDto"
+      tags:
+        - "car-note"
+  /api/car-note/all:
+    get:
+      operationId: "CarNoteController_getAllCarNotes"
+      summary: "Get all notes across every car accessible in the current context"
+      parameters: []
+      responses:
+        200:
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/CarNoteDto"
       tags:
         - "car-note"
   /api/car-note/{id}:
