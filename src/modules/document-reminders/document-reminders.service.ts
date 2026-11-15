@@ -19,6 +19,7 @@ import {
   startOfDay,
   uniqueRecipients,
 } from '../../common/reminders/reminder.util';
+import { reminderTargetDoc } from '../../common/reminders/target-doc.util';
 import { carMuteMapKey, isCarMuted, snoozeMapKey, snoozeState } from '../reminder-snooze/reminder-snooze.service';
 
 type CarWithRecipients = Car & {
@@ -359,8 +360,19 @@ export class DocumentRemindersService {
       where: { ...(onlyUserId != null ? { user_id: onlyUserId } : {}), email_sent: false, sent_at: { gte: new Date(Date.now() - EMAIL_RETRY_DAYS * MS_PER_DAY) } },
       include: { user: { include: { settings: true } }, car: true },
     });
+    // Latest expiry per car+type among active docs: a row for an older expiry is superseded, no retry.
+    const activeDocs = await this.prisma.document.findMany({
+      where: { car_id: { in: [...new Set(rows.map(r => r.car_id))] }, is_active: true, expiry_date: { not: null } },
+    });
+    const latestExpiry = new Map<string, number>();
+    for (const doc of activeDocs) {
+      const key = `${doc.car_id}:${this.dedupType(doc)}`;
+      const t = startOfDay(doc.expiry_date as Date).getTime();
+      if (t > (latestExpiry.get(key) ?? -Infinity)) latestExpiry.set(key, t);
+    }
     for (const row of rows) {
       if (isCarMuted(mutes?.get(carMuteMapKey(row.user_id, row.car_id)), now)) continue;
+      if ((latestExpiry.get(`${row.car_id}:${row.doc_type}`) ?? -Infinity) > startOfDay(row.expiry_date).getTime()) continue;
       const carLabel = reminderCarLabel(row.car, nicknames.get(`${row.car_id}:${row.user_id}`));
       summary.candidates.push({
         userId: row.user_id,
@@ -386,18 +398,18 @@ export class DocumentRemindersService {
   }
 
   /**
-   * Latest-expiring active document per type (a renewed doc supersedes older ones). Vignettes are
-   * kept per country — a foreign vignette must not hide the home (RO) one.
+   * One document per type to remind about: the latest-expiring active one. Any later-expiring doc of
+   * the same (car, type) supersedes the older ones, gap or not, so nothing is sent for them (see
+   * `reminderTargetDoc`). Vignettes are kept per country — a foreign vignette must not hide the home (RO) one.
    */
   private currentDocuments(docs: Document[]): Document[] {
-    const latest = new Map<string, Document>();
+    const byType = new Map<string, Document[]>();
     for (const doc of docs) {
       if (!doc.expiry_date) continue;
       const key = this.dedupType(doc);
-      const prev = latest.get(key);
-      if (!prev || (prev.expiry_date as Date) < doc.expiry_date) latest.set(key, doc);
+      byType.set(key, [...(byType.get(key) ?? []), doc]);
     }
-    return [...latest.values()];
+    return [...byType.values()].map(group => reminderTargetDoc(group) as Document);
   }
 
   /** 'RCA', 'ITP', 'ROV' (home vignette), 'ROV:DE' (foreign vignette), 'CASCO', ... */
