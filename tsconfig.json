@@ -6,10 +6,14 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
+    // TS 6 flipped these defaults; keep the TS 5 behavior the code was written for (CJS `import * as x`, untyped catch vars).
+    "esModuleInterop": false,
+    "ignoreDeprecations": "6.0", // needed for esModuleInterop:false; before TS 7, switch the `import * as x` of CJS callables (express, cookie-parser, bcrypt...) to default imports and drop both
+    "strict": false,
+    "types": ["node", "jest"],
     "target": "ES2021",
     "sourceMap": true,
     "outDir": "./dist",
-    "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": false,

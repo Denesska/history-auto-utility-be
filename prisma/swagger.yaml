@@ -3,7 +3,6 @@ paths:
   /api/car/shared:
     get:
       operationId: "CarAccessController_getSharedCars"
-      summary: "Get all cars shared with the current user"
       parameters: []
       responses:
         200:
@@ -14,14 +13,14 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/SharedCarDto"
-      tags:
-        - "car-access"
       security:
         - cookie: []
+      summary: "Get all cars shared with the current user"
+      tags:
+        - "car-access"
   /api/car/access/user-search:
     get:
       operationId: "CarAccessController_searchUsers"
-      summary: "Search registered users (name or email, min 3 chars) to share a car with"
       parameters:
         - name: "q"
           required: true
@@ -37,14 +36,14 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/ShareUserSearchResultDto"
-      tags:
-        - "car-access"
       security:
         - cookie: []
+      summary: "Search registered users (name or email, min 3 chars) to share a car with"
+      tags:
+        - "car-access"
   /api/car/{carId}/access:
     get:
       operationId: "CarAccessController_getAccessList"
-      summary: "List all users with access to a car"
       parameters:
         - name: "carId"
           required: true
@@ -60,14 +59,14 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/CarAccessDto"
-      tags:
-        - "car-access"
       security:
         - cookie: []
+      summary: "List all users with access to a car"
+      tags:
+        - "car-access"
   /api/car/{carId}/access/invite:
     post:
       operationId: "CarAccessController_inviteUser"
-      summary: "Invite a registered user to access a car"
       parameters:
         - name: "carId"
           required: true
@@ -87,14 +86,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CarAccessDto"
-      tags:
-        - "car-access"
       security:
         - cookie: []
+      summary: "Invite a registered user to access a car"
+      tags:
+        - "car-access"
   /api/car/{carId}/access/accept:
     post:
       operationId: "CarAccessController_acceptInvitation"
-      summary: "Accept a pending invitation to a car"
       parameters:
         - name: "carId"
           required: true
@@ -108,14 +107,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CarAccessDto"
-      tags:
-        - "car-access"
       security:
         - cookie: []
+      summary: "Accept a pending invitation to a car"
+      tags:
+        - "car-access"
   /api/car/{carId}/access/{targetUserId}/role:
     patch:
       operationId: "CarAccessController_changeRole"
-      summary: "Change the role of a user on a car"
       parameters:
         - name: "carId"
           required: true
@@ -140,14 +139,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CarAccessDto"
-      tags:
-        - "car-access"
       security:
         - cookie: []
+      summary: "Change the role of a user on a car"
+      tags:
+        - "car-access"
   /api/car/{carId}/access/leave:
     delete:
       operationId: "CarAccessController_leaveAccess"
-      summary: "Leave (remove yourself from) a shared car"
       parameters:
         - name: "carId"
           required: true
@@ -157,14 +156,14 @@ paths:
       responses:
         204:
           description: "Access removed"
-      tags:
-        - "car-access"
       security:
         - cookie: []
+      summary: "Leave (remove yourself from) a shared car"
+      tags:
+        - "car-access"
   /api/car/{carId}/access/{targetUserId}:
     delete:
       operationId: "CarAccessController_removeAccess"
-      summary: "Remove a user's access to a car"
       parameters:
         - name: "carId"
           required: true
@@ -179,14 +178,14 @@ paths:
       responses:
         204:
           description: "Access removed"
-      tags:
-        - "car-access"
       security:
         - cookie: []
+      summary: "Remove a user's access to a car"
+      tags:
+        - "car-access"
   /api/notifications:
     get:
       operationId: "NotificationsController_list"
-      summary: "List notifications for the current user"
       parameters:
         - name: "unreadOnly"
           required: true
@@ -202,14 +201,14 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/NotificationDto"
-      tags:
-        - "notifications"
       security:
         - cookie: []
+      summary: "List notifications for the current user"
+      tags:
+        - "notifications"
   /api/notifications/unread-count:
     get:
       operationId: "NotificationsController_unreadCount"
-      summary: "Get the number of unread notifications"
       parameters: []
       responses:
         200:
@@ -218,14 +217,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnreadCountDto"
-      tags:
-        - "notifications"
       security:
         - cookie: []
+      summary: "Get the number of unread notifications"
+      tags:
+        - "notifications"
   /api/notifications/{id}/read:
     patch:
       operationId: "NotificationsController_markAsRead"
-      summary: "Mark a single notification as read"
       parameters:
         - name: "id"
           required: true
@@ -239,38 +238,38 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NotificationDto"
-      tags:
-        - "notifications"
       security:
         - cookie: []
+      summary: "Mark a single notification as read"
+      tags:
+        - "notifications"
   /api/notifications/read-all:
     patch:
       operationId: "NotificationsController_markAllAsRead"
-      summary: "Mark all notifications as read"
       parameters: []
       responses:
         200:
           description: ""
-      tags:
-        - "notifications"
       security:
         - cookie: []
+      summary: "Mark all notifications as read"
+      tags:
+        - "notifications"
   /api/notifications/read:
     delete:
       operationId: "NotificationsController_clearRead"
-      summary: "Delete all notifications already marked as read"
       parameters: []
       responses:
         204:
           description: ""
-      tags:
-        - "notifications"
       security:
         - cookie: []
+      summary: "Delete all notifications already marked as read"
+      tags:
+        - "notifications"
   /api/notifications/{id}:
     delete:
       operationId: "NotificationsController_delete"
-      summary: "Delete a single notification"
       parameters:
         - name: "id"
           required: true
@@ -280,14 +279,14 @@ paths:
       responses:
         204:
           description: ""
-      tags:
-        - "notifications"
       security:
         - cookie: []
+      summary: "Delete a single notification"
+      tags:
+        - "notifications"
   /api/notifications/push-token:
     post:
       operationId: "NotificationsController_registerPushToken"
-      summary: "Register a device push token for the current user"
       parameters: []
       requestBody:
         required: true
@@ -298,46 +297,46 @@ paths:
       responses:
         204:
           description: ""
-      tags:
-        - "notifications"
       security:
         - cookie: []
+      summary: "Register a device push token for the current user"
+      tags:
+        - "notifications"
   /api/auth/google:
     get:
       operationId: "AuthController_login"
-      summary: "Initiate Google OAuth login (?context=personal|business)"
       parameters: []
       responses:
         200:
           description: ""
+      summary: "Initiate Google OAuth login (?context=personal|business)"
       tags:
         - "auth"
   /api/auth/google/redirect:
     get:
       operationId: "AuthController_googleAuthRedirect"
-      summary: "Handle Google OAuth callback"
       parameters: []
       responses:
         302:
           description: "Authenticated and redirected to frontend."
         401:
           description: "Google authentication failed."
+      summary: "Handle Google OAuth callback"
       tags:
         - "auth"
   /api/auth/dev-login:
     get:
       operationId: "AuthController_devLogin"
-      summary: "[dev only] Log in as the dev-bypass user, no Google OAuth"
       parameters: []
       responses:
         200:
           description: ""
+      summary: "[dev only] Log in as the dev-bypass user, no Google OAuth"
       tags:
         - "auth"
   /api/auth/local-login:
     post:
       operationId: "AuthController_localLogin"
-      summary: "Log in with a company-issued username/password account"
       parameters: []
       requestBody:
         required: true
@@ -352,12 +351,12 @@ paths:
           description: "Invalid credentials or disabled account."
         403:
           description: "LOCAL_LOGIN_BUSINESS_ONLY: context \"personal\" requested."
+      summary: "Log in with a company-issued username/password account"
       tags:
         - "auth"
   /api/auth/context:
     post:
       operationId: "AuthController_switchContext"
-      summary: "Select the active organization of a business session; issues new tokens"
       parameters: []
       requestBody:
         required: true
@@ -370,12 +369,12 @@ paths:
           description: "New access token issued with ctx.orgId set."
         403:
           description: "PERSONAL_SESSION or NOT_ORG_MEMBER."
+      summary: "Select the active organization of a business session; issues new tokens"
       tags:
         - "auth"
   /api/auth/change-password:
     post:
       operationId: "AuthController_changePassword"
-      summary: "Change the current user's own password (company-managed accounts only)"
       parameters: []
       requestBody:
         required: true
@@ -390,48 +389,48 @@ paths:
           description: "Account has no password login."
         401:
           description: "Current password is incorrect."
+      summary: "Change the current user's own password (company-managed accounts only)"
       tags:
         - "auth"
   /api/auth/refresh:
     post:
       operationId: "AuthController_refreshAccessToken"
-      summary: "Refresh access token"
       parameters: []
       responses:
         200:
           description: "New access token issued."
         401:
           description: "Refresh token missing or invalid."
+      summary: "Refresh access token"
       tags:
         - "auth"
   /api/auth/me:
     get:
       operationId: "AuthController_getProfile"
-      summary: "Get authenticated user profile"
       parameters: []
       responses:
         200:
           description: "User profile returned."
         401:
           description: "Invalid or missing access token."
+      summary: "Get authenticated user profile"
       tags:
         - "auth"
   /api/auth/logout:
     post:
       operationId: "AuthController_logout"
-      summary: "Logout user and invalidate tokens"
       parameters: []
       responses:
         200:
           description: "Logged out successfully."
         401:
           description: "Not authenticated."
+      summary: "Logout user and invalidate tokens"
       tags:
         - "auth"
   /api/legal/status:
     get:
       operationId: "LegalController_getStatus"
-      summary: "Current user's legal-acceptance status (current vs. accepted terms/privacy versions)"
       parameters: []
       responses:
         200:
@@ -440,14 +439,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LegalStatusDto"
-      tags:
-        - "legal"
       security:
         - bearer: []
+      summary: "Current user's legal-acceptance status (current vs. accepted terms/privacy versions)"
+      tags:
+        - "legal"
   /api/legal/accept:
     post:
       operationId: "LegalController_accept"
-      summary: "Accept the current terms + privacy policy versions"
       parameters: []
       requestBody:
         required: true
@@ -464,14 +463,14 @@ paths:
                 $ref: "#/components/schemas/LegalStatusDto"
         409:
           description: "LEGAL_VERSION_OUTDATED — the accepted version is no longer current."
-      tags:
-        - "legal"
       security:
         - bearer: []
+      summary: "Accept the current terms + privacy policy versions"
+      tags:
+        - "legal"
   /api/car/{carId}/deadline-order:
     get:
       operationId: "CarDeadlineOrderController_getOrder"
-      summary: "Get this user's manual order for a car's deadlines"
       parameters:
         - name: "carId"
           required: true
@@ -485,13 +484,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DeadlineOrderDto"
-      tags:
-        - "car-deadline-order"
       security:
         - cookie: []
+      summary: "Get this user's manual order for a car's deadlines"
+      tags:
+        - "car-deadline-order"
     put:
       operationId: "CarDeadlineOrderController_setOrder"
-      summary: "Replace this user's manual order for a car's deadlines"
       parameters:
         - name: "carId"
           required: true
@@ -511,14 +510,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DeadlineOrderDto"
-      tags:
-        - "car-deadline-order"
       security:
         - cookie: []
+      summary: "Replace this user's manual order for a car's deadlines"
+      tags:
+        - "car-deadline-order"
   /api/car/{carId}/deadline-order/dismissed:
     put:
       operationId: "CarDeadlineOrderController_setDismissed"
-      summary: "Replace this user's dismissed deadline keys for a car"
       parameters:
         - name: "carId"
           required: true
@@ -538,14 +537,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DeadlineOrderDto"
-      tags:
-        - "car-deadline-order"
       security:
         - cookie: []
+      summary: "Replace this user's dismissed deadline keys for a car"
+      tags:
+        - "car-deadline-order"
   /api/car/{carId}/maintenance-settings:
     get:
       operationId: "CarMaintenanceSettingsController_getSettings"
-      summary: "Get this user's maintenance tracking settings for one of their maintenance profiles on a car, merged with the global defaults"
       parameters:
         - name: "carId"
           required: true
@@ -566,14 +565,14 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/MaintenanceSettingDto"
-      tags:
-        - "car-maintenance-settings"
       security:
         - cookie: []
+      summary: "Get this user's maintenance tracking settings for one of their maintenance profiles on a car, merged with the global defaults"
+      tags:
+        - "car-maintenance-settings"
   /api/car/{carId}/maintenance-settings/{item}:
     put:
       operationId: "CarMaintenanceSettingsController_setSetting"
-      summary: "Update this user's tracked flag and/or custom interval for one Plan item, within one maintenance profile, on a car"
       parameters:
         - name: "carId"
           required: true
@@ -603,14 +602,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MaintenanceSettingDto"
-      tags:
-        - "car-maintenance-settings"
       security:
         - cookie: []
+      summary: "Update this user's tracked flag and/or custom interval for one Plan item, within one maintenance profile, on a car"
+      tags:
+        - "car-maintenance-settings"
   /api/car/{carId}/maintenance-profiles:
     get:
       operationId: "CarMaintenanceProfilesController_getProfiles"
-      summary: "Get this user's named custom maintenance profiles for a car"
       parameters:
         - name: "carId"
           required: true
@@ -626,13 +625,13 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/MaintenanceProfileDto"
-      tags:
-        - "car-maintenance-profiles"
       security:
         - cookie: []
+      summary: "Get this user's named custom maintenance profiles for a car"
+      tags:
+        - "car-maintenance-profiles"
     post:
       operationId: "CarMaintenanceProfilesController_createProfile"
-      summary: "Create a new named custom maintenance profile for a car"
       parameters:
         - name: "carId"
           required: true
@@ -652,14 +651,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MaintenanceProfileDto"
-      tags:
-        - "car-maintenance-profiles"
       security:
         - cookie: []
+      summary: "Create a new named custom maintenance profile for a car"
+      tags:
+        - "car-maintenance-profiles"
   /api/car/{carId}/maintenance-profiles/{profileId}:
     patch:
       operationId: "CarMaintenanceProfilesController_renameProfile"
-      summary: "Rename a custom maintenance profile"
       parameters:
         - name: "carId"
           required: true
@@ -684,13 +683,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MaintenanceProfileDto"
-      tags:
-        - "car-maintenance-profiles"
       security:
         - cookie: []
+      summary: "Rename a custom maintenance profile"
+      tags:
+        - "car-maintenance-profiles"
     delete:
       operationId: "CarMaintenanceProfilesController_deleteProfile"
-      summary: "Delete a custom maintenance profile and its overrides"
       parameters:
         - name: "carId"
           required: true
@@ -705,14 +704,14 @@ paths:
       responses:
         204:
           description: ""
-      tags:
-        - "car-maintenance-profiles"
       security:
         - cookie: []
+      summary: "Delete a custom maintenance profile and its overrides"
+      tags:
+        - "car-maintenance-profiles"
   /api/car:
     post:
       operationId: "CarController_createCar"
-      summary: "Create a new car"
       parameters: []
       requestBody:
         required: true
@@ -729,13 +728,13 @@ paths:
                 $ref: "#/components/schemas/CarDto"
         403:
           description: "Forbidden."
-      tags:
-        - "car"
       security:
         - cookie: []
+      summary: "Create a new car"
+      tags:
+        - "car"
     put:
       operationId: "CarController_updateCar"
-      summary: "Update a car"
       parameters: []
       responses:
         200:
@@ -746,13 +745,13 @@ paths:
                 $ref: "#/components/schemas/CarDto"
         404:
           description: "Car not found."
-      tags:
-        - "car"
       security:
         - cookie: []
+      summary: "Update a car"
+      tags:
+        - "car"
     get:
       operationId: "CarController_getAllCars"
-      summary: "Get all cars for authenticated user"
       parameters: []
       responses:
         200:
@@ -763,14 +762,14 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/CarDto"
-      tags:
-        - "car"
       security:
         - cookie: []
+      summary: "Get all cars for authenticated user"
+      tags:
+        - "car"
   /api/car/{id}:
     get:
       operationId: "CarController_getCar"
-      summary: "Get car by ID"
       parameters:
         - name: "id"
           required: true
@@ -786,13 +785,13 @@ paths:
                 $ref: "#/components/schemas/CarDto"
         404:
           description: "Car not found."
-      tags:
-        - "car"
       security:
         - cookie: []
+      summary: "Get car by ID"
+      tags:
+        - "car"
     delete:
       operationId: "CarController_deleteCar"
-      summary: "Delete a car"
       parameters:
         - name: "id"
           required: true
@@ -808,14 +807,14 @@ paths:
                 $ref: "#/components/schemas/CarDto"
         404:
           description: "Car not found."
-      tags:
-        - "car"
       security:
         - cookie: []
+      summary: "Delete a car"
+      tags:
+        - "car"
   /api/car/photo/{photoId}:
     delete:
       operationId: "CarController_deletePhoto"
-      summary: "Delete a car photo"
       parameters:
         - name: "photoId"
           required: true
@@ -829,14 +828,14 @@ paths:
           description: "No edit access to the photo's car."
         404:
           description: "Photo not found."
-      tags:
-        - "car"
       security:
         - cookie: []
+      summary: "Delete a car photo"
+      tags:
+        - "car"
   /api/car/photo/{photoId}/default:
     patch:
       operationId: "CarController_setDefaultPhoto"
-      summary: "Set a photo as the default for its car"
       parameters:
         - name: "photoId"
           required: true
@@ -850,14 +849,14 @@ paths:
           description: "No edit access to the photo's car."
         404:
           description: "Photo not found."
-      tags:
-        - "car"
       security:
         - cookie: []
+      summary: "Set a photo as the default for its car"
+      tags:
+        - "car"
   /api/car/{id}/sold:
     patch:
       operationId: "CarController_markAsSold"
-      summary: "Mark a car as sold (archive)"
       parameters:
         - name: "id"
           required: true
@@ -873,14 +872,14 @@ paths:
                 $ref: "#/components/schemas/CarDto"
         403:
           description: "Only the owner can archive this car."
-      tags:
-        - "car"
       security:
         - cookie: []
+      summary: "Mark a car as sold (archive)"
+      tags:
+        - "car"
   /api/car/{id}/restore:
     patch:
       operationId: "CarController_restoreCar"
-      summary: "Restore a sold car back to active"
       parameters:
         - name: "id"
           required: true
@@ -896,14 +895,14 @@ paths:
                 $ref: "#/components/schemas/CarDto"
         403:
           description: "Only the owner can restore this car."
-      tags:
-        - "car"
       security:
         - cookie: []
+      summary: "Restore a sold car back to active"
+      tags:
+        - "car"
   /api/car/user/{userId}:
     get:
       operationId: "CarController_getCarsByUser"
-      summary: "Get the personal cars of a user (only yourself)"
       parameters:
         - name: "userId"
           required: true
@@ -919,14 +918,14 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/CarDto"
-      tags:
-        - "car"
       security:
         - cookie: []
+      summary: "Get the personal cars of a user (only yourself)"
+      tags:
+        - "car"
   /api/vehicle-catalog/makes:
     get:
       operationId: "VehicleCatalogController_getMakes"
-      summary: "List all car makes"
       parameters: []
       responses:
         200:
@@ -937,12 +936,12 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/MakeResponseDto"
+      summary: "List all car makes"
       tags:
         - "vehicle-catalog"
   /api/vehicle-catalog/makes/{makeId}/models:
     get:
       operationId: "VehicleCatalogController_getModels"
-      summary: "List models for a given make"
       parameters:
         - name: "makeId"
           required: true
@@ -958,12 +957,12 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/ModelResponseDto"
+      summary: "List models for a given make"
       tags:
         - "vehicle-catalog"
   /api/vehicle-catalog/models/{modelId}/years:
     get:
       operationId: "VehicleCatalogController_getYears"
-      summary: "List years for a given model"
       parameters:
         - name: "modelId"
           required: true
@@ -979,13 +978,13 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/YearResponseDto"
+      summary: "List years for a given model"
       tags:
         - "vehicle-catalog"
   /api/maintenance-record/extract-invoice:
     post:
-      operationId: "MaintenanceRecordController_extractInvoice"
-      summary: "Extract one reconciled maintenance entry from 1-3 invoice / service report photos or PDFs (suggestion only, does not save)"
       description: "All files must belong to ONE intervention (e.g. a parts invoice plus the workshop work order). Parts repeated across documents are counted once; totals are computed server-side. The user must review before saving."
+      operationId: "MaintenanceRecordController_extractInvoice"
       parameters: []
       requestBody:
         required: true
@@ -1027,14 +1026,14 @@ paths:
           description: "AI quota exceeded."
         503:
           description: "AI extraction service is temporarily unavailable."
-      tags:
-        - "maintenance-record"
       security:
         - bearer: []
+      summary: "Extract one reconciled maintenance entry from 1-3 invoice / service report photos or PDFs (suggestion only, does not save)"
+      tags:
+        - "maintenance-record"
   /api/maintenance-record/suggest-category:
     post:
       operationId: "MaintenanceRecordController_suggestCategory"
-      summary: "AI fallback: suggest a service_category from a record's description/parts text. Suggestion only, does not save."
       parameters: []
       requestBody:
         required: true
@@ -1051,14 +1050,14 @@ paths:
                 $ref: "#/components/schemas/SuggestedCategoryDto"
         503:
           description: "The category suggestion service is temporarily unavailable."
-      tags:
-        - "maintenance-record"
       security:
         - bearer: []
+      summary: "AI fallback: suggest a service_category from a record's description/parts text. Suggestion only, does not save."
+      tags:
+        - "maintenance-record"
   /api/maintenance-record/all:
     get:
       operationId: "MaintenanceRecordController_getAllMaintenanceRecords"
-      summary: "Get all maintenance records for the authenticated user (owned + shared cars)"
       parameters: []
       responses:
         200:
@@ -1069,14 +1068,14 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/MaintenanceRecordDto"
-      tags:
-        - "maintenance-record"
       security:
         - bearer: []
+      summary: "Get all maintenance records for the authenticated user (owned + shared cars)"
+      tags:
+        - "maintenance-record"
   /api/maintenance-record:
     post:
       operationId: "MaintenanceRecordController_createMaintenanceRecord"
-      summary: "Create a new maintenance record"
       parameters: []
       requestBody:
         required: true
@@ -1091,14 +1090,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MaintenanceRecordDto"
-      tags:
-        - "maintenance-record"
       security:
         - bearer: []
+      summary: "Create a new maintenance record"
+      tags:
+        - "maintenance-record"
   /api/maintenance-record/{id}:
     get:
       operationId: "MaintenanceRecordController_getMaintenanceRecord"
-      summary: "Get maintenance record by ID"
       parameters:
         - name: "id"
           required: true
@@ -1114,13 +1113,13 @@ paths:
                 $ref: "#/components/schemas/MaintenanceRecordDto"
         404:
           description: "Maintenance record not found."
-      tags:
-        - "maintenance-record"
       security:
         - bearer: []
+      summary: "Get maintenance record by ID"
+      tags:
+        - "maintenance-record"
     put:
       operationId: "MaintenanceRecordController_updateMaintenanceRecord"
-      summary: "Update a maintenance record"
       parameters:
         - name: "id"
           required: true
@@ -1142,13 +1141,13 @@ paths:
                 $ref: "#/components/schemas/MaintenanceRecordDto"
         404:
           description: "Maintenance record not found."
-      tags:
-        - "maintenance-record"
       security:
         - bearer: []
+      summary: "Update a maintenance record"
+      tags:
+        - "maintenance-record"
     delete:
       operationId: "MaintenanceRecordController_deleteMaintenanceRecord"
-      summary: "Delete a maintenance record"
       parameters:
         - name: "id"
           required: true
@@ -1164,14 +1163,14 @@ paths:
                 $ref: "#/components/schemas/MaintenanceRecordDto"
         404:
           description: "Maintenance record not found."
-      tags:
-        - "maintenance-record"
       security:
         - bearer: []
+      summary: "Delete a maintenance record"
+      tags:
+        - "maintenance-record"
   /api/maintenance-record/car/{carId}:
     get:
       operationId: "MaintenanceRecordController_getMaintenanceRecordsByCarId"
-      summary: "Get all maintenance records for a specific car"
       parameters:
         - name: "carId"
           required: true
@@ -1187,15 +1186,15 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/MaintenanceRecordDto"
-      tags:
-        - "maintenance-record"
       security:
         - bearer: []
+      summary: "Get all maintenance records for a specific car"
+      tags:
+        - "maintenance-record"
   /api/upload/request:
     post:
-      operationId: "UploadController_requestUpload"
-      summary: "Request a signed upload URL"
       description: "Validates the file metadata and returns a pre-signed PUT URL for direct upload to R2. A pending DB record is created. After uploading, call POST /upload/:id/confirm."
+      operationId: "UploadController_requestUpload"
       parameters: []
       requestBody:
         required: true
@@ -1212,15 +1211,15 @@ paths:
                 $ref: "#/components/schemas/UploadResponseDto"
         400:
           description: "Invalid file type or size."
-      tags:
-        - "upload"
       security:
         - bearer: []
+      summary: "Request a signed upload URL"
+      tags:
+        - "upload"
   /api/upload/{id}/confirm:
     post:
-      operationId: "UploadController_confirmUpload"
-      summary: "Confirm upload completed"
       description: "Must be called after the frontend has successfully PUT the file to R2. Transitions the file record from pending to uploaded."
+      operationId: "UploadController_confirmUpload"
       parameters:
         - name: "id"
           required: true
@@ -1238,15 +1237,15 @@ paths:
           description: "Not your file."
         404:
           description: "File not found."
-      tags:
-        - "upload"
       security:
         - bearer: []
+      summary: "Confirm upload completed"
+      tags:
+        - "upload"
   /api/upload/{id}/url:
     get:
-      operationId: "UploadController_getReadUrl"
-      summary: "Get a signed read URL for a file"
       description: "Returns a temporary signed GET URL. File must be owned by the authenticated user."
+      operationId: "UploadController_getReadUrl"
       parameters:
         - name: "id"
           required: true
@@ -1269,14 +1268,14 @@ paths:
           description: "Not your file."
         404:
           description: "File not found."
-      tags:
-        - "upload"
       security:
         - bearer: []
+      summary: "Get a signed read URL for a file"
+      tags:
+        - "upload"
   /api/upload/context/{contextType}/{contextId}:
     get:
       operationId: "UploadController_getFilesForContext"
-      summary: "List uploaded files attached to a context (e.g. a maintenance record)"
       parameters:
         - name: "contextType"
           required: true
@@ -1297,15 +1296,15 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/ContextFileDto"
-      tags:
-        - "upload"
       security:
         - bearer: []
+      summary: "List uploaded files attached to a context (e.g. a maintenance record)"
+      tags:
+        - "upload"
   /api/upload/{id}:
     delete:
-      operationId: "UploadController_deleteFile"
-      summary: "Delete a file"
       description: "Deletes the object from R2 and soft-deletes the DB record."
+      operationId: "UploadController_deleteFile"
       parameters:
         - name: "id"
           required: true
@@ -1319,14 +1318,14 @@ paths:
           description: "Not your file."
         404:
           description: "File not found."
-      tags:
-        - "upload"
       security:
         - bearer: []
+      summary: "Delete a file"
+      tags:
+        - "upload"
   /api/supplier:
     get:
       operationId: "SupplierController_getAll"
-      summary: "Get every supplier the user can see (own + shared via an organization)"
       parameters: []
       responses:
         200:
@@ -1337,11 +1336,11 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/SupplierDto"
+      summary: "Get every supplier the user can see (own + shared via an organization)"
       tags:
         - "supplier"
     post:
       operationId: "SupplierController_create"
-      summary: "Create a new supplier"
       parameters: []
       requestBody:
         required: true
@@ -1356,12 +1355,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SupplierDto"
+      summary: "Create a new supplier"
       tags:
         - "supplier"
   /api/supplier/{id}:
     get:
       operationId: "SupplierController_getOne"
-      summary: "Get a supplier by id"
       parameters:
         - name: "id"
           required: true
@@ -1377,11 +1376,11 @@ paths:
                 $ref: "#/components/schemas/SupplierDto"
         404:
           description: "Supplier not found."
+      summary: "Get a supplier by id"
       tags:
         - "supplier"
     put:
       operationId: "SupplierController_update"
-      summary: "Update a supplier"
       parameters:
         - name: "id"
           required: true
@@ -1403,11 +1402,11 @@ paths:
                 $ref: "#/components/schemas/SupplierDto"
         404:
           description: "Supplier not found."
+      summary: "Update a supplier"
       tags:
         - "supplier"
     delete:
       operationId: "SupplierController_remove"
-      summary: "Delete a supplier"
       parameters:
         - name: "id"
           required: true
@@ -1423,42 +1422,42 @@ paths:
                 $ref: "#/components/schemas/SupplierDto"
         404:
           description: "Supplier not found."
+      summary: "Delete a supplier"
       tags:
         - "supplier"
   /api/exchange-rate:
     get:
       operationId: "ExchangeRateController_getRate"
-      summary: "BNR cross rate between two currencies on a date (via RON)"
       parameters:
         - name: "from"
           required: true
           in: "query"
-          example: "EUR"
           schema:
+            example: "EUR"
             type: "string"
         - name: "to"
           required: true
           in: "query"
-          example: "MDL"
           schema:
+            example: "MDL"
             type: "string"
         - name: "date"
           required: false
           in: "query"
-          example: "2026-10-23"
           schema:
+            example: "2026-10-23"
             type: "string"
       responses:
         200:
           description: ""
-      tags:
-        - "exchange-rate"
       security:
         - bearer: []
+      summary: "BNR cross rate between two currencies on a date (via RON)"
+      tags:
+        - "exchange-rate"
   /api/document/all:
     get:
       operationId: "DocumentController_getAllDocuments"
-      summary: "Get all documents for the authenticated user (owned + shared cars)"
       parameters: []
       responses:
         200:
@@ -1469,12 +1468,12 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/DocumentDto"
+      summary: "Get all documents for the authenticated user (owned + shared cars)"
       tags:
         - "document"
   /api/document:
     post:
       operationId: "DocumentController_createDocument"
-      summary: "Create a new document"
       parameters: []
       requestBody:
         required: true
@@ -1489,12 +1488,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DocumentDto"
+      summary: "Create a new document"
       tags:
         - "document"
   /api/document/{id}:
     get:
       operationId: "DocumentController_getDocument"
-      summary: "Get document by ID"
       parameters:
         - name: "id"
           required: true
@@ -1510,11 +1509,11 @@ paths:
                 $ref: "#/components/schemas/DocumentDto"
         404:
           description: "Document not found."
+      summary: "Get document by ID"
       tags:
         - "document"
     put:
       operationId: "DocumentController_updateDocument"
-      summary: "Update a document"
       parameters:
         - name: "id"
           required: true
@@ -1536,11 +1535,11 @@ paths:
                 $ref: "#/components/schemas/DocumentDto"
         404:
           description: "Document not found."
+      summary: "Update a document"
       tags:
         - "document"
     delete:
       operationId: "DocumentController_deleteDocument"
-      summary: "Delete a document"
       parameters:
         - name: "id"
           required: true
@@ -1554,13 +1553,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DocumentDto"
+      summary: "Delete a document"
       tags:
         - "document"
   /api/document/{id}/file:
     get:
-      operationId: "DocumentController_getDocumentFileLink"
-      summary: "Get a fresh, temporary link to the file attached to a document"
       description: "Returns a short-lived URL for the attached file. `mode=inline` (default) is meant for previewing it in the app; `mode=download` returns a URL that saves the file under its original name. Only the car owner and users the car is shared with can call this."
+      operationId: "DocumentController_getDocumentFileLink"
       parameters:
         - name: "id"
           required: true
@@ -1584,12 +1583,12 @@ paths:
                 $ref: "#/components/schemas/DocumentFileLinkDto"
         404:
           description: "Document not found, or it has no file attached."
+      summary: "Get a fresh, temporary link to the file attached to a document"
       tags:
         - "document"
   /api/document/car/{carId}:
     get:
       operationId: "DocumentController_getDocumentsByCarId"
-      summary: "Get all documents for a specific car"
       parameters:
         - name: "carId"
           required: true
@@ -1605,13 +1604,13 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/DocumentDto"
+      summary: "Get all documents for a specific car"
       tags:
         - "document"
   /api/document/extract:
     post:
-      operationId: "DocumentController_extractDocument"
-      summary: "Extract fields from an uploaded document file (returns suggestions only — does not save)"
       description: "Upload a PDF document to have its fields extracted and returned as suggestions. No data is stored. The user must review and confirm the extracted values before saving. Currently supports Romanian RCA insurance PDFs."
+      operationId: "DocumentController_extractDocument"
       parameters: []
       requestBody:
         required: true
@@ -1636,12 +1635,12 @@ paths:
           description: "Unsupported file type."
         503:
           description: "AI extraction service is temporarily unavailable (high demand)."
+      summary: "Extract fields from an uploaded document file (returns suggestions only — does not save)"
       tags:
         - "document"
   /api/document/{id}/upload:
     post:
       operationId: "DocumentController_uploadFile"
-      summary: "Upload a file for a document"
       parameters:
         - name: "id"
           required: true
@@ -1665,13 +1664,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DocumentDto"
+      summary: "Upload a file for a document"
       tags:
         - "document"
   /api/sale-contract/extract-identity:
     post:
-      operationId: "SaleContractController_extractIdentity"
-      summary: "Read the fields off a photo of an identity document (returns suggestions only)"
       description: "The photo is processed in memory and never written to disk or to object storage, and nothing is saved by this endpoint. The user reviews and confirms every field before it is stored. Processing the identity document of the other party to the sale requires that person's agreement; the caller states which version of the consent wording was shown."
+      operationId: "SaleContractController_extractIdentity"
       parameters: []
       requestBody:
         required: true
@@ -1700,12 +1699,12 @@ paths:
           description: "No file provided, or consent not stated."
         503:
           description: "The extraction provider is temporarily unavailable."
+      summary: "Read the fields off a photo of an identity document (returns suggestions only)"
       tags:
         - "sale-contract"
   /api/sale-contract/my-identity:
     get:
       operationId: "SaleContractController_getMyIdentity"
-      summary: "The signed-in user's own saved contract details"
       parameters: []
       responses:
         200:
@@ -1714,11 +1713,11 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserIdentityDto"
+      summary: "The signed-in user's own saved contract details"
       tags:
         - "sale-contract"
     put:
       operationId: "SaleContractController_saveMyIdentity"
-      summary: "Save the user's own details, so they are not re-entered for every contract"
       parameters: []
       requestBody:
         required: true
@@ -1733,22 +1732,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserIdentityDto"
+      summary: "Save the user's own details, so they are not re-entered for every contract"
       tags:
         - "sale-contract"
     delete:
       operationId: "SaleContractController_deleteMyIdentity"
-      summary: "Erase the user's saved details"
       parameters: []
       responses:
         204:
           description: "Erased."
+      summary: "Erase the user's saved details"
       tags:
         - "sale-contract"
   /api/sale-contract:
     get:
-      operationId: "SaleContractController_list"
-      summary: "List the user's contracts"
       description: "Carries no personal data — listing never decrypts the parties."
+      operationId: "SaleContractController_list"
       parameters: []
       responses:
         200:
@@ -1759,11 +1758,11 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/SaleContractSummaryDto"
+      summary: "List the user's contracts"
       tags:
         - "sale-contract"
     post:
       operationId: "SaleContractController_create"
-      summary: "Create a contract draft"
       parameters: []
       requestBody:
         required: true
@@ -1778,12 +1777,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SaleContractDto"
+      summary: "Create a contract draft"
       tags:
         - "sale-contract"
   /api/sale-contract/{id}:
     get:
       operationId: "SaleContractController_get"
-      summary: "Get one contract, with the parties decrypted"
       parameters:
         - name: "id"
           required: true
@@ -1799,11 +1798,11 @@ paths:
                 $ref: "#/components/schemas/SaleContractDto"
         404:
           description: "Not found, or not yours."
+      summary: "Get one contract, with the parties decrypted"
       tags:
         - "sale-contract"
     put:
       operationId: "SaleContractController_update"
-      summary: "Update a contract draft"
       parameters:
         - name: "id"
           required: true
@@ -1823,12 +1822,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SaleContractDto"
+      summary: "Update a contract draft"
       tags:
         - "sale-contract"
     delete:
-      operationId: "SaleContractController_remove"
-      summary: "Delete a contract and its stored PDF"
       description: "A real delete: the row and the stored file both go, not a status flag."
+      operationId: "SaleContractController_remove"
       parameters:
         - name: "id"
           required: true
@@ -1838,13 +1837,13 @@ paths:
       responses:
         204:
           description: "Deleted."
+      summary: "Delete a contract and its stored PDF"
       tags:
         - "sale-contract"
   /api/sale-contract/{id}/generate:
     post:
-      operationId: "SaleContractController_generate"
-      summary: "Generate the filled ITL 054 form as a PDF"
       description: "Every confirmation in the body must be true — the request is rejected otherwise. Those tick boxes are an in-app checkpoint recording that the user verified the data and was shown the declarations printed at section (5); they are not added to the form, which must stay the standard one."
+      operationId: "SaleContractController_generate"
       parameters:
         - name: "id"
           required: true
@@ -1866,12 +1865,12 @@ paths:
                 $ref: "#/components/schemas/SaleContractFileLinkDto"
         400:
           description: "A confirmation was missing or false."
+      summary: "Generate the filled ITL 054 form as a PDF"
       tags:
         - "sale-contract"
   /api/sale-contract/{id}/download:
     get:
       operationId: "SaleContractController_download"
-      summary: "A fresh signed download link for an already generated contract"
       parameters:
         - name: "id"
           required: true
@@ -1887,12 +1886,12 @@ paths:
                 $ref: "#/components/schemas/SaleContractFileLinkDto"
         404:
           description: "Not generated yet."
+      summary: "A fresh signed download link for an already generated contract"
       tags:
         - "sale-contract"
   /api/blog/images:
     post:
       operationId: "BlogController_uploadImage"
-      summary: "Upload a blog image"
       parameters: []
       responses:
         201:
@@ -1903,14 +1902,14 @@ paths:
                 properties:
                   url:
                     type: "string"
-      tags:
-        - "blog"
       security:
         - bearer: []
+      summary: "Upload a blog image"
+      tags:
+        - "blog"
   /api/blog/categories/vehicle:
     get:
       operationId: "BlogController_getVehicleCategories"
-      summary: "Get all vehicle entry categories"
       parameters: []
       responses:
         200:
@@ -1921,23 +1920,23 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/VehicleCategoryDto"
-      tags:
-        - "blog"
       security:
         - bearer: []
+      summary: "Get all vehicle entry categories"
+      tags:
+        - "blog"
   /api/blog:
     get:
       operationId: "BlogController_getEntries"
-      summary: "Get all blog entries for authenticated user"
       parameters:
         - name: "category"
           required: false
           in: "query"
           schema:
+            type: "string"
             enum:
               - "PERSONAL"
               - "VEHICLE"
-            type: "string"
         - name: "car_id"
           required: false
           in: "query"
@@ -1947,6 +1946,7 @@ paths:
           required: false
           in: "query"
           schema:
+            type: "string"
             enum:
               - "REPAIR"
               - "SERVICE_VISIT"
@@ -1956,7 +1956,6 @@ paths:
               - "INSPECTION"
               - "BREAKDOWN"
               - "OTHER"
-            type: "string"
         - name: "search"
           required: false
           in: "query"
@@ -1977,13 +1976,13 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/BlogEntryDto"
-      tags:
-        - "blog"
       security:
         - bearer: []
+      summary: "Get all blog entries for authenticated user"
+      tags:
+        - "blog"
     post:
       operationId: "BlogController_createEntry"
-      summary: "Create a blog entry"
       parameters: []
       requestBody:
         required: true
@@ -1998,14 +1997,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BlogEntryDto"
-      tags:
-        - "blog"
       security:
         - bearer: []
+      summary: "Create a blog entry"
+      tags:
+        - "blog"
   /api/blog/{id}:
     get:
       operationId: "BlogController_getEntry"
-      summary: "Get a single blog entry"
       parameters:
         - name: "id"
           required: true
@@ -2021,13 +2020,13 @@ paths:
                 $ref: "#/components/schemas/BlogEntryDto"
         404:
           description: "Not found"
-      tags:
-        - "blog"
       security:
         - bearer: []
+      summary: "Get a single blog entry"
+      tags:
+        - "blog"
     put:
       operationId: "BlogController_updateEntry"
-      summary: "Update a blog entry"
       parameters:
         - name: "id"
           required: true
@@ -2047,13 +2046,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BlogEntryDto"
-      tags:
-        - "blog"
       security:
         - bearer: []
+      summary: "Update a blog entry"
+      tags:
+        - "blog"
     delete:
       operationId: "BlogController_deleteEntry"
-      summary: "Delete a blog entry"
       parameters:
         - name: "id"
           required: true
@@ -2067,14 +2066,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BlogEntryDto"
-      tags:
-        - "blog"
       security:
         - bearer: []
+      summary: "Delete a blog entry"
+      tags:
+        - "blog"
   /api/blog/{id}/pin:
     patch:
       operationId: "BlogController_togglePin"
-      summary: "Toggle pin on a blog entry"
       parameters:
         - name: "id"
           required: true
@@ -2088,24 +2087,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BlogEntryDto"
-      tags:
-        - "blog"
       security:
         - bearer: []
+      summary: "Toggle pin on a blog entry"
+      tags:
+        - "blog"
   /api/version:
     get:
       operationId: "AppVersionController_getVersion"
-      summary: "Get current backend version"
       parameters: []
       responses:
         200:
           description: "Returns the current app version"
+      summary: "Get current backend version"
       tags:
         - "version"
   /api/user-settings:
     get:
       operationId: "UserSettingsController_getSettings"
-      summary: "Get the current user settings"
       parameters: []
       responses:
         200:
@@ -2114,13 +2113,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserSettingsDto"
-      tags:
-        - "user-settings"
       security:
         - bearer: []
+      summary: "Get the current user settings"
+      tags:
+        - "user-settings"
     put:
       operationId: "UserSettingsController_updateSettings"
-      summary: "Update the current user settings"
       parameters: []
       requestBody:
         required: true
@@ -2135,14 +2134,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserSettingsDto"
-      tags:
-        - "user-settings"
       security:
         - bearer: []
+      summary: "Update the current user settings"
+      tags:
+        - "user-settings"
   /api/user-settings/navigation:
     get:
       operationId: "UserSettingsController_getNavigation"
-      summary: "Get the current session context's navigation preferences (bottom bar, favorite car)"
       parameters: []
       responses:
         200:
@@ -2151,13 +2150,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NavigationPrefsDto"
-      tags:
-        - "user-settings"
       security:
         - bearer: []
+      summary: "Get the current session context's navigation preferences (bottom bar, favorite car)"
+      tags:
+        - "user-settings"
     put:
       operationId: "UserSettingsController_updateNavigation"
-      summary: "Update the current session context's navigation preferences"
       parameters: []
       requestBody:
         required: true
@@ -2172,14 +2171,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NavigationPrefsDto"
-      tags:
-        - "user-settings"
       security:
         - bearer: []
+      summary: "Update the current session context's navigation preferences"
+      tags:
+        - "user-settings"
   /api/app-data/initial:
     get:
       operationId: "BootstrapController_getInitialData"
-      summary: "Fetch all initial data needed on app load in a single request"
       parameters: []
       responses:
         200:
@@ -2188,14 +2187,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BootstrapResponseDto"
-      tags:
-        - "app-data"
       security:
         - cookie: []
+      summary: "Fetch all initial data needed on app load in a single request"
+      tags:
+        - "app-data"
   /api/reminders/snooze:
     post:
       operationId: "ReminderSnoozeController_snooze"
-      summary: "Snooze the reminders of the item behind a notification (3 or 7 days, or null = do not remind again)"
       parameters: []
       requestBody:
         required: true
@@ -2210,14 +2209,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SnoozeResultDto"
-      tags:
-        - "reminders"
       security:
         - cookie: []
+      summary: "Snooze the reminders of the item behind a notification (3 or 7 days, or null = do not remind again)"
+      tags:
+        - "reminders"
   /api/reminders/snooze/{notificationId}:
     delete:
       operationId: "ReminderSnoozeController_unsnooze"
-      summary: "Remove the snooze of the item behind a notification"
       parameters:
         - name: "notificationId"
           required: true
@@ -2227,14 +2226,14 @@ paths:
       responses:
         204:
           description: ""
-      tags:
-        - "reminders"
       security:
         - cookie: []
+      summary: "Remove the snooze of the item behind a notification"
+      tags:
+        - "reminders"
   /api/reminders/car-mute/{carId}:
     put:
       operationId: "ReminderSnoozeController_muteCar"
-      summary: "Mute all reminders of a car for the current user (months 1|3|6, or null = until turned back on)"
       parameters:
         - name: "carId"
           required: true
@@ -2254,13 +2253,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CarMuteDto"
-      tags:
-        - "reminders"
       security:
         - cookie: []
+      summary: "Mute all reminders of a car for the current user (months 1|3|6, or null = until turned back on)"
+      tags:
+        - "reminders"
     delete:
       operationId: "ReminderSnoozeController_unmuteCar"
-      summary: "Turn the reminders of a car back on for the current user"
       parameters:
         - name: "carId"
           required: true
@@ -2270,14 +2269,14 @@ paths:
       responses:
         204:
           description: ""
-      tags:
-        - "reminders"
       security:
         - cookie: []
+      summary: "Turn the reminders of a car back on for the current user"
+      tags:
+        - "reminders"
   /api/reminders/car-mutes:
     get:
       operationId: "ReminderSnoozeController_carMutes"
-      summary: "The current user's active car-level mutes"
       parameters: []
       responses:
         200:
@@ -2288,14 +2287,14 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/CarMuteDto"
-      tags:
-        - "reminders"
       security:
         - cookie: []
+      summary: "The current user's active car-level mutes"
+      tags:
+        - "reminders"
   /api/car-note:
     post:
       operationId: "CarNoteController_createCarNote"
-      summary: "Create a new car note"
       parameters: []
       requestBody:
         required: true
@@ -2310,12 +2309,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CarNoteDto"
+      summary: "Create a new car note"
       tags:
         - "car-note"
   /api/car-note/all:
     get:
       operationId: "CarNoteController_getAllCarNotes"
-      summary: "Get all notes across every car accessible in the current context"
       parameters: []
       responses:
         200:
@@ -2326,12 +2325,12 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/CarNoteDto"
+      summary: "Get all notes across every car accessible in the current context"
       tags:
         - "car-note"
   /api/car-note/{id}:
     get:
       operationId: "CarNoteController_getCarNote"
-      summary: "Get car note by ID"
       parameters:
         - name: "id"
           required: true
@@ -2347,11 +2346,11 @@ paths:
                 $ref: "#/components/schemas/CarNoteDto"
         404:
           description: "Car note not found."
+      summary: "Get car note by ID"
       tags:
         - "car-note"
     put:
       operationId: "CarNoteController_updateCarNote"
-      summary: "Update a car note"
       parameters:
         - name: "id"
           required: true
@@ -2373,11 +2372,11 @@ paths:
                 $ref: "#/components/schemas/CarNoteDto"
         404:
           description: "Car note not found."
+      summary: "Update a car note"
       tags:
         - "car-note"
     delete:
       operationId: "CarNoteController_deleteCarNote"
-      summary: "Delete a car note"
       parameters:
         - name: "id"
           required: true
@@ -2391,12 +2390,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CarNoteDto"
+      summary: "Delete a car note"
       tags:
         - "car-note"
   /api/car-note/car/{carId}:
     get:
       operationId: "CarNoteController_getCarNotesByCarId"
-      summary: "Get all notes for a specific car"
       parameters:
         - name: "carId"
           required: true
@@ -2412,12 +2411,12 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/CarNoteDto"
+      summary: "Get all notes for a specific car"
       tags:
         - "car-note"
   /api/car-wish/car/{carId}:
     get:
       operationId: "CarWishController_getWishlist"
-      summary: "Get the whole wishlist (budget + ordered items) for a car"
       parameters:
         - name: "carId"
           required: true
@@ -2431,12 +2430,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CarWishlistDto"
+      summary: "Get the whole wishlist (budget + ordered items) for a car"
       tags:
         - "car-wish"
   /api/car-wish:
     post:
       operationId: "CarWishController_createWish"
-      summary: "Add a wish to a car"
       parameters: []
       requestBody:
         required: true
@@ -2451,12 +2450,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CarWishDto"
+      summary: "Add a wish to a car"
       tags:
         - "car-wish"
   /api/car-wish/car/{carId}/reorder:
     put:
       operationId: "CarWishController_reorderWishes"
-      summary: "Set the priority order of a car's wishes"
       parameters:
         - name: "carId"
           required: true
@@ -2478,12 +2477,12 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/CarWishDto"
+      summary: "Set the priority order of a car's wishes"
       tags:
         - "car-wish"
   /api/car-wish/car/{carId}/budget:
     put:
       operationId: "CarWishController_setBudget"
-      summary: "Set the spending ceiling the budget line is drawn at"
       parameters:
         - name: "carId"
           required: true
@@ -2503,12 +2502,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CarWishlistDto"
+      summary: "Set the spending ceiling the budget line is drawn at"
       tags:
         - "car-wish"
   /api/car-wish/{id}:
     put:
       operationId: "CarWishController_updateWish"
-      summary: "Update a wish"
       parameters:
         - name: "id"
           required: true
@@ -2530,11 +2529,11 @@ paths:
                 $ref: "#/components/schemas/CarWishDto"
         404:
           description: "Wish not found."
+      summary: "Update a wish"
       tags:
         - "car-wish"
     delete:
       operationId: "CarWishController_deleteWish"
-      summary: "Delete a wish"
       parameters:
         - name: "id"
           required: true
@@ -2548,12 +2547,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CarWishDto"
+      summary: "Delete a wish"
       tags:
         - "car-wish"
   /api/n/{slug}/set:
     post:
       operationId: "NavRelayController_set"
-      summary: "Share a Google Maps link to the car on this channel"
       parameters:
         - name: "slug"
           required: true
@@ -2573,12 +2572,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NavDestinationDto"
+      summary: "Share a Google Maps link to the car on this channel"
       tags:
         - "nav-relay"
   /api/n/{slug}/latest:
     get:
       operationId: "NavRelayController_latest"
-      summary: "Latest destination shared to the car on this channel"
       parameters:
         - name: "slug"
           required: true
@@ -2592,12 +2591,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NavDestinationDto"
+      summary: "Latest destination shared to the car on this channel"
       tags:
         - "nav-relay"
   /api/n/{slug}/history:
     get:
       operationId: "NavRelayController_history"
-      summary: "Recent destinations shared on this channel"
       parameters:
         - name: "slug"
           required: true
@@ -2611,12 +2610,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NavDestinationHistoryDto"
+      summary: "Recent destinations shared on this channel"
       tags:
         - "nav-relay"
   /api/n/{slug}/history/{id}/resend:
     post:
       operationId: "NavRelayController_resend"
-      summary: "Resend a previous destination to the car"
       parameters:
         - name: "slug"
           required: true
@@ -2635,12 +2634,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NavDestinationDto"
+      summary: "Resend a previous destination to the car"
       tags:
         - "nav-relay"
   /api/p/{slug}:
     get:
       operationId: "CockpitProfileController_get"
-      summary: "The profile stored on this channel"
       parameters:
         - name: "slug"
           required: true
@@ -2654,11 +2653,11 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CockpitProfileDto"
+      summary: "The profile stored on this channel"
       tags:
         - "cockpit-profile"
     put:
       operationId: "CockpitProfileController_put"
-      summary: "Store the car profile on this channel"
       parameters:
         - name: "slug"
           required: true
@@ -2680,60 +2679,60 @@ paths:
                 $ref: "#/components/schemas/CockpitProfileDto"
         409:
           description: "The stored profile has a higher revision"
+      summary: "Store the car profile on this channel"
       tags:
         - "cockpit-profile"
   /api/admin/me:
     get:
       operationId: "AdminController_me"
-      summary: "Whether the current user can open the admin page"
       parameters: []
       responses:
         200:
           description: ""
-      tags:
-        - "admin"
       security:
         - cookie: []
+      summary: "Whether the current user can open the admin page"
+      tags:
+        - "admin"
   /api/admin/stats:
     get:
       operationId: "AdminController_stats"
-      summary: "Aggregated usage stats for the admin page"
       parameters: []
       responses:
         200:
           description: ""
-      tags:
-        - "admin"
       security:
         - cookie: []
+      summary: "Aggregated usage stats for the admin page"
+      tags:
+        - "admin"
   /api/admin/users:
     get:
       operationId: "AdminController_users"
-      summary: "Per-user usage counts for the admin page (no user content)"
       parameters: []
       responses:
         200:
           description: ""
-      tags:
-        - "admin"
       security:
         - cookie: []
+      summary: "Per-user usage counts for the admin page (no user content)"
+      tags:
+        - "admin"
   /api/admin/organizations:
     get:
       operationId: "AdminController_organizations"
-      summary: "Organizations with usage counts and effective feature flags, for the feature-switches admin screen"
       parameters: []
       responses:
         200:
           description: ""
-      tags:
-        - "admin"
       security:
         - cookie: []
+      summary: "Organizations with usage counts and effective feature flags, for the feature-switches admin screen"
+      tags:
+        - "admin"
   /api/admin/organizations/{id}/features:
     patch:
       operationId: "AdminController_updateOrganizationFeatures"
-      summary: "Enable/disable feature switches for one organization's business sessions; takes effect immediately"
       parameters:
         - name: "id"
           required: true
@@ -2749,37 +2748,37 @@ paths:
       responses:
         200:
           description: ""
-      tags:
-        - "admin"
       security:
         - cookie: []
+      summary: "Enable/disable feature switches for one organization's business sessions; takes effect immediately"
+      tags:
+        - "admin"
   /api/admin/ai-usage:
     get:
       operationId: "AdminController_aiUsage"
-      summary: "AI usage and cost statistics for the admin page"
       parameters: []
       responses:
         200:
           description: ""
-      tags:
-        - "admin"
       security:
         - cookie: []
+      summary: "AI usage and cost statistics for the admin page"
+      tags:
+        - "admin"
   /api/admin/ai-settings:
     get:
       operationId: "AdminController_aiSettings"
-      summary: "Global AI limit settings"
       parameters: []
       responses:
         200:
           description: ""
-      tags:
-        - "admin"
       security:
         - cookie: []
+      summary: "Global AI limit settings"
+      tags:
+        - "admin"
     put:
       operationId: "AdminController_updateAiSettings"
-      summary: "Update global AI limit settings"
       parameters: []
       requestBody:
         required: true
@@ -2790,14 +2789,14 @@ paths:
       responses:
         200:
           description: ""
-      tags:
-        - "admin"
       security:
         - cookie: []
+      summary: "Update global AI limit settings"
+      tags:
+        - "admin"
   /api/admin/ai-users/{userId}/limit:
     get:
       operationId: "AdminController_aiUserLimit"
-      summary: "Per-user AI limit override (null when using defaults)"
       parameters:
         - name: "userId"
           required: true
@@ -2807,13 +2806,13 @@ paths:
       responses:
         200:
           description: ""
-      tags:
-        - "admin"
       security:
         - cookie: []
+      summary: "Per-user AI limit override (null when using defaults)"
+      tags:
+        - "admin"
     put:
       operationId: "AdminController_setAiUserLimit"
-      summary: "Create/replace a per-user AI limit override"
       parameters:
         - name: "userId"
           required: true
@@ -2829,13 +2828,13 @@ paths:
       responses:
         200:
           description: ""
-      tags:
-        - "admin"
       security:
         - cookie: []
+      summary: "Create/replace a per-user AI limit override"
+      tags:
+        - "admin"
     delete:
       operationId: "AdminController_deleteAiUserLimit"
-      summary: "Remove a per-user AI limit override (back to defaults)"
       parameters:
         - name: "userId"
           required: true
@@ -2845,38 +2844,38 @@ paths:
       responses:
         204:
           description: ""
-      tags:
-        - "admin"
       security:
         - cookie: []
+      summary: "Remove a per-user AI limit override (back to defaults)"
+      tags:
+        - "admin"
   /api/admin/document-reminders/dry-run:
     post:
       operationId: "AdminController_documentRemindersDryRun"
-      summary: "Dry-run the document expiry reminder job (optionally for a simulated date) and list who would be notified"
       parameters: []
       responses:
         200:
           description: ""
-      tags:
-        - "admin"
       security:
         - cookie: []
+      summary: "Dry-run the document expiry reminder job (optionally for a simulated date) and list who would be notified"
+      tags:
+        - "admin"
   /api/admin/maintenance-reminders/dry-run:
     post:
       operationId: "AdminController_maintenanceRemindersDryRun"
-      summary: "Dry-run the maintenance-due reminder job (optionally for a simulated date) and list who would be notified"
       parameters: []
       responses:
         200:
           description: ""
-      tags:
-        - "admin"
       security:
         - cookie: []
+      summary: "Dry-run the maintenance-due reminder job (optionally for a simulated date) and list who would be notified"
+      tags:
+        - "admin"
   /api/vehicle-silhouette:
     get:
       operationId: "VehicleSilhouetteController_get"
-      summary: "Shared schematic silhouette for a make + model (generated on first request)"
       parameters:
         - name: "make"
           required: true
@@ -2891,14 +2890,14 @@ paths:
       responses:
         200:
           description: ""
-      tags:
-        - "vehicle-silhouette"
       security:
         - cookie: []
+      summary: "Shared schematic silhouette for a make + model (generated on first request)"
+      tags:
+        - "vehicle-silhouette"
   /api/vehicle-silhouette/regenerate:
     post:
       operationId: "VehicleSilhouetteController_regenerate"
-      summary: "App admins only: regenerate a bad silhouette"
       parameters: []
       requestBody:
         required: true
@@ -2909,14 +2908,14 @@ paths:
       responses:
         201:
           description: ""
-      tags:
-        - "vehicle-silhouette"
       security:
         - cookie: []
+      summary: "App admins only: regenerate a bad silhouette"
+      tags:
+        - "vehicle-silhouette"
   /api/business-access/me:
     get:
       operationId: "BusinessAccessController_getMyStatus"
-      summary: "Current user's business access status and whether they can create an organization"
       parameters: []
       responses:
         200:
@@ -2925,14 +2924,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BusinessAccessStatusDto"
-      tags:
-        - "business-access"
       security:
         - bearer: []
+      summary: "Current user's business access status and whether they can create an organization"
+      tags:
+        - "business-access"
   /api/business-access/request:
     post:
       operationId: "BusinessAccessController_submitRequest"
-      summary: "Submit a request to be allowed to create an organization (company name + optional note)"
       parameters: []
       requestBody:
         required: true
@@ -2947,14 +2946,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BusinessAccessStatusDto"
-      tags:
-        - "business-access"
       security:
         - bearer: []
+      summary: "Submit a request to be allowed to create an organization (company name + optional note)"
+      tags:
+        - "business-access"
   /api/admin/business-access-requests:
     get:
       operationId: "AdminBusinessAccessController_list"
-      summary: "List business access requests by status (default PENDING), newest first"
       parameters:
         - name: "status"
           required: true
@@ -2970,14 +2969,14 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/AdminBusinessAccessRequestDto"
-      tags:
-        - "admin"
       security:
         - cookie: []
+      summary: "List business access requests by status (default PENDING), newest first"
+      tags:
+        - "admin"
   /api/admin/business-access-requests/{id}/approve:
     post:
       operationId: "AdminBusinessAccessController_approve"
-      summary: "Approve a pending business access request"
       parameters:
         - name: "id"
           required: true
@@ -2991,14 +2990,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminBusinessAccessRequestDto"
-      tags:
-        - "admin"
       security:
         - cookie: []
+      summary: "Approve a pending business access request"
+      tags:
+        - "admin"
   /api/admin/business-access-requests/{id}/reject:
     post:
       operationId: "AdminBusinessAccessController_reject"
-      summary: "Reject a pending business access request, with an optional reason shown to the requester"
       parameters:
         - name: "id"
           required: true
@@ -3018,14 +3017,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminBusinessAccessRequestDto"
-      tags:
-        - "admin"
       security:
         - cookie: []
+      summary: "Reject a pending business access request, with an optional reason shown to the requester"
+      tags:
+        - "admin"
   /api/organization:
     post:
       operationId: "OrganizationController_createOrganization"
-      summary: "Create a new organization; the creator becomes its SUPER_ADMIN"
       parameters: []
       requestBody:
         required: true
@@ -3040,13 +3039,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MyOrganizationDto"
-      tags:
-        - "organization"
       security:
         - bearer: []
+      summary: "Create a new organization; the creator becomes its SUPER_ADMIN"
+      tags:
+        - "organization"
     get:
       operationId: "OrganizationController_getMyOrganizations"
-      summary: "List every organization the current user belongs to (pending invites included)"
       parameters: []
       responses:
         200:
@@ -3057,14 +3056,14 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/MyOrganizationDto"
-      tags:
-        - "organization"
       security:
         - bearer: []
+      summary: "List every organization the current user belongs to (pending invites included)"
+      tags:
+        - "organization"
   /api/organization/{organizationId}/members:
     get:
       operationId: "OrganizationController_getMembers"
-      summary: "List members of an organization visible to the caller (everyone below them in rank, never above — see OrganizationService.getMembers)"
       parameters:
         - name: "organizationId"
           required: true
@@ -3080,14 +3079,14 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/OrganizationMembershipDto"
-      tags:
-        - "organization"
       security:
         - bearer: []
+      summary: "List members of an organization visible to the caller (everyone below them in rank, never above — see OrganizationService.getMembers)"
+      tags:
+        - "organization"
   /api/organization/{organizationId}/members/invite:
     post:
       operationId: "OrganizationController_inviteMember"
-      summary: "Invite a registered user with a role the caller is allowed to assign (SUPER_ADMIN invites FLEET_ADMIN/FINANCE/DRIVER, FLEET_ADMIN invites only DRIVER — enforced in OrganizationService, not here)"
       parameters:
         - name: "organizationId"
           required: true
@@ -3107,14 +3106,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OrganizationMembershipDto"
-      tags:
-        - "organization"
       security:
         - bearer: []
+      summary: "Invite a registered user with a role the caller is allowed to assign (SUPER_ADMIN invites FLEET_ADMIN/FINANCE/DRIVER, FLEET_ADMIN invites only DRIVER — enforced in OrganizationService, not here)"
+      tags:
+        - "organization"
   /api/organization/{organizationId}/members/username-suggestion:
     get:
       operationId: "OrganizationController_usernameSuggestion"
-      summary: "Suggest a free, globally-unique username for a new company-managed account from the typed first/last name"
       parameters:
         - name: "organizationId"
           required: true
@@ -3138,14 +3137,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UsernameSuggestionDto"
-      tags:
-        - "organization"
       security:
         - bearer: []
+      summary: "Suggest a free, globally-unique username for a new company-managed account from the typed first/last name"
+      tags:
+        - "organization"
   /api/organization/{organizationId}/members/username-available:
     get:
       operationId: "OrganizationController_usernameAvailable"
-      summary: "Whether a username is free (global); 400 when the format is invalid"
       parameters:
         - name: "organizationId"
           required: true
@@ -3164,14 +3163,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UsernameAvailableDto"
-      tags:
-        - "organization"
       security:
         - bearer: []
+      summary: "Whether a username is free (global); 400 when the format is invalid"
+      tags:
+        - "organization"
   /api/organization/{organizationId}/members/local:
     post:
       operationId: "OrganizationController_createLocalMember"
-      summary: "Create a brand-new company-owned account directly (no email invite, no Google sign-in) — see OrganizationService.createLocalMember"
       parameters:
         - name: "organizationId"
           required: true
@@ -3191,14 +3190,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CreateLocalMemberResultDto"
-      tags:
-        - "organization"
       security:
         - bearer: []
+      summary: "Create a brand-new company-owned account directly (no email invite, no Google sign-in) — see OrganizationService.createLocalMember"
+      tags:
+        - "organization"
   /api/organization/{organizationId}/members/{targetUserId}/reset-password:
     post:
       operationId: "OrganizationController_resetLocalPassword"
-      summary: "Reset a company-managed member's password to the shared default and force a change on next login"
       parameters:
         - name: "organizationId"
           required: true
@@ -3217,14 +3216,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResetLocalPasswordResultDto"
-      tags:
-        - "organization"
       security:
         - bearer: []
+      summary: "Reset a company-managed member's password to the shared default and force a change on next login"
+      tags:
+        - "organization"
   /api/organization/{organizationId}/members/accept:
     post:
       operationId: "OrganizationController_acceptInvitation"
-      summary: "Accept a pending invitation to an organization"
       parameters:
         - name: "organizationId"
           required: true
@@ -3238,14 +3237,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OrganizationMembershipDto"
-      tags:
-        - "organization"
       security:
         - bearer: []
+      summary: "Accept a pending invitation to an organization"
+      tags:
+        - "organization"
   /api/organization/{organizationId}/members/{targetUserId}/role:
     patch:
       operationId: "OrganizationController_changeRole"
-      summary: "Change the role of a member the caller is allowed to manage, to a role the caller is allowed to assign (see OrganizationService.changeRole)"
       parameters:
         - name: "organizationId"
           required: true
@@ -3270,14 +3269,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OrganizationMembershipDto"
-      tags:
-        - "organization"
       security:
         - bearer: []
+      summary: "Change the role of a member the caller is allowed to manage, to a role the caller is allowed to assign (see OrganizationService.changeRole)"
+      tags:
+        - "organization"
   /api/organization/{organizationId}/members/leave:
     delete:
       operationId: "OrganizationController_leaveOrganization"
-      summary: "Leave (remove yourself from) an organization"
       parameters:
         - name: "organizationId"
           required: true
@@ -3287,14 +3286,14 @@ paths:
       responses:
         204:
           description: "Membership removed"
-      tags:
-        - "organization"
       security:
         - bearer: []
+      summary: "Leave (remove yourself from) an organization"
+      tags:
+        - "organization"
   /api/organization/{organizationId}/members/{targetUserId}:
     delete:
       operationId: "OrganizationController_removeMember"
-      summary: "Remove a member the caller is allowed to manage from the organization (see OrganizationService.removeMember)"
       parameters:
         - name: "organizationId"
           required: true
@@ -3309,14 +3308,14 @@ paths:
       responses:
         204:
           description: "Membership removed"
-      tags:
-        - "organization"
       security:
         - bearer: []
+      summary: "Remove a member the caller is allowed to manage from the organization (see OrganizationService.removeMember)"
+      tags:
+        - "organization"
   /api/organization/{organizationId}/cars:
     get:
       operationId: "OrganizationController_getCars"
-      summary: "List every car currently in the organization's fleet"
       parameters:
         - name: "organizationId"
           required: true
@@ -3332,14 +3331,14 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/OrganizationCarDto"
-      tags:
-        - "organization"
       security:
         - bearer: []
+      summary: "List every car currently in the organization's fleet"
+      tags:
+        - "organization"
   /api/organization/{organizationId}/cars/import:
     post:
       operationId: "OrganizationController_importCars"
-      summary: "Bulk-create cars directly in the fleet from an uploaded .csv/.xlsx/.xls file — Director-tier only (enforced per-row in CarService.createCar, same as adding a single company car). A bad row fails on its own; the rest of the file still imports. Columns: make, model (required), variant, year, license_plate, vin, nickname, fuel_type, transmission, color, current_mileage."
       parameters:
         - name: "organizationId"
           required: true
@@ -3353,14 +3352,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ImportCarsResultDto"
-      tags:
-        - "organization"
       security:
         - bearer: []
+      summary: "Bulk-create cars directly in the fleet from an uploaded .csv/.xlsx/.xls file — Director-tier only (enforced per-row in CarService.createCar, same as adding a single company car). A bad row fails on its own; the rest of the file still imports. Columns: make, model (required), variant, year, license_plate, vin, nickname, fuel_type, transmission, color, current_mileage."
+      tags:
+        - "organization"
   /api/organization/{organizationId}/cars/{carId}:
     delete:
       operationId: "OrganizationController_removeCar"
-      summary: "Remove a car from the organization (un-links it, doesn't delete it — it becomes personal again)"
       parameters:
         - name: "organizationId"
           required: true
@@ -3375,14 +3374,14 @@ paths:
       responses:
         204:
           description: "Car un-linked from the organization"
-      tags:
-        - "organization"
       security:
         - bearer: []
+      summary: "Remove a car from the organization (un-links it, doesn't delete it — it becomes personal again)"
+      tags:
+        - "organization"
   /api/organization/{organizationId}:
     delete:
       operationId: "OrganizationController_deleteOrganization"
-      summary: "Delete an organization permanently — its cars and suppliers aren't deleted, they become personal again"
       parameters:
         - name: "organizationId"
           required: true
@@ -3392,14 +3391,14 @@ paths:
       responses:
         204:
           description: "Organization deleted"
-      tags:
-        - "organization"
       security:
         - bearer: []
+      summary: "Delete an organization permanently — its cars and suppliers aren't deleted, they become personal again"
+      tags:
+        - "organization"
   /api/car/{carId}/driver-assignment:
     get:
       operationId: "DriverAssignmentController_getCurrent"
-      summary: "Get a car's current driver, or null if unassigned"
       parameters:
         - name: "carId"
           required: true
@@ -3413,11 +3412,11 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DriverAssignmentDto"
+      summary: "Get a car's current driver, or null if unassigned"
       tags:
         - "driver-assignment"
     post:
       operationId: "DriverAssignmentController_assign"
-      summary: "Assign a driver to a car, closing any current assignment"
       parameters:
         - name: "carId"
           required: true
@@ -3437,11 +3436,11 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DriverAssignmentDto"
+      summary: "Assign a driver to a car, closing any current assignment"
       tags:
         - "driver-assignment"
     delete:
       operationId: "DriverAssignmentController_unassign"
-      summary: "End a car's current driver assignment"
       parameters:
         - name: "carId"
           required: true
@@ -3451,12 +3450,12 @@ paths:
       responses:
         200:
           description: ""
+      summary: "End a car's current driver assignment"
       tags:
         - "driver-assignment"
   /api/car/{carId}/driver-assignment/history:
     get:
       operationId: "DriverAssignmentController_getHistory"
-      summary: "Get a car's full driver assignment history, newest first"
       parameters:
         - name: "carId"
           required: true
@@ -3472,12 +3471,12 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/DriverAssignmentDto"
+      summary: "Get a car's full driver assignment history, newest first"
       tags:
         - "driver-assignment"
   /api/car/{carId}/driver-assignment/candidates:
     get:
       operationId: "DriverAssignmentController_getCandidates"
-      summary: "List every accepted member of the car's organization (any role) that can be assigned to the car"
       parameters:
         - name: "carId"
           required: true
@@ -3493,12 +3492,12 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/AssignableUserDto"
+      summary: "List every accepted member of the car's organization (any role) that can be assigned to the car"
       tags:
         - "driver-assignment"
   /api/organization/{organizationId}/cost-dashboard:
     get:
       operationId: "FleetCostController_getDashboard"
-      summary: "Fleet-wide maintenance cost totals, monthly trend, and per-car breakdown"
       parameters:
         - name: "organizationId"
           required: true
@@ -3518,26 +3517,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/FleetCostDashboardDto"
-      tags:
-        - "fleet-cost"
       security:
         - bearer: []
+      summary: "Fleet-wide maintenance cost totals, monthly trend, and per-car breakdown"
+      tags:
+        - "fleet-cost"
   /api/account/export:
     get:
       operationId: "AccountController_exportMyData"
-      summary: "Download all personal data held about the calling user (GDPR Art. 15/20)"
       parameters: []
       responses:
         200:
           description: "A JSON file download."
-      tags:
-        - "account"
       security:
         - bearer: []
+      summary: "Download all personal data held about the calling user (GDPR Art. 15/20)"
+      tags:
+        - "account"
   /api/account:
     delete:
       operationId: "AccountController_deleteMyAccount"
-      summary: "Permanently delete the calling user's account and personal data (GDPR Art. 17)"
       parameters: []
       requestBody:
         required: true
@@ -3554,22 +3553,23 @@ paths:
           description: "ACCOUNT_COMPANY_MANAGED"
         409:
           description: "ACCOUNT_OWNS_ORGANIZATION"
-      tags:
-        - "account"
       security:
         - bearer: []
+      summary: "Permanently delete the calling user's account and personal data (GDPR Art. 17)"
+      tags:
+        - "account"
   /api/ai-usage/me:
     get:
       operationId: "AiUsageController_me"
-      summary: "Current user's AI usage against daily/monthly budgets"
       parameters: []
       responses:
         200:
           description: ""
-      tags:
-        - "ai-usage"
       security:
         - cookie: []
+      summary: "Current user's AI usage against daily/monthly budgets"
+      tags:
+        - "ai-usage"
 info:
   title: "History Auto Utility API"
   description: "API documentation for History Auto Utility"
@@ -3642,6 +3642,7 @@ components:
           nullable: true
         owner:
           nullable: true
+          type: "object"
           allOf:
             - $ref: "#/components/schemas/ShareUserSearchResultDto"
       required:
@@ -3925,7 +3926,6 @@ components:
         - "dismissed"
     PlanItemKey:
       type: "string"
-      description: "Plan items this record resets"
       enum:
         - "ENGINE_OIL"
         - "AIR_FILTER"
@@ -3956,7 +3956,8 @@ components:
           description: "Which MaintenanceProfile this override belongs to"
         item:
           example: "ENGINE_OIL"
-          $ref: "#/components/schemas/PlanItemKey"
+          allOf:
+            - $ref: "#/components/schemas/PlanItemKey"
         tracked:
           type: "boolean"
           example: true
@@ -4102,7 +4103,8 @@ components:
         drivetrain:
           example: "FRONT"
           nullable: true
-          $ref: "#/components/schemas/DrivetrainType"
+          allOf:
+            - $ref: "#/components/schemas/DrivetrainType"
         engine_oil_viscosity:
           type: "string"
           example: "5W-30"
@@ -4247,7 +4249,8 @@ components:
         drivetrain:
           example: "FRONT"
           nullable: true
-          $ref: "#/components/schemas/DrivetrainType"
+          allOf:
+            - $ref: "#/components/schemas/DrivetrainType"
         engine_oil_viscosity:
           type: "string"
           example: "5W-30"
@@ -4524,6 +4527,7 @@ components:
           nullable: true
         plan_items:
           type: "array"
+          description: "Maintenance Plan items the invoice shows were done (empty when none)."
           items:
             $ref: "#/components/schemas/PlanItemKey"
         custom_items:
@@ -4780,6 +4784,7 @@ components:
           type: "array"
           example:
             - "ENGINE_OIL"
+          description: "Plan items this record resets"
           items:
             $ref: "#/components/schemas/PlanItemKey"
         custom_items:
@@ -4890,6 +4895,7 @@ components:
           example:
             - "ENGINE_OIL"
             - "AIR_FILTER"
+          description: "Plan items this record resets. On update, when provided it replaces the whole set; when omitted it is left unchanged. If service_category is not given, it is derived from these."
           items:
             $ref: "#/components/schemas/PlanItemKey"
         custom_items:
@@ -5665,6 +5671,7 @@ components:
       properties:
         identity:
           nullable: true
+          type: "object"
           allOf:
             - $ref: "#/components/schemas/ContractPartyDto"
         updated_at:
@@ -5883,10 +5890,12 @@ components:
           type: "string"
         seller:
           nullable: true
+          type: "object"
           allOf:
             - $ref: "#/components/schemas/ContractPartyDto"
         buyer:
           nullable: true
+          type: "object"
           allOf:
             - $ref: "#/components/schemas/ContractPartyDto"
         vehicle:
@@ -6955,6 +6964,7 @@ components:
           type: "boolean"
         request:
           nullable: true
+          type: "object"
           allOf:
             - $ref: "#/components/schemas/BusinessAccessRequestSummaryDto"
       required:
@@ -7020,6 +7030,7 @@ components:
           $ref: "#/components/schemas/BusinessAccessRequestUserDto"
         decided_by:
           nullable: true
+          type: "object"
           allOf:
             - $ref: "#/components/schemas/BusinessAccessRequestUserDto"
       required:
@@ -7267,6 +7278,7 @@ components:
           nullable: true
         currentDriver:
           nullable: true
+          type: "object"
           allOf:
             - $ref: "#/components/schemas/OrganizationCarDriverDto"
       required:

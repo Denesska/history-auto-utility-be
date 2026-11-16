@@ -18,9 +18,9 @@
  * falls back to .env, which points at the PROD database (hau_db).
  */
 
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from './prisma-client-factory';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 async function main(): Promise<void> {
   const orphanRows = await prisma.carMaintenanceSetting.findMany({

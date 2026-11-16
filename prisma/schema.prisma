@@ -1,8 +1,8 @@
 // prisma/schema.prisma
 
+// Connection URL is not set here in Prisma 7 — see prisma.config.ts (CLI/Migrate) and PrismaService (runtime, via @prisma/adapter-pg).
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 generator client {

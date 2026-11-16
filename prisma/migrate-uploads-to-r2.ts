@@ -11,10 +11,10 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs';
 import { S3Client, PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from './prisma-client-factory';
 
 const ENV_FILE = process.env.ENV_FILE ?? '.env';
-dotenv.config({ path: path.resolve(process.cwd(), ENV_FILE), override: true });
+dotenv.config({ path: path.resolve(process.cwd(), ENV_FILE), override: true, quiet: true });
 
 const UPLOADS_ROOT = path.resolve(__dirname, '..', 'uploads');
 const DB_URL = process.env.DATABASE_URL!;
@@ -83,7 +83,7 @@ async function uploadFile(localPath: string, r2Key: string): Promise<void> {
 }
 
 async function main() {
-  const prisma = new PrismaClient({ datasources: { db: { url: DB_URL } } });
+  const prisma = createPrismaClient(DB_URL);
 
   try {
     // ── CarPhoto ─────────────────────────────────────────────────────────────

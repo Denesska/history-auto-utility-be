@@ -36,7 +36,7 @@ function parseCsvBuffer(buffer: Buffer): Record<string, string>[] {
 /** Parses an uploaded XLSX/XLS file's first sheet into header-keyed row objects, using `exceljs` (actively maintained, unlike `xlsx`/SheetJS which has unpatched high-severity CVEs — see the import endpoint's doc comment). */
 async function parseExcelBuffer(buffer: Buffer): Promise<Record<string, string>[]> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer);
+  await workbook.xlsx.load(buffer as any); // exceljs typings predate generic Buffer<ArrayBufferLike>
   const sheet = workbook.worksheets[0];
   if (!sheet) return [];
 

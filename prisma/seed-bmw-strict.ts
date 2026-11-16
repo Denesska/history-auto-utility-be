@@ -7,11 +7,11 @@
  *   npx ts-node prisma/seed-bmw-strict.ts
  */
 
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from './prisma-client-factory';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 const SOURCE = 'bmw-strict';
 const DATA_FILE = path.join(__dirname, 'seed-data', 'bmw-models-strict.sql');

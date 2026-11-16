@@ -18,7 +18,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       scope: ['email', 'profile', 'openid'],
       accessType: 'offline',
       prompt: 'consent',
-    });
+    } as any); // accessType/prompt aren't in passport-google-oauth20's StrategyOptions typings
   }
 
   async validate(

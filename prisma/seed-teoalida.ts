@@ -34,11 +34,11 @@
  * existing rows.
  */
 
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from './prisma-client-factory';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 const SOURCE = 'teoalida';
 const DATA_FILE = path.join(__dirname, 'seed-data', 'teoalida-make-model.sql');

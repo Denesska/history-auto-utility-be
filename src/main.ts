@@ -11,10 +11,12 @@ import { Logger } from '@nestjs/common';
 import { join } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
 
-dotenv.config({ path: process.env.ENV_FILE ?? '.env', override: true });
+dotenv.config({ path: process.env.ENV_FILE ?? '.env', override: true, quiet: true });
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Express 5 defaults to the 'simple' query parser; keep the Express 4 'extended' (qs) behaviour.
+  app.set('query parser', 'extended');
   app.setGlobalPrefix('api');
   app.use(cookieParser());
   app.enableCors({

@@ -7,6 +7,7 @@ import { CarAccessService } from '../car-access/car-access.service';
 import { CarDto, CarPhotoDto } from './dto/car.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { isUniqueViolationOn } from '../../common/util/prisma-error.util';
 import { AddCarDto } from './dto/add-car.dto';
 import { ImportRowResultDto } from './dto/import-cars-result.dto';
 import { ImportRow } from './fleet-import.util';
@@ -265,7 +266,7 @@ export class CarService {
         return createdCar;
       }) as CarWithPhotos;
     } catch (e: any) {
-      if (e?.code === 'P2002' && e?.meta?.target?.includes('vin')) {
+      if (isUniqueViolationOn(e, 'vin')) {
         await this.notifyVinConflictIfNeeded(carData.vin, user.id);
         throw new ConflictException({ code: 'CAR_VIN_CONFLICT', message: 'A car with this VIN already exists' });
       }
@@ -436,7 +437,7 @@ export class CarService {
         include: { photos: true },
       }) as CarWithPhotos;
     } catch (e: any) {
-      if (e?.code === 'P2002' && e?.meta?.target?.includes('vin')) {
+      if (isUniqueViolationOn(e, 'vin')) {
         const targetCar = await this.prisma.car.findUnique({ where: { id }, select: { user_id: true } });
         if (targetCar) {
           await this.notifyVinConflictIfNeeded(updateData.vin as string | undefined, targetCar.user_id);

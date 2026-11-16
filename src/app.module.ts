@@ -107,7 +107,7 @@ import { AiUsageModule } from './modules/ai-usage/ai-usage.module';
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     // Makes the request (and thus its session context) reachable from services via AsyncLocalStorage.
-    consumer.apply(RequestContextMiddleware).forRoutes('*');
+    consumer.apply(RequestContextMiddleware).forRoutes('{*splat}');
   }
 }
 
